@@ -1,0 +1,56 @@
+[gd_scene load_steps=8 format=3]
+
+[ext_resource type="Script" path="res://scripts/player.gd" id="1_player"]
+
+[sub_resource type="CapsuleShape3D" id="CapsuleShape_1"]
+radius = 0.4
+height = 1.8
+
+[sub_resource type="CapsuleMesh" id="CapsuleMesh_1"]
+radius = 0.4
+height = 1.8
+
+[sub_resource type="StandardMaterial3D" id="MatBody"]
+albedo_color = Color(0.15, 0.45, 0.95, 1)
+
+[sub_resource type="SphereMesh" id="SphereHead"]
+radius = 0.28
+height = 0.56
+
+[sub_resource type="StandardMaterial3D" id="MatHead"]
+albedo_color = Color(0.95, 0.8, 0.6, 1)
+
+[sub_resource type="BoxMesh" id="BoxNose"]
+size = Vector3(0.16, 0.12, 0.2)
+
+[node name="Player" type="CharacterBody3D"]
+script = ExtResource("1_player")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.9, 0)
+shape = SubResource("CapsuleShape_1")
+
+[node name="BodyPivot" type="Node3D" parent="."]
+
+[node name="Body" type="MeshInstance3D" parent="BodyPivot"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.9, 0)
+material_override = SubResource("MatBody")
+mesh = SubResource("CapsuleMesh_1")
+
+[node name="Head" type="MeshInstance3D" parent="BodyPivot"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.95, 0)
+material_override = SubResource("MatHead")
+mesh = SubResource("SphereHead")
+
+[node name="Nose" type="MeshInstance3D" parent="BodyPivot"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.95, 0.32)
+mesh = SubResource("BoxNose")
+
+[node name="CameraRig" type="Node3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.6, 0)
+
+[node name="SpringArm3D" type="SpringArm3D" parent="CameraRig"]
+spring_length = 4.5
+margin = 0.3
+
+[node name="Camera3D" type="Camera3D" parent="CameraRig/SpringArm3D"]
