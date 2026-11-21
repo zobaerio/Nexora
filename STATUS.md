@@ -1,17 +1,17 @@
 # NEXORA — Development Status
 
 **Continuous development:** RUNNING — Queues 1 + 2 (A–O) complete + merged; Queue 3 (P–T) ordered by the owner 2026-11-21 07:34 ("Continue"). Note: PR #4 was a duplicate of PR #3 created by a late scheduled run; closed 2026-11-21, no content difference.
-**Repo:** https://github.com/zobaerio/Nexora · main after PR #6: `2154c7f9` (STATUS finalised `616e7bba`)
+**Repo:** https://github.com/zobaerio/Nexora · main after PR #7: `8512b1dc`
 
 ## Queue 3 (ordered 2026-11-21)
 
 | Unit | State | PR |
 |---|---|---|
-| P — Vehicles & Traffic Design | ✅ Complete locally (4be7b07) — GDD-07 + vehicles.json, price refs validated | batch PR pending |
-| Q — Construction System Design | ✅ Complete locally (844e8ce) — GDD-08, BOQ 86,700 sum-verified vs prices.json | batch PR pending |
-| R — District 1 Blockout Spec + Data | ✅ Complete locally (133661e) — TECH doc + blockout JSON, 42 plots 1:1 with buildings | batch PR pending |
-| S — Multiplayer Architecture Design | Queued | — |
-| T — Economy Balance Simulator | Queued | — |
+| P — Vehicles & Traffic Design | ✅ Merged + blob-verified on main (vehicles.json `4d39a575`) | #7 |
+| Q — Construction System Design | ✅ Merged + blob-verified on main (GDD-08 `4ec17461`) | #7 |
+| R — District 1 Blockout Spec + Data | ✅ Merged + blob-verified on main (blockout `402431fc`) | #7 |
+| S — Multiplayer Architecture Design | ✅ Complete locally (13d832a) — TECH-MULTIPLAYER, authority mapped to all 18 cited schema tables | batch PR pending |
+| T — Economy Balance Simulator | ✅ Complete locally (fb24ee6) — sim run on merged data: 1 SURVIVAL FAIL (taxi rental at entry), 9 IMPLAUSIBLY FAST senior rows; findings reported, data unchanged | batch PR pending |
 
 ## Queue 2 (ordered 2026-11-21)
 
