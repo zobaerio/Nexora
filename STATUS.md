@@ -1,7 +1,7 @@
 # NEXORA — Development Status
 
-**Continuous development:** RUNNING — Queues 1 + 2 (A–O) complete + merged; Queue 3 (P–T) ordered by the owner 2026-11-21 07:34 ("Continue"). Note: PR #4 was a duplicate of PR #3 created by a late scheduled run; closed 2026-11-21, no content difference.
-**Repo:** https://github.com/zobaerio/Nexora · main after PR #7: `8512b1dc`
+**Continuous development:** Queue 3 (P–T) COMPLETE + merged 2026-11-21 (PRs #7, #8). Queues 1–3 = Units A–T all on GitHub main. Note: PR #4 was a duplicate of PR #3 created by a late scheduled run; closed 2026-11-21, no content difference.
+**Repo:** https://github.com/zobaerio/Nexora · main after PR #8: `bc195468`
 
 ## Queue 3 (ordered 2026-11-21)
 
@@ -10,8 +10,15 @@
 | P — Vehicles & Traffic Design | ✅ Merged + blob-verified on main (vehicles.json `4d39a575`) | #7 |
 | Q — Construction System Design | ✅ Merged + blob-verified on main (GDD-08 `4ec17461`) | #7 |
 | R — District 1 Blockout Spec + Data | ✅ Merged + blob-verified on main (blockout `402431fc`) | #7 |
-| S — Multiplayer Architecture Design | ✅ Complete locally (13d832a) — TECH-MULTIPLAYER, authority mapped to all 18 cited schema tables | batch PR pending |
-| T — Economy Balance Simulator | ✅ Complete locally (fb24ee6) — sim run on merged data: 1 SURVIVAL FAIL (taxi rental at entry), 9 IMPLAUSIBLY FAST senior rows; findings reported, data unchanged | batch PR pending |
+| S — Multiplayer Architecture Design | ✅ Merged + blob-verified on main (TECH-MULTIPLAYER `33f3a76f`) | #8 |
+| T — Economy Balance Simulator | ✅ Merged + blob-verified on main (sim `b5c01ef2`, report `32330f38`) — findings reported, data unchanged | #8 |
+
+## Queue 3 completion summary (2026-11-21)
+
+- **Queue 3 (P–T) is COMPLETE and fully merged:** PR #7 (P+Q+R, main `8512b1dc`) + PR #8 (S+T, main `bc195468`). Every unit's key files were read back on `refs/heads/main` and blob-matched to the locally validated tree.
+- **What Queue 3 added:** vehicles & traffic design + 9-class vehicle data (prices single-sourced in prices.json); the flagship construction system in buildable detail (5 stages, BOQ worked example sum-verified at 86,700 NCr materials, milestone payments reconciled to the ledger); a street-by-street District 1 blockout (21 segments, 42 plots 1:1 with the buildings data, Phase 1 400 m subset marked); the Phase 9 multiplayer architecture (dedicated-server decision, authority mapped onto schema.sql); and a runnable economy simulator whose first run found one real balance problem (taxi cab rental at entry tier) plus structural notes — all reported in `docs/ECONOMY-SIM-REPORT.md`, with **no data silently changed**.
+- **Open follow-ups the owner may order as a Queue 4:** taxi rental fix (sim Finding 1), senior-cost scaling decision (Finding 2), per-profession starting balances (Finding 3), simulator v2 (Finding 6).
+- **Next honest milestone (unchanged):** Phase 1 on the owner's PC — install UE 5.8.x, open `ue-project/Nexora.uproject`, build the 400 m test scene from the Unit R subset (docs/PHASE1-BUILD-SHEET.md + data/district1-blockout.json). Owner still owes Step 0: PC specs (GPU/RAM/SSD). No further units exist until the owner orders a Queue 4.
 
 ## Queue 2 (ordered 2026-11-21)
 
