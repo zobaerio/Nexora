@@ -1,0 +1,130 @@
+{
+  "notes": "Planet data cards (owner spec §7 + master plan Phase 10). Fields match the owner's example card: Gravity, Temperature, Atmosphere, Surface Type, Resources, Exploration Status. gravity_ms2 and temperature ranges are SIMULATION INPUTS (jump physics, weather, suit requirements), not display text (master plan Part C #16). landing_allowed / base_building mark Phase 10 scope honestly: planets start as exploration sites reached by transition sequences, never seamless ground-to-orbit flight.",
+  "planets": [
+    {
+      "atmosphere": "Nitrogen-oxygen, breathable",
+      "base_building": true,
+      "description": "The home world: Rupsha City and Nexora Central. All Phases 1-9 content lives here.",
+      "exploration_status": "home_world",
+      "gravity_ms2": 9.8,
+      "id": "nexora_prime",
+      "landing_allowed": true,
+      "moons": [
+        "Nexora Prime Moon (see separate card)"
+      ],
+      "name": "Nexora Prime",
+      "resources": [
+        "water",
+        "arable_land",
+        "timber",
+        "river_clay",
+        "sand",
+        "limestone"
+      ],
+      "ring_system": false,
+      "surface_type": "Continents, oceans, rivers, forests, mountains",
+      "temperature_c": {
+        "max": 42,
+        "mean": 21,
+        "min": -15
+      }
+    },
+    {
+      "atmosphere": "Thin CO2, unbreathable — suit required",
+      "base_building": true,
+      "description": "The red desert world of the owner's spec: first off-world landing target in Phase 10, with a small research base as the v1 buildable.",
+      "exploration_status": "unexplored",
+      "gravity_ms2": 3.9,
+      "id": "nexora_7",
+      "landing_allowed": true,
+      "name": "Nexora-7",
+      "resources": [
+        "iron_oxide_regolith",
+        "silicates",
+        "subsurface_ice",
+        "basalt"
+      ],
+      "ring_system": false,
+      "surface_type": "Red desert, rock fields, canyon systems, polar ice caps",
+      "temperature_c": {
+        "max": 20,
+        "mean": -32,
+        "min": -73
+      }
+    },
+    {
+      "atmosphere": "None (airless moon)",
+      "base_building": true,
+      "description": "Airless moon of the ringed giant: low-gravity base site and the Phase 10 space-station counterpart on a surface. Orbital views of the rings are its signature sight.",
+      "exploration_status": "unexplored",
+      "gravity_ms2": 1.1,
+      "id": "nexora_9_moon_kallisto",
+      "landing_allowed": true,
+      "name": "Kallisto (moon of Nexora-9)",
+      "parent_planet": "nexora_9",
+      "resources": [
+        "regolith",
+        "helium_3_traces",
+        "water_ice_shadowed_craters"
+      ],
+      "ring_system": false,
+      "surface_type": "Cratered rock and dust plains, shadowed polar craters",
+      "temperature_c": {
+        "max": 110,
+        "mean": -40,
+        "min": -160
+      }
+    },
+    {
+      "atmosphere": "Hydrogen-helium, crushing pressure — NO surface landing",
+      "base_building": false,
+      "description": "The ringed giant of the owner's spec. Not landable — ever, by physics. Explored via its moon (Kallisto) and orbital station views; the planet card exists because players will click it in the universe map and deserve a true answer.",
+      "exploration_status": "orbit_only",
+      "gravity_ms2": 24.8,
+      "gravity_note": "Cloud-top reference gravity; there is no solid surface to stand on.",
+      "id": "nexora_9",
+      "landing_allowed": false,
+      "name": "Nexora-9",
+      "resources": [
+        "atmospheric_hydrogen_scoop_theoretical"
+      ],
+      "ring_system": true,
+      "surface_type": "Gas giant — banded clouds, no solid surface",
+      "temperature_c": {
+        "max": -110,
+        "mean": -128,
+        "min": -145
+      }
+    },
+    {
+      "atmosphere": "Trace exosphere",
+      "base_building": false,
+      "description": "Earth-like system's moon analogue for Prime: destination of the first crewed flight milestone inside Phase 10's station content; surface visits are a later expansion, so v1 is orbit + info card only.",
+      "exploration_status": "surveyed",
+      "gravity_ms2": 1.6,
+      "id": "prime_moon",
+      "landing_allowed": false,
+      "landing_note": "Orbit only in Phase 10 v1; surface landing is a post-Phase-10 expansion decision.",
+      "name": "Prime Moon",
+      "parent_planet": "nexora_prime",
+      "resources": [
+        "regolith",
+        "water_ice_polar"
+      ],
+      "ring_system": false,
+      "surface_type": "Cratered highlands and dark basalt plains",
+      "temperature_c": {
+        "max": 120,
+        "mean": -20,
+        "min": -130
+      }
+    }
+  ],
+  "star": {
+    "description": "The system sun (owner spec §7): drives day-night on Prime and the universe-map view with orbital animation + time-speed controls.",
+    "id": "nexora_star",
+    "name": "Nexora (star)",
+    "type": "G-type main-sequence"
+  },
+  "version": "1.0"
+}
