@@ -21,6 +21,7 @@ from . import emotions as emotions_mod
 from . import memory as memory_mod
 from . import personality as personality_mod
 from . import relationships as rel
+from . import social as social_mod
 
 INTERACTION_ACTIVITIES = ("leisure", "break", "errand")
 
@@ -62,10 +63,14 @@ def interact_pair(store, rng, a, b, context, game_minutes):
                 memory_mod.log_life_event(store, x, "new_friend",
                                           game_minutes,
                                           other_character_id=y)
+            social_mod.record_interaction(store, a, b, context,
+                                          "befriended", game_minutes)
             return "befriended"
         emotions_mod.apply_event(store, a, "friendship_deepened")
         emotions_mod.apply_event(store, b, "friendship_deepened")
         _maybe_partnership(store, a, b, game_minutes)
+        social_mod.record_interaction(store, a, b, context, "bonded",
+                                      game_minutes)
         return "bonded"
     if score <= 22 and (pa["patience"] < 40 or pb["patience"] < 40):
         if edge_type:
@@ -75,10 +80,14 @@ def interact_pair(store, rng, a, b, context, game_minutes):
             emotions_mod.apply_event(store, x, "conflict")
             memory_mod.record_memory(store, x, "conflict", -25,
                                      game_minutes, other_character_id=y)
+        social_mod.record_interaction(store, a, b, context, "conflict",
+                                      game_minutes)
         return "conflict"
     if edge_type:
         rel.adjust_scores(store, a, b, game_minutes, affection=1,
                           relation_type=edge_type)
+    social_mod.record_interaction(store, a, b, context, "neutral",
+                                  game_minutes)
     return "neutral"
 
 
@@ -153,4 +162,6 @@ def household_time(store, household_id, game_minutes):
                 if rel.get_edge(store, a, b, t):
                     rel.adjust_scores(store, a, b, game_minutes,
                                       affection=1, relation_type=t)
+                    social_mod.record_interaction(
+                        store, a, b, "home", "family_time", game_minutes)
                     break

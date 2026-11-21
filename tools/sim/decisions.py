@@ -106,10 +106,16 @@ def _cand_seek_employment(ctx):
     u = 0.45 + fin_def / 100 * 0.4 + ctx["profile"]["ambition"] * 0.0015
 
     def run():
+        from . import education as education_mod
         store, data, cid = ctx["store"], ctx["data"], ctx["cid"]
         best, best_score = None, -1
         for pid, prof in data.professions.items():
             if pid in ("shop_owner", "business_owner"):
+                continue
+            # Session 02 Unit 08: credential-gated professions
+            # (GDD-11 §5) require the completed college credential.
+            if pid in education_mod.GATED_PROGRAMMES \
+                    and not education_mod.has_credential(store, cid, pid):
                 continue
             score = sum(skill_level(store, cid, s)
                         for s in prof["primary_skills"])
@@ -407,16 +413,125 @@ def _cand_rest(ctx):
     return u, run
 
 
+def _cand_leave_home(ctx):
+    """Session 02 Unit 02: a young adult living with a parent forms
+    their own household — if the finite stock has a vacancy they can
+    afford. Independence is personality-driven (extraversion,
+    ambition) and crowding-driven."""
+    from . import households as hh_mod
+    if ctx["age"] < 18 or ctx["age"] > 29:
+        return None
+    hh = _household_ctx(ctx)
+    if not hh or hh["role"] == "head" or not hh["tenancy"]:
+        return None
+    store = ctx["store"]
+    parents_here = [p for p in rel.parents_of(store, ctx["cid"])
+                    if store.row("SELECT 1 FROM household_members"
+                                 " WHERE household_id = ?"
+                                 " AND character_id = ?"
+                                 " AND left_at_game_minutes IS NULL",
+                                 (hh["hid"], p))]
+    if not parents_here:
+        return None
+    options = hh_mod.vacant_units(store, ctx["data"])
+    if not options:
+        return None
+    cheapest = options[0]["rent"]
+    wage = ctx["employment"]["wage_per_month"] if ctx["employment"] else 0
+    if wage and cheapest > wage * 0.5:
+        return None
+    members = store.row("SELECT COUNT(*) AS n FROM household_members"
+                        " WHERE household_id = ?"
+                        " AND left_at_game_minutes IS NULL",
+                        (hh["hid"],))["n"]
+    u = 0.25 + ctx["profile"]["extraversion"] / 400 \
+        + ctx["profile"]["ambition"] / 400 \
+        + (0.1 if members >= 5 else 0)
+
+    def run():
+        new_hid = hh_mod.leave_home(store, ctx["data"], ctx["cid"],
+                                    ctx["game_minutes"])
+        return {"new_household": new_hid}
+    return u, run
+
+
+def _cand_relocate(ctx):
+    """Session 02 Units 02/11: the head moves the household to a
+    cheaper vacant unit when rent burden is high. Rents resolve
+    from the canonical buildings data (households.rent_of_property);
+    where the data cannot price a unit, this candidate does not
+    exist — the Session 01 move-house gap closes only where the
+    data honestly supports it."""
+    from . import households as hh_mod
+    hh = _household_ctx(ctx)
+    if not hh or hh["role"] != "head" or not hh["tenancy"]:
+        return None
+    rent = hh["tenancy"]["rent_per_month"]
+    income = hh["income"]
+    if not income or rent / income <= 0.45:
+        return None
+    cheaper = [o for o in hh_mod.vacant_units(ctx["store"], ctx["data"])
+               if o["rent"] < rent * 0.85]
+    if not cheaper:
+        return None
+    since = _days_since_decision(ctx["store"], ctx["cid"], "relocate",
+                                 ctx["game_minutes"])
+    if since is not None and since < 60:
+        return None
+    u = 0.3 + (rent / income - 0.45)
+
+    def run():
+        target = cheaper[0]
+        new_rent = hh_mod.move_household(
+            ctx["store"], ctx["data"], hh["hid"],
+            target["property"]["property_id"], ctx["game_minutes"])
+        return {"new_rent": new_rent, "old_rent": rent}
+    return u, run
+
+
+def _cand_enrol_college(ctx):
+    """Session 02 Unit 08: a young adult enrols in a college
+    programme (GDD-11 §5) — the road to the credential-gated
+    professions. Chosen by ambition and felt education deficit;
+    the programme by intelligence and existing skill affinity."""
+    from . import education as education_mod
+    if ctx["employment"] or ctx["age"] < 18 or ctx["age"] > 29:
+        return None
+    store = ctx["store"]
+    if education_mod.college_enrolment(store, ctx["cid"]):
+        return None
+    edu_def = 100 - ctx["needs"]["education"]
+    u = 0.3 + ctx["profile"]["ambition"] / 300 + edu_def / 300
+
+    def run():
+        best, best_score = None, -1
+        for pid, skill in education_mod.GATED_PROGRAMMES.items():
+            if education_mod.has_credential(store, ctx["cid"], pid):
+                continue
+            score = skill_level(store, ctx["cid"], skill) \
+                + ctx["profile"]["intelligence"] * 0.2
+            if score > best_score:
+                best, best_score = pid, score
+        if best is None:
+            return {"enrolled": None}
+        education_mod.enrol_college(store, ctx["data"], ctx["cid"],
+                                    best, ctx["game_minutes"])
+        emotions_mod.apply_event(store, ctx["cid"], "study_gain")
+        return {"enrolled": best}
+    return u, run
+
+
 CANDIDATES = (_cand_seek_employment, _cand_promotion, _cand_train,
               _cand_start_business, _cand_buy_home, _cand_marry,
-              _cand_have_child, _cand_socialise, _cand_rest)
-# NOTE: a move-house decision is deliberately absent in v1: the
-# properties table carries no rent column for vacant units (rents live
-# in tenancies + building data), so a cheaper-unit search cannot be
-# priced honestly from world state alone. Rather than fake it, moving
-# house ships when the property model gains a rent column (schema gap
-# recorded in the Session 01 report). Buy-home IS registered: the
-# current unit's price is on its property row (market_value).
+              _cand_have_child, _cand_socialise, _cand_rest,
+              _cand_leave_home, _cand_relocate, _cand_enrol_college)
+# NOTE (Session 01): a move-house decision was absent in v1 because
+# the properties table carries no rent column for vacant units.
+# Session 02 closes that gap honestly: rents for vacant units
+# resolve from the canonical buildings data via the property row's
+# building_ref + unit_index (households.rent_of_property) — the same
+# join that created the stock. Units the data cannot price are
+# never offered. Buy-home remains registered from v1.
 
 
 def decide(store, data, rng, char, day_index, game_minutes, used_names):

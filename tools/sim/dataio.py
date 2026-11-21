@@ -44,6 +44,12 @@ class WorldData:
         self.prices = _load_json("prices.json")
         self.weather = _load_json("weather-presets.json")
         self.weather_presets = {p["id"]: p for p in self.weather["presets"]}
+        # Session 02 Unit 07: culture is configuration, loaded like
+        # every other data file — never hardcoded in engine code.
+        self.culture_file = _load_json("culture-profiles.json")
+        self.culture_profiles = {p["id"]: p
+                                 for p in self.culture_file["profiles"]}
+        self.default_culture = self.culture_file["default_profile"]
         self.econ = _load_economy_sim()
 
     # -- canonical accessors -------------------------------------------------

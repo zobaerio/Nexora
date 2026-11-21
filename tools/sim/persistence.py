@@ -19,6 +19,12 @@ Session 01):
 - agent_state — current activity/anchor per agent (runtime state).
 - instantiated_schedules — per-agent per-day schedule blocks.
 - daily_weather — the deterministic daily weather record.
+- Session 02 additions (bottom of SCHEMA): relationship_history,
+  social_profiles, household_finances, household_state, communities,
+  community_members, household_culture, education_records,
+  social_events, conflict_records, status_history,
+  generational_history — all additive CREATE TABLE IF NOT EXISTS;
+  schema.sql gaps they imply are listed in docs/SESSION-02-REPORT.md.
 - characters.is_system — marks system accounts (city/employers/market)
   that schema.sql represents as reserved character rows.
 - characters.first_name / last_name / birthplace / nationality /
@@ -262,6 +268,136 @@ CREATE TABLE IF NOT EXISTS daily_weather (
     day_index INTEGER PRIMARY KEY,
     preset_id TEXT NOT NULL
 );
+-- SESSION 02 tables (additive only; see SESSION-02-REPORT.md) ------------
+-- relationship_history: formation/status history for relationship
+-- rows. schema.sql's relationships table has created_at but no
+-- history; recorded here as a schema gap.
+CREATE TABLE IF NOT EXISTS relationship_history (
+    history_id TEXT PRIMARY KEY,
+    relationship_id TEXT,
+    from_character_id TEXT NOT NULL,
+    to_character_id TEXT NOT NULL,
+    relation_type TEXT NOT NULL,
+    event TEXT NOT NULL,
+    details TEXT NOT NULL DEFAULT '{}',
+    game_minutes INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_relhist_pair
+    ON relationship_history(from_character_id, to_character_id);
+-- social_profiles: per-relationship social dynamics (familiarity,
+-- conflict level, interaction count) keyed to a relationships row.
+-- schema.sql has no equivalent; recorded as a gap.
+CREATE TABLE IF NOT EXISTS social_profiles (
+    relationship_id TEXT PRIMARY KEY,
+    familiarity INTEGER NOT NULL DEFAULT 0,
+    conflict INTEGER NOT NULL DEFAULT 0,
+    interaction_count INTEGER NOT NULL DEFAULT 0,
+    last_event TEXT,
+    updated_at_game_minutes INTEGER NOT NULL DEFAULT 0
+);
+-- household_finances: one row per household per settled month —
+-- the Family Economy Engine's record (Unit 03). schema.sql has no
+-- household finance table; recorded as a gap.
+CREATE TABLE IF NOT EXISTS household_finances (
+    finance_id TEXT PRIMARY KEY,
+    household_id TEXT NOT NULL,
+    month_index INTEGER NOT NULL,
+    income_ncr INTEGER NOT NULL DEFAULT 0,
+    food_ncr INTEGER NOT NULL DEFAULT 0,
+    housing_ncr INTEGER NOT NULL DEFAULT 0,
+    education_ncr INTEGER NOT NULL DEFAULT 0,
+    healthcare_ncr INTEGER NOT NULL DEFAULT 0,
+    transport_ncr INTEGER NOT NULL DEFAULT 0,
+    other_ncr INTEGER NOT NULL DEFAULT 0,
+    emergency_ncr INTEGER NOT NULL DEFAULT 0,
+    savings_delta_ncr INTEGER NOT NULL DEFAULT 0,
+    debt_after_ncr INTEGER NOT NULL DEFAULT 0,
+    game_minutes INTEGER NOT NULL,
+    UNIQUE (household_id, month_index)
+);
+CREATE TABLE IF NOT EXISTS household_state (
+    household_id TEXT PRIMARY KEY,
+    debt_ncr INTEGER NOT NULL DEFAULT 0,
+    last_balance_total INTEGER,
+    updated_at_game_minutes INTEGER NOT NULL DEFAULT 0
+);
+-- communities / community_members: schema.sql has no community
+-- tables (districts only); recorded as a gap.
+CREATE TABLE IF NOT EXISTS communities (
+    community_id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    leader_character_id TEXT,
+    population INTEGER NOT NULL DEFAULT 0,
+    participation_rate REAL NOT NULL DEFAULT 0,
+    issues TEXT NOT NULL DEFAULT '[]',
+    updated_at_game_minutes INTEGER NOT NULL DEFAULT 0
+);
+CREATE TABLE IF NOT EXISTS community_members (
+    community_id TEXT NOT NULL,
+    character_id TEXT NOT NULL,
+    joined_at_game_minutes INTEGER NOT NULL DEFAULT 0,
+    left_at_game_minutes INTEGER,
+    PRIMARY KEY (community_id, character_id)
+);
+CREATE TABLE IF NOT EXISTS household_culture (
+    household_id TEXT PRIMARY KEY,
+    profile_id TEXT NOT NULL,
+    assigned_at_game_minutes INTEGER NOT NULL DEFAULT 0
+);
+-- education_records: enrolment/credential facts (GDD-11). schema.sql
+-- carries skills + goals but no enrolment record; recorded as a gap.
+CREATE TABLE IF NOT EXISTS education_records (
+    record_id TEXT PRIMARY KEY,
+    character_id TEXT NOT NULL,
+    institution_id TEXT NOT NULL,
+    programme TEXT,
+    status TEXT NOT NULL DEFAULT 'enrolled',
+    attendance_rate REAL NOT NULL DEFAULT 0,
+    performance INTEGER NOT NULL DEFAULT 0,
+    parent_involvement INTEGER NOT NULL DEFAULT 0,
+    started_at_game_minutes INTEGER NOT NULL DEFAULT 0,
+    completed_at_game_minutes INTEGER,
+    UNIQUE (character_id, institution_id, programme)
+);
+CREATE TABLE IF NOT EXISTS social_events (
+    event_id TEXT PRIMARY KEY,
+    event_type TEXT NOT NULL,
+    zone_id TEXT,
+    location_label TEXT,
+    participant_ids TEXT NOT NULL DEFAULT '[]',
+    outcome TEXT NOT NULL DEFAULT '{}',
+    game_minutes INTEGER NOT NULL
+);
+CREATE TABLE IF NOT EXISTS conflict_records (
+    conflict_id TEXT PRIMARY KEY,
+    a_character_id TEXT NOT NULL,
+    b_character_id TEXT NOT NULL,
+    cause TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'open',
+    mediator_character_id TEXT,
+    resolution TEXT,
+    opened_at_game_minutes INTEGER NOT NULL,
+    closed_at_game_minutes INTEGER
+);
+CREATE TABLE IF NOT EXISTS status_history (
+    history_id TEXT PRIMARY KEY,
+    character_id TEXT NOT NULL,
+    dimension TEXT NOT NULL,
+    from_value TEXT,
+    to_value TEXT,
+    game_minutes INTEGER NOT NULL
+);
+CREATE TABLE IF NOT EXISTS generational_history (
+    history_id TEXT PRIMARY KEY,
+    character_id TEXT NOT NULL,
+    event_type TEXT NOT NULL,
+    related_character_id TEXT,
+    generation INTEGER,
+    details TEXT NOT NULL DEFAULT '{}',
+    game_minutes INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_genhist_character
+    ON generational_history(character_id);
 """
 
 SYSTEM_ACCOUNTS = ("SYS-CITY", "SYS-EMPLOYERS", "SYS-MARKET")
