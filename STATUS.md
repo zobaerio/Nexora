@@ -1,7 +1,17 @@
 # NEXORA — Development Status
 
-**Continuous development:** ✅ QUEUES 1 + 2 COMPLETE — Units A–O all merged to GitHub (Queue 2 finished 2026-11-21 on the owner's second "Continue"; scheduled runs stand down — no units remain). Note: PR #4 was a duplicate of PR #3 created by a late scheduled run; closed 2026-11-21, no content difference.
-**Repo:** https://github.com/zobaerio/Nexora · main after PR #6: `2154c7f9`
+**Continuous development:** RUNNING — Queues 1 + 2 (A–O) complete + merged; Queue 3 (P–T) ordered by the owner 2026-11-21 07:34 ("Continue"). Note: PR #4 was a duplicate of PR #3 created by a late scheduled run; closed 2026-11-21, no content difference.
+**Repo:** https://github.com/zobaerio/Nexora · main after PR #6: `2154c7f9` (STATUS finalised `616e7bba`)
+
+## Queue 3 (ordered 2026-11-21)
+
+| Unit | State | PR |
+|---|---|---|
+| P — Vehicles & Traffic Design | ✅ Complete locally (4be7b07) — GDD-07 + vehicles.json, price refs validated | batch PR pending |
+| Q — Construction System Design | ✅ Complete locally (844e8ce) — GDD-08, BOQ 86,700 sum-verified vs prices.json | batch PR pending |
+| R — District 1 Blockout Spec + Data | ✅ Complete locally (133661e) — TECH doc + blockout JSON, 42 plots 1:1 with buildings | batch PR pending |
+| S — Multiplayer Architecture Design | Queued | — |
+| T — Economy Balance Simulator | Queued | — |
 
 ## Queue 2 (ordered 2026-11-21)
 

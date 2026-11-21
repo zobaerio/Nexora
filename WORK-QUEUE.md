@@ -45,6 +45,20 @@ Same scope limits, honesty rules and GitHub batching rule as Queue 1. All UE C++
 - [x] **Unit N — UI & Panels Design** (`docs/GDD-05-UI-AND-PANELS.md`): HUD layout, character profile screen (owner's example card), Environment Control Panel (time/weather controls from the owner's spec), main menu + pause flow, settings; wireframe descriptions + widget class list for UMG implementation later.
 - [x] **Unit O — NPC Behaviour Design** (`docs/GDD-06-NPC-BEHAVIOUR.md`): per-profession daily-life state machines tied to npc-schedules.json, crowd tiers (full character vs Mass representation) consistent with the Phase 2 sheet, conversation + memory hooks tied to GDD-01's two-kind memory model, honesty notes on what Mass AI can/cannot do at this scale.
 
+**Queue 2 result:** Units K–O completed and merged 2026-11-21 (PRs #5, #6; main `2154c7f9`, STATUS finalised `616e7bba`).
+
+---
+
+# Queue 3 — ordered by the owner ("Continue", 2026-11-21 07:34)
+
+Same scope limits, honesty rules and GitHub batching rule as Queues 1–2. UE C++ remains UNCOMPILED SCAFFOLD until compiled on the owner's PC.
+
+- [x] **Unit P — Vehicles & Traffic Design** (`docs/GDD-07-VEHICLES-AND-TRAFFIC.md` + `data/vehicles.json`): vehicle classes from GDD-02's road hierarchy (rickshaw, CNG auto-rickshaw, private car, taxi, bus, truck, motorbike) with speed/capacity/fuel/price fields tied to prices.json; drivable-car design (enter/exit, camera, damage-lite rules), traffic flow model per road class, parking + taxi fare loop hookup to GDD-06's taxi work sub-state. vehicles.json must parse; price refs must resolve to prices.json.
+- [x] **Unit Q — Construction System Design (flagship)** (`docs/GDD-08-CONSTRUCTION-SYSTEM.md`): the Civil Engineer flagship loop in buildable detail — staged construction states (foundation → frame → walls → roof → finishing), materials consumption drawn from prices.json items, crew roles + schedule hookup to GDD-06, site safety/quality checks, payment milestones tied to the economy ledger (GDD-03), and how a finished site becomes a buildings-district1.json property. Every material/price reference must resolve to merged data.
+- [x] **Unit R — District 1 Blockout Spec + Data** (`docs/TECH-DISTRICT1-BLOCKOUT.md` + `data/district1-blockout.json`): street-by-street blockout the owner can build from on PC — road segments (id, class, endpoints, width), plot grid per zone with building ids matching buildings-district1.json, landmark placements from GDD-02, river + bridge geometry notes, Phase 1 400 m test-scene subset marked explicitly. JSON must parse; building ids must resolve 1:1 with buildings-district1.json.
+- [ ] **Unit S — Multiplayer Architecture Design** (`docs/TECH-MULTIPLAYER.md`): Phase 9 prep, design only — listen-server vs dedicated-server decision with reasoning, what replicates (player characters, Full-tier NPCs) vs what never replicates (Ambient crowd = local simulation), server authority mapping onto schema.sql (ledger, properties, tenancies), session/friend model from account_friendships, honest scale limits (UE replication is not MMO) and the test plan for the owner's PC/LAN.
+- [ ] **Unit T — Economy Balance Simulator** (`tools/economy_sim.py` + `docs/ECONOMY-SIM-REPORT.md`): a runnable Python simulation over the merged data (professions.json wages, prices.json, buildings rents) — 30 game-days per profession: income, rent, food, transport, savings trajectory; flags any profession that cannot survive on its wage band or that accumulates implausibly fast; the report records the actual run output and any balance problems found (problems are reported, not silently fixed — data changes need their own follow-up unit).
+
 ## Status
 
 See `STATUS.md` (updated every unit).
