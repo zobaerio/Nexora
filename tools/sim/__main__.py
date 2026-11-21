@@ -36,9 +36,36 @@ def main(argv=None):
                          " facilities")
     ap.add_argument("--society", action="store_true",
                     help="society overview: all communities + counts")
+    # Session 03 city observation: real sim data only.
+    ap.add_argument("--city", metavar="CITY_ID",
+                    help="full city state export (the UE data layer)")
+    ap.add_argument("--city-map", metavar="CITY_ID",
+                    help="map-mode overview rendered from real"
+                         " coordinates")
+    ap.add_argument("--analytics", metavar="CITY_ID",
+                    help="live city analytics")
     args = ap.parse_args(argv)
 
     sim = Simulation(args.db, seed=args.seed)
+    if args.city or args.city_map or args.analytics:
+        from tools.sim import analytics as analytics_mod
+        from tools.sim import cityview
+        if args.city:
+            out = cityview.export_city_state(sim.store, sim.data,
+                                             args.city)
+            print(json.dumps(out, indent=1, sort_keys=True,
+                             default=str))
+        elif args.city_map:
+            lines = cityview.ascii_map(sim.store, sim.data,
+                                       args.city_map)
+            print("\n".join(lines) if lines else "unknown city")
+        else:
+            out = analytics_mod.city_analytics(sim.store, sim.data,
+                                               args.analytics)
+            print(json.dumps(out, indent=1, sort_keys=True,
+                             default=str))
+        sim.close()
+        return 0
     if args.inspect or args.household or args.community or args.society:
         from tools.sim import observation
         if args.inspect:

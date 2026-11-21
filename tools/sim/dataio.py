@@ -50,6 +50,11 @@ class WorldData:
         self.culture_profiles = {p["id"]: p
                                  for p in self.culture_file["profiles"]}
         self.default_culture = self.culture_file["default_profile"]
+        # Session 03: the District 1 blockout (plots/roads/junctions/
+        # river geometry) and the GENERATED second city (citygen.py
+        # output — labelled generated in the file itself).
+        self.blockout = _load_json("district1-blockout.json")
+        self.city2_file = _load_json("city2-shibnagar.json")
         self.econ = _load_economy_sim()
 
     # -- canonical accessors -------------------------------------------------
@@ -108,3 +113,93 @@ class WorldData:
         return [b for b in self.buildings
                 if b["property_type"] not in ("apartment", "house")
                 and "part_of" not in b]
+
+    # -- Session 03: the two cities, one spec shape ---------------------
+    def city_specs(self):
+        """Both cities in one unified spec shape, so every urban
+        system consumes authored and generated cities identically.
+        Rupsha City's spec is assembled from the authored files;
+        Shibnagar's is the generated file's own content."""
+        rupsha = {
+            "city_id": "rupsha_city", "name": "Rupsha City",
+            "kind": "seeded", "district_label": "District 1",
+            "zones": list(self.zones),
+            "zone_boxes_m": self.blockout["zone_boxes_m"],
+            "properties": self.buildings,
+            "plots": self.blockout["plots"],
+            "road_segments": self.blockout["road_segments"],
+            "junctions": self.blockout["junctions"],
+            "river": self.blockout["river"],
+            "terrain_regions": None,  # derived in terrain.py
+        }
+        c2 = self.city2_file
+        shibnagar = {
+            "city_id": c2["city"]["city_id"], "name": c2["city"]["name"],
+            "kind": c2["city"]["kind"], "district_label": None,
+            "zones": list(c2["zones"]),
+            "zone_boxes_m": c2["zone_boxes_m"],
+            "properties": c2["properties"],
+            "plots": c2["plots"],
+            "road_segments": c2["road_segments"],
+            "junctions": c2["junctions"],
+            "river": c2["river"],
+            "terrain_regions": c2["terrain_regions"],
+        }
+        return [rupsha, shibnagar]
+
+    def city_spec(self, city_id):
+        for spec in self.city_specs():
+            if spec["city_id"] == city_id:
+                return spec
+        return None
+
+    def zone_city(self, zone_id):
+        """Which city a zone belongs to (None for non-city zones
+        like professions' 'off_district')."""
+        for spec in self.city_specs():
+            if zone_id in spec["zones"]:
+                return spec["city_id"]
+        return None
+
+    def all_buildings(self):
+        """Every building of every city, keyed by building id."""
+        out = {}
+        for spec in self.city_specs():
+            for b in spec["properties"]:
+                out[b["id"]] = b
+        return out
+
+    def residential_stock_city(self, spec):
+        """Residential unit slots of one city spec, honouring the
+        part_of rule exactly like residential_stock() does for
+        District 1."""
+        units = []
+        for b in spec["properties"]:
+            if b["property_type"] not in ("apartment", "house"):
+                continue
+            if "part_of" in b:
+                continue
+            for i in range(b.get("units", 1)):
+                units.append({
+                    "building_id": b["id"],
+                    "building_name": b["name"],
+                    "unit_index": i,
+                    "rent": b["rent_monthly_ncr_per_unit"],
+                    "buy_price": b.get("buy_price_ncr_per_unit"),
+                    "tier": b["tier"],
+                    "zone_id": b["zone_id"],
+                    "property_type": b["property_type"],
+                })
+        return units
+
+    def rent_index(self):
+        """(building_id, unit_index) -> unit slot, over BOTH cities'
+        residential stock. households.rent_of_property resolves
+        through this so a unit is movable-to wherever it honestly
+        exists; population genesis still uses residential_stock()
+        (District 1 only) and is unchanged."""
+        idx = {}
+        for spec in self.city_specs():
+            for u in self.residential_stock_city(spec):
+                idx[(u["building_id"], u["unit_index"])] = u
+        return idx

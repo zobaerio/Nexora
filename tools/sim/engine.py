@@ -40,8 +40,16 @@ kind; prices.json has none). It is labelled wherever it surfaces.
 """
 import json
 
+from . import analytics as analytics_mod
+from . import cities as cities_mod
 from . import community as community_mod
 from . import conflicts as conflicts_mod
+from . import construction as construction_mod
+from . import distribution as distribution_mod
+from . import growth as growth_mod
+from . import infrastructure as infrastructure_mod
+from . import regional as regional_mod
+from . import services as services_mod
 from . import culture as culture_mod
 from . import decisions as decisions_mod
 from . import education as education_mod
@@ -83,8 +91,13 @@ class Simulation:
 
     # -- setup ---------------------------------------------------------------
     def generate_population(self, target=240):
-        return population_mod.generate(self.store, self.data, self.rng,
-                                       target_population=target)
+        stats = population_mod.generate(self.store, self.data, self.rng,
+                                        target_population=target)
+        # Session 03: the city layer bootstraps with the world
+        # (idempotent; hand-built test worlds that never call this
+        # simply have no city layer and every city pass no-ops).
+        cities_mod.setup_cities(self.store, self.data, self.rng)
+        return stats
 
     def weather_for_day(self, day_index):
         row = self.store.row("SELECT preset_id FROM daily_weather"
@@ -239,6 +252,11 @@ class Simulation:
                                            "subject_knowledge",
                                            int(hours))
 
+        # Session 03 Unit 11: construction projects advance with
+        # the day (weather-halting outdoor stages on storm days).
+        construction_mod.daily_progress(self.store, self.data,
+                                        self.rng, day, preset, day_end)
+
         # Daily rollover.
         used_names = {(c["first_name"], c["last_name"]) for c in
                       store.rows("SELECT first_name, last_name"
@@ -269,6 +287,9 @@ class Simulation:
         if day % 7 == 6:
             rel.weekly_drift(store, day_end)
             self._weekly_social(day_end)
+            # Session 03 Unit 07: infrastructure loads recomputed
+            # weekly from residents + workplaces.
+            infrastructure_mod.weekly_update(store, data, day_end)
         # Session 02 Unit 09: culture festivals fall on their
         # calendar day (day-of-year), for the households whose
         # culture celebrates them.
@@ -284,6 +305,7 @@ class Simulation:
         if (day + 1) % 30 == 0:
             self._settle_month(day)
             self._monthly_social(day)
+            self._monthly_city(day)
         store.set_world(game_minutes=day_end, day_index=day + 1,
                         weather_preset=preset)
         store.commit()
@@ -319,6 +341,32 @@ class Simulation:
         generations_mod.knowledge_transfer(store, data, game_minutes)
         generations_mod.record_history_sweep(store, game_minutes)
         kinship_mod.maybe_adopt(store, data, game_minutes)
+
+    # -- Session 03 city cadence ------------------------------------
+    # Monthly, after the economy settlement and the society passes
+    # (migration reads settled debt; services read settled taxes).
+    # Every pass no-ops when the city layer was never set up.
+
+    def _monthly_city(self, last_day):
+        store, data = self.store, self.data
+        if not cities_mod.is_setup(store):
+            return
+        game_minutes = (last_day + 1) * 1440
+        month_index = (last_day + 1) // 30
+        month_days = range(last_day - 29, last_day + 1)
+        storm_days = [self.weather_for_day(d) for d in
+                      month_days].count("storm")
+        infrastructure_mod.monthly_effects(store, data, game_minutes)
+        services_mod.monthly_pass(store, data, month_index,
+                                  game_minutes, storm_days=storm_days)
+        distribution_mod.monthly_migration(store, data, game_minutes)
+        growth_mod.monthly_growth(store, data, month_index,
+                                  game_minutes)
+        regional_mod.monthly_flows(store, data, month_index,
+                                   game_minutes)
+        analytics_mod.record_snapshots(store, data, month_index,
+                                       game_minutes)
+        cities_mod.refresh_registry(store, data, game_minutes)
 
     def run_days(self, n):
         for _ in range(n):
@@ -659,6 +707,22 @@ class Simulation:
             "neighbour_edges": store.row(
                 "SELECT COUNT(*) AS n FROM relationships"
                 " WHERE relation_type = 'neighbour'")["n"],
+            # Session 03 city layer (zeros/empty when not set up).
+            "city_populations": {
+                spec["city_id"]: cities_mod.city_population(
+                    store, self.data, spec["city_id"])
+                for spec in self.data.city_specs()}
+            if cities_mod.is_setup(store) else {},
+            "active_construction_projects": store.row(
+                "SELECT COUNT(*) AS n FROM construction_projects"
+                " WHERE status = 'active'")["n"],
+            "completed_construction_projects": store.row(
+                "SELECT COUNT(*) AS n FROM construction_projects"
+                " WHERE status IN ('completed', 'occupied')")["n"],
+            "migrations_total": store.row(
+                "SELECT COUNT(*) AS n FROM migration_records")["n"],
+            "trade_flows_total": store.row(
+                "SELECT COUNT(*) AS n FROM trade_flows")["n"],
         }
 
     def profile(self, character_id):

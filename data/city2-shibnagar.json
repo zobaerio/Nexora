@@ -1,0 +1,995 @@
+{
+ "city": {
+  "city_id": "shibnagar_town",
+  "kind": "generated_town",
+  "name": "Shibnagar Town"
+ },
+ "coordinate_system": "Local metres, town frame. Origin at the ferry ghat landing; +x east, +z south. River band closes the north edge.",
+ "generated": true,
+ "generated_by": "tools/sim/citygen.py \u2014 Session 03 Unit 01",
+ "junctions": [
+  {
+   "at": [
+    280,
+    0
+   ],
+   "id": "j_c2_ghat",
+   "signalled": false
+  },
+  {
+   "at": [
+    280,
+    60
+   ],
+   "id": "j_c2_main_ghat_rd",
+   "signalled": false
+  },
+  {
+   "at": [
+    280,
+    250
+   ],
+   "id": "j_c2_main_mid",
+   "signalled": false
+  },
+  {
+   "at": [
+    280,
+    370
+   ],
+   "id": "j_c2_main_south",
+   "signalled": false
+  },
+  {
+   "at": [
+    40,
+    60
+   ],
+   "id": "j_c2_west_ghat",
+   "signalled": false
+  },
+  {
+   "at": [
+    520,
+    60
+   ],
+   "id": "j_c2_east_ghat",
+   "signalled": false
+  },
+  {
+   "at": [
+    40,
+    250
+   ],
+   "id": "j_c2_west_mid",
+   "signalled": false
+  },
+  {
+   "at": [
+    520,
+    250
+   ],
+   "id": "j_c2_east_mid",
+   "signalled": false
+  },
+  {
+   "at": [
+    40,
+    370
+   ],
+   "id": "j_c2_west_south",
+   "signalled": false
+  },
+  {
+   "at": [
+    520,
+    370
+   ],
+   "id": "j_c2_east_south",
+   "signalled": false
+  }
+ ],
+ "plots": [
+  {
+   "anchor": {
+    "facing": "south",
+    "x": 108.0,
+    "z": 458.0
+   },
+   "building_id": "b_c2_agri_farmland_a",
+   "id": "plot_c2_agri_farmland_a",
+   "notes": "GENERATED plot (citygen.py).",
+   "plot_rect_m": {
+    "d": 70,
+    "w": 120,
+    "x": 48.0,
+    "z": 388.0
+   },
+   "zone_id": "c2_agriculture"
+  },
+  {
+   "anchor": {
+    "facing": "south",
+    "x": 236.0,
+    "z": 458.0
+   },
+   "building_id": "b_c2_agri_farmland_b",
+   "id": "plot_c2_agri_farmland_b",
+   "notes": "GENERATED plot (citygen.py).",
+   "plot_rect_m": {
+    "d": 70,
+    "w": 120,
+    "x": 176.0,
+    "z": 388.0
+   },
+   "zone_id": "c2_agriculture"
+  },
+  {
+   "anchor": {
+    "facing": "south",
+    "x": 378.0,
+    "z": 428.0
+   },
+   "building_id": null,
+   "id": "plot_c2_agri_vacant_1",
+   "notes": "GENERATED plot (citygen.py).",
+   "plot_rect_m": {
+    "d": 40,
+    "w": 60,
+    "x": 348.0,
+    "z": 388.0
+   },
+   "zone_id": "c2_agriculture"
+  },
+  {
+   "anchor": {
+    "facing": "south",
+    "x": 322.0,
+    "z": 412.0
+   },
+   "building_id": "b_c2_agri_warehouse",
+   "id": "plot_c2_agri_warehouse",
+   "notes": "GENERATED plot (citygen.py).",
+   "plot_rect_m": {
+    "d": 24,
+    "w": 36,
+    "x": 304.0,
+    "z": 388.0
+   },
+   "zone_id": "c2_agriculture"
+  },
+  {
+   "anchor": {
+    "facing": "south",
+    "x": 407.0,
+    "z": 290.0
+   },
+   "building_id": "b_c2_civic_clinic",
+   "id": "plot_c2_civic_clinic",
+   "notes": "GENERATED plot (citygen.py).",
+   "plot_rect_m": {
+    "d": 22,
+    "w": 30,
+    "x": 392.0,
+    "z": 268.0
+   },
+   "zone_id": "c2_civic"
+  },
+  {
+   "anchor": {
+    "facing": "south",
+    "x": 445.0,
+    "z": 290.0
+   },
+   "building_id": "b_c2_civic_office",
+   "id": "plot_c2_civic_office",
+   "notes": "GENERATED plot (citygen.py).",
+   "plot_rect_m": {
+    "d": 22,
+    "w": 30,
+    "x": 430.0,
+    "z": 268.0
+   },
+   "zone_id": "c2_civic"
+  },
+  {
+   "anchor": {
+    "facing": "south",
+    "x": 366.0,
+    "z": 294.0
+   },
+   "building_id": "b_c2_civic_school",
+   "id": "plot_c2_civic_school",
+   "notes": "GENERATED plot (citygen.py).",
+   "plot_rect_m": {
+    "d": 26,
+    "w": 36,
+    "x": 348.0,
+    "z": 268.0
+   },
+   "zone_id": "c2_civic"
+  },
+  {
+   "anchor": {
+    "facing": "south",
+    "x": 440.0,
+    "z": 116.0
+   },
+   "building_id": "b_c2_market_godown",
+   "id": "plot_c2_market_godown",
+   "notes": "GENERATED plot (citygen.py).",
+   "plot_rect_m": {
+    "d": 28,
+    "w": 40,
+    "x": 420.0,
+    "z": 88.0
+   },
+   "zone_id": "c2_market"
+  },
+  {
+   "anchor": {
+    "facing": "south",
+    "x": 370.0,
+    "z": 114.0
+   },
+   "building_id": "b_c2_market_shops",
+   "id": "plot_c2_market_shops",
+   "notes": "GENERATED plot (citygen.py).",
+   "plot_rect_m": {
+    "d": 26,
+    "w": 44,
+    "x": 348.0,
+    "z": 88.0
+   },
+   "zone_id": "c2_market"
+  },
+  {
+   "anchor": {
+    "facing": "south",
+    "x": 406.0,
+    "z": 98.0
+   },
+   "building_id": "b_c2_market_tea_stall",
+   "id": "plot_c2_market_tea_stall",
+   "notes": "GENERATED plot (citygen.py).",
+   "plot_rect_m": {
+    "d": 10,
+    "w": 12,
+    "x": 400.0,
+    "z": 88.0
+   },
+   "zone_id": "c2_market"
+  },
+  {
+   "anchor": {
+    "facing": "south",
+    "x": 486.0,
+    "z": 112.0
+   },
+   "building_id": null,
+   "id": "plot_c2_market_vacant_1",
+   "notes": "GENERATED plot (citygen.py).",
+   "plot_rect_m": {
+    "d": 24,
+    "w": 36,
+    "x": 468.0,
+    "z": 88.0
+   },
+   "zone_id": "c2_market"
+  },
+  {
+   "anchor": {
+    "facing": "south",
+    "x": 70.0,
+    "z": 120.0
+   },
+   "building_id": "b_c2_res_apts_a",
+   "id": "plot_c2_res_apts_a",
+   "notes": "GENERATED plot (citygen.py).",
+   "plot_rect_m": {
+    "d": 32,
+    "w": 44,
+    "x": 48.0,
+    "z": 88.0
+   },
+   "zone_id": "c2_residential"
+  },
+  {
+   "anchor": {
+    "facing": "south",
+    "x": 120.0,
+    "z": 118.0
+   },
+   "building_id": "b_c2_res_apts_b",
+   "id": "plot_c2_res_apts_b",
+   "notes": "GENERATED plot (citygen.py).",
+   "plot_rect_m": {
+    "d": 30,
+    "w": 40,
+    "x": 100.0,
+    "z": 88.0
+   },
+   "zone_id": "c2_residential"
+  },
+  {
+   "anchor": {
+    "facing": "south",
+    "x": 168.0,
+    "z": 118.0
+   },
+   "building_id": "b_c2_res_apts_c",
+   "id": "plot_c2_res_apts_c",
+   "notes": "GENERATED plot (citygen.py).",
+   "plot_rect_m": {
+    "d": 30,
+    "w": 40,
+    "x": 148.0,
+    "z": 88.0
+   },
+   "zone_id": "c2_residential"
+  },
+  {
+   "anchor": {
+    "facing": "south",
+    "x": 211.0,
+    "z": 112.0
+   },
+   "building_id": "b_c2_res_houses_a",
+   "id": "plot_c2_res_houses_a",
+   "notes": "GENERATED plot (citygen.py).",
+   "plot_rect_m": {
+    "d": 24,
+    "w": 30,
+    "x": 196.0,
+    "z": 88.0
+   },
+   "zone_id": "c2_residential"
+  },
+  {
+   "anchor": {
+    "facing": "south",
+    "x": 249.0,
+    "z": 112.0
+   },
+   "building_id": "b_c2_res_houses_b",
+   "id": "plot_c2_res_houses_b",
+   "notes": "GENERATED plot (citygen.py).",
+   "plot_rect_m": {
+    "d": 24,
+    "w": 30,
+    "x": 234.0,
+    "z": 88.0
+   },
+   "zone_id": "c2_residential"
+  },
+  {
+   "anchor": {
+    "facing": "south",
+    "x": 292.0,
+    "z": 118.0
+   },
+   "building_id": null,
+   "id": "plot_c2_res_vacant_1",
+   "notes": "GENERATED plot (citygen.py).",
+   "plot_rect_m": {
+    "d": 30,
+    "w": 40,
+    "x": 272.0,
+    "z": 88.0
+   },
+   "zone_id": "c2_residential"
+  },
+  {
+   "anchor": {
+    "facing": "south",
+    "x": 66.0,
+    "z": 156.0
+   },
+   "building_id": null,
+   "id": "plot_c2_res_vacant_2",
+   "notes": "GENERATED plot (citygen.py).",
+   "plot_rect_m": {
+    "d": 28,
+    "w": 36,
+    "x": 48.0,
+    "z": 128.0
+   },
+   "zone_id": "c2_residential"
+  },
+  {
+   "anchor": {
+    "facing": "south",
+    "x": 366.0,
+    "z": 28.0
+   },
+   "building_id": "b_c2_riverfront_fish_stalls",
+   "id": "plot_c2_riverfront_fish_stalls",
+   "notes": "GENERATED plot (citygen.py).",
+   "plot_rect_m": {
+    "d": 20,
+    "w": 36,
+    "x": 348.0,
+    "z": 8.0
+   },
+   "zone_id": "c2_riverfront"
+  },
+  {
+   "anchor": {
+    "facing": "south",
+    "x": 398.0,
+    "z": 18.0
+   },
+   "building_id": "b_c2_riverfront_tea_stall",
+   "id": "plot_c2_riverfront_tea_stall",
+   "notes": "GENERATED plot (citygen.py).",
+   "plot_rect_m": {
+    "d": 10,
+    "w": 12,
+    "x": 392.0,
+    "z": 8.0
+   },
+   "zone_id": "c2_riverfront"
+  },
+  {
+   "anchor": {
+    "facing": "south",
+    "x": 141.0,
+    "z": 48.0
+   },
+   "building_id": "b_c2_transport_bus_stand",
+   "id": "plot_c2_transport_bus_stand",
+   "notes": "GENERATED plot (citygen.py).",
+   "plot_rect_m": {
+    "d": 40,
+    "w": 50,
+    "x": 116.0,
+    "z": 8.0
+   },
+   "zone_id": "c2_transport"
+  },
+  {
+   "anchor": {
+    "facing": "south",
+    "x": 78.0,
+    "z": 48.0
+   },
+   "building_id": "b_c2_transport_ghat",
+   "id": "plot_c2_transport_ghat",
+   "notes": "GENERATED plot (citygen.py).",
+   "plot_rect_m": {
+    "d": 40,
+    "w": 60,
+    "x": 48.0,
+    "z": 8.0
+   },
+   "zone_id": "c2_transport"
+  }
+ ],
+ "properties": [
+  {
+   "buy_price_ncr_per_unit": null,
+   "civic_owned": true,
+   "for_rent_units": 0,
+   "for_sale_units": 0,
+   "id": "b_c2_transport_ghat",
+   "interior": false,
+   "name": "Shibnagar Ferry Ghat",
+   "notes": "GENERATED building (citygen.py) \u2014 not authored design data.",
+   "property_type": "plot",
+   "rent_monthly_ncr_per_unit": null,
+   "status": "owned",
+   "tier": 1,
+   "units": 1,
+   "zone_id": "c2_transport"
+  },
+  {
+   "buy_price_ncr_per_unit": null,
+   "civic_owned": true,
+   "for_rent_units": 0,
+   "for_sale_units": 0,
+   "id": "b_c2_transport_bus_stand",
+   "interior": false,
+   "name": "Shibnagar Bus Stand",
+   "notes": "GENERATED building (citygen.py) \u2014 not authored design data.",
+   "property_type": "plot",
+   "rent_monthly_ncr_per_unit": null,
+   "status": "owned",
+   "tier": 1,
+   "units": 1,
+   "zone_id": "c2_transport"
+  },
+  {
+   "buy_price_ncr_per_unit": null,
+   "civic_owned": false,
+   "for_rent_units": 0,
+   "for_sale_units": 0,
+   "id": "b_c2_riverfront_fish_stalls",
+   "interior": false,
+   "name": "Shibnagar Fish Stalls",
+   "notes": "GENERATED building (citygen.py) \u2014 not authored design data.",
+   "property_type": "shop",
+   "rent_monthly_ncr_per_unit": 1200,
+   "status": "owned",
+   "tier": 1,
+   "units": 6,
+   "zone_id": "c2_riverfront"
+  },
+  {
+   "buy_price_ncr_per_unit": null,
+   "civic_owned": false,
+   "for_rent_units": 0,
+   "for_sale_units": 0,
+   "id": "b_c2_riverfront_tea_stall",
+   "interior": false,
+   "name": "Riverside Tea Stall",
+   "notes": "GENERATED building (citygen.py) \u2014 not authored design data.",
+   "property_type": "shop",
+   "rent_monthly_ncr_per_unit": 1200,
+   "status": "owned",
+   "tier": 1,
+   "units": 1,
+   "zone_id": "c2_riverfront"
+  },
+  {
+   "buy_price_ncr_per_unit": 350000,
+   "civic_owned": false,
+   "for_rent_units": 0,
+   "for_sale_units": 0,
+   "id": "b_c2_res_apts_a",
+   "interior": false,
+   "name": "Shibnagar Apartments A",
+   "notes": "GENERATED building (citygen.py) \u2014 not authored design data.",
+   "property_type": "apartment",
+   "rent_monthly_ncr_per_unit": 4000,
+   "status": "owned",
+   "tier": 2,
+   "units": 12,
+   "zone_id": "c2_residential"
+  },
+  {
+   "buy_price_ncr_per_unit": null,
+   "civic_owned": false,
+   "for_rent_units": 0,
+   "for_sale_units": 0,
+   "id": "b_c2_res_apts_b",
+   "interior": false,
+   "name": "Shibnagar Apartments B",
+   "notes": "GENERATED building (citygen.py) \u2014 not authored design data.",
+   "property_type": "apartment",
+   "rent_monthly_ncr_per_unit": 2500,
+   "status": "owned",
+   "tier": 1,
+   "units": 10,
+   "zone_id": "c2_residential"
+  },
+  {
+   "buy_price_ncr_per_unit": 350000,
+   "civic_owned": false,
+   "for_rent_units": 0,
+   "for_sale_units": 0,
+   "id": "b_c2_res_apts_c",
+   "interior": false,
+   "name": "Shibnagar Apartments C",
+   "notes": "GENERATED building (citygen.py) \u2014 not authored design data.",
+   "property_type": "apartment",
+   "rent_monthly_ncr_per_unit": 4000,
+   "status": "owned",
+   "tier": 2,
+   "units": 8,
+   "zone_id": "c2_residential"
+  },
+  {
+   "buy_price_ncr_per_unit": 350000,
+   "civic_owned": false,
+   "for_rent_units": 0,
+   "for_sale_units": 0,
+   "id": "b_c2_res_houses_a",
+   "interior": false,
+   "name": "Shibnagar Houses A",
+   "notes": "GENERATED building (citygen.py) \u2014 not authored design data.",
+   "property_type": "house",
+   "rent_monthly_ncr_per_unit": 4000,
+   "status": "owned",
+   "tier": 2,
+   "units": 5,
+   "zone_id": "c2_residential"
+  },
+  {
+   "buy_price_ncr_per_unit": 750000,
+   "civic_owned": false,
+   "for_rent_units": 0,
+   "for_sale_units": 0,
+   "id": "b_c2_res_houses_b",
+   "interior": false,
+   "name": "Shibnagar Houses B",
+   "notes": "GENERATED building (citygen.py) \u2014 not authored design data.",
+   "property_type": "house",
+   "rent_monthly_ncr_per_unit": 6000,
+   "status": "owned",
+   "tier": 3,
+   "units": 4,
+   "zone_id": "c2_residential"
+  },
+  {
+   "buy_price_ncr_per_unit": 600000,
+   "civic_owned": false,
+   "for_rent_units": 0,
+   "for_sale_units": 0,
+   "id": "b_c2_market_shops",
+   "interior": false,
+   "name": "Shibnagar Bazar Shops",
+   "notes": "GENERATED building (citygen.py) \u2014 not authored design data.",
+   "property_type": "shop",
+   "rent_monthly_ncr_per_unit": 5000,
+   "status": "owned",
+   "tier": 2,
+   "units": 10,
+   "zone_id": "c2_market"
+  },
+  {
+   "buy_price_ncr_per_unit": null,
+   "civic_owned": false,
+   "for_rent_units": 0,
+   "for_sale_units": 0,
+   "id": "b_c2_market_tea_stall",
+   "interior": false,
+   "name": "Bazar Tea Stall",
+   "notes": "GENERATED building (citygen.py) \u2014 not authored design data.",
+   "property_type": "shop",
+   "rent_monthly_ncr_per_unit": 1200,
+   "status": "owned",
+   "tier": 1,
+   "units": 1,
+   "zone_id": "c2_market"
+  },
+  {
+   "buy_price_ncr_per_unit": null,
+   "civic_owned": false,
+   "for_rent_units": 0,
+   "for_sale_units": 0,
+   "id": "b_c2_market_godown",
+   "interior": false,
+   "name": "Shibnagar Godown",
+   "notes": "GENERATED building (citygen.py) \u2014 not authored design data.",
+   "property_type": "factory",
+   "rent_monthly_ncr_per_unit": 12000,
+   "status": "owned",
+   "tier": 2,
+   "units": 2,
+   "zone_id": "c2_market"
+  },
+  {
+   "buy_price_ncr_per_unit": null,
+   "civic_owned": true,
+   "for_rent_units": 0,
+   "for_sale_units": 0,
+   "id": "b_c2_civic_school",
+   "interior": false,
+   "name": "Shibnagar Primary School",
+   "notes": "GENERATED building (citygen.py) \u2014 not authored design data.",
+   "property_type": "office",
+   "rent_monthly_ncr_per_unit": null,
+   "status": "owned",
+   "tier": 2,
+   "units": 1,
+   "zone_id": "c2_civic"
+  },
+  {
+   "buy_price_ncr_per_unit": null,
+   "civic_owned": true,
+   "for_rent_units": 0,
+   "for_sale_units": 0,
+   "id": "b_c2_civic_clinic",
+   "interior": false,
+   "name": "Shibnagar Clinic",
+   "notes": "GENERATED building (citygen.py) \u2014 not authored design data.",
+   "property_type": "office",
+   "rent_monthly_ncr_per_unit": null,
+   "status": "owned",
+   "tier": 2,
+   "units": 1,
+   "zone_id": "c2_civic"
+  },
+  {
+   "buy_price_ncr_per_unit": null,
+   "civic_owned": true,
+   "for_rent_units": 0,
+   "for_sale_units": 0,
+   "id": "b_c2_civic_office",
+   "interior": false,
+   "name": "Shibnagar Town Office",
+   "notes": "GENERATED building (citygen.py) \u2014 not authored design data.",
+   "property_type": "office",
+   "rent_monthly_ncr_per_unit": null,
+   "status": "owned",
+   "tier": 2,
+   "units": 1,
+   "zone_id": "c2_civic"
+  },
+  {
+   "buy_price_ncr_per_unit": null,
+   "civic_owned": false,
+   "for_rent_units": 0,
+   "for_sale_units": 0,
+   "id": "b_c2_agri_farmland_a",
+   "interior": false,
+   "name": "Farmland A (paddy)",
+   "notes": "GENERATED building (citygen.py) \u2014 not authored design data.",
+   "property_type": "plot",
+   "rent_monthly_ncr_per_unit": null,
+   "status": "owned",
+   "tier": 1,
+   "units": 1,
+   "zone_id": "c2_agriculture"
+  },
+  {
+   "buy_price_ncr_per_unit": null,
+   "civic_owned": false,
+   "for_rent_units": 0,
+   "for_sale_units": 0,
+   "id": "b_c2_agri_farmland_b",
+   "interior": false,
+   "name": "Farmland B (vegetables)",
+   "notes": "GENERATED building (citygen.py) \u2014 not authored design data.",
+   "property_type": "plot",
+   "rent_monthly_ncr_per_unit": null,
+   "status": "owned",
+   "tier": 1,
+   "units": 1,
+   "zone_id": "c2_agriculture"
+  },
+  {
+   "buy_price_ncr_per_unit": null,
+   "civic_owned": false,
+   "for_rent_units": 0,
+   "for_sale_units": 0,
+   "id": "b_c2_agri_warehouse",
+   "interior": false,
+   "name": "Produce Warehouse",
+   "notes": "GENERATED building (citygen.py) \u2014 not authored design data.",
+   "property_type": "factory",
+   "rent_monthly_ncr_per_unit": 6000,
+   "status": "owned",
+   "tier": 1,
+   "units": 1,
+   "zone_id": "c2_agriculture"
+  }
+ ],
+ "river": {
+  "band": {
+   "x0": -40,
+   "x1": 560,
+   "z0": -80,
+   "z1": 0
+  },
+  "flow": "west to east",
+  "ghat": {
+   "at": [
+    280,
+    0
+   ],
+   "name": "Shibnagar Ghat \u2014 ferry to Rupsha City"
+  },
+  "name": "Rupsha River"
+ },
+ "road_segments": [
+  {
+   "class": "collector",
+   "from": [
+    280,
+    0
+   ],
+   "id": "seg_c2_main_st",
+   "name": "Shibnagar Main Street",
+   "to": [
+    280,
+    480
+   ],
+   "width_m": 10
+  },
+  {
+   "class": "local",
+   "from": [
+    40,
+    60
+   ],
+   "id": "seg_c2_ghat_rd",
+   "name": "Ghat Road",
+   "to": [
+    520,
+    60
+   ],
+   "width_m": 8
+  },
+  {
+   "class": "local",
+   "from": [
+    40,
+    250
+   ],
+   "id": "seg_c2_mid_st",
+   "name": "Mid Town Street",
+   "to": [
+    520,
+    250
+   ],
+   "width_m": 8
+  },
+  {
+   "class": "local",
+   "from": [
+    40,
+    370
+   ],
+   "id": "seg_c2_south_st",
+   "name": "South Street",
+   "to": [
+    520,
+    370
+   ],
+   "width_m": 8
+  },
+  {
+   "class": "local",
+   "from": [
+    40,
+    60
+   ],
+   "id": "seg_c2_west_st",
+   "name": "West Street",
+   "to": [
+    40,
+    370
+   ],
+   "width_m": 8
+  },
+  {
+   "class": "local",
+   "from": [
+    520,
+    60
+   ],
+   "id": "seg_c2_east_st",
+   "name": "East Street",
+   "to": [
+    520,
+    370
+   ],
+   "width_m": 8
+  },
+  {
+   "class": "lane",
+   "from": [
+    40,
+    430
+   ],
+   "id": "seg_c2_farm_rd",
+   "name": "Farm Road",
+   "to": [
+    520,
+    430
+   ],
+   "width_m": 4
+  }
+ ],
+ "terrain_regions": [
+  {
+   "bbox": {
+    "x0": -40,
+    "x1": 560,
+    "z0": -80,
+    "z1": 0
+   },
+   "buildable": false,
+   "elevation_m": -3,
+   "id": "tr_c2_river",
+   "name": "Rupsha River (north bank)",
+   "restriction": "water",
+   "terrain_class": "river"
+  },
+  {
+   "bbox": {
+    "x0": -40,
+    "x1": 560,
+    "z0": 0,
+    "z1": 60
+   },
+   "buildable": true,
+   "elevation_m": 1,
+   "id": "tr_c2_floodplain",
+   "name": "Shibnagar floodplain strip",
+   "restriction": "flood_risk",
+   "terrain_class": "floodplain"
+  },
+  {
+   "bbox": {
+    "x0": 430,
+    "x1": 560,
+    "z0": 390,
+    "z1": 500
+   },
+   "buildable": false,
+   "elevation_m": 0,
+   "id": "tr_c2_wetland",
+   "name": "Shibnagar beel (wetland)",
+   "restriction": "water",
+   "terrain_class": "wetland"
+  },
+  {
+   "bbox": {
+    "x0": -40,
+    "x1": 560,
+    "z0": 370,
+    "z1": 500
+   },
+   "buildable": true,
+   "elevation_m": 2,
+   "id": "tr_c2_farmland",
+   "name": "Shibnagar farmland",
+   "restriction": "agricultural_land",
+   "terrain_class": "farmland"
+  },
+  {
+   "bbox": {
+    "x0": -40,
+    "x1": 560,
+    "z0": 60,
+    "z1": 370
+   },
+   "buildable": true,
+   "elevation_m": 4,
+   "id": "tr_c2_plain",
+   "name": "Shibnagar plain",
+   "restriction": null,
+   "terrain_class": "plain"
+  }
+ ],
+ "version": 1,
+ "warning": "GENERATED DATA: Shibnagar Town is a procedurally generated neighbour town for the multi-city systems. It is NOT authored design data like District 1 (GDD-02).",
+ "zone_boxes_m": {
+  "c2_agriculture": {
+   "x0": 40,
+   "x1": 520,
+   "z0": 380,
+   "z1": 480
+  },
+  "c2_civic": {
+   "x0": 340,
+   "x1": 520,
+   "z0": 260,
+   "z1": 360
+  },
+  "c2_market": {
+   "x0": 340,
+   "x1": 520,
+   "z0": 80,
+   "z1": 240
+  },
+  "c2_residential": {
+   "x0": 40,
+   "x1": 320,
+   "z0": 80,
+   "z1": 320
+  },
+  "c2_riverfront": {
+   "x0": 340,
+   "x1": 520,
+   "z0": 0,
+   "z1": 60
+  },
+  "c2_transport": {
+   "x0": 40,
+   "x1": 320,
+   "z0": 0,
+   "z1": 60
+  }
+ },
+ "zones": [
+  "c2_agriculture",
+  "c2_civic",
+  "c2_market",
+  "c2_residential",
+  "c2_riverfront",
+  "c2_transport"
+ ]
+}

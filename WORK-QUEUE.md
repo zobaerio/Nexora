@@ -128,6 +128,27 @@ Design/data/scaffold layer, same scope limits, honesty rules and GitHub batching
 
 **Session 02 result:** COMPLETE 2026-11-21 — all 12 units implemented and test-proven; full suite **102 tests (53 Session 01 + 49 Session 02), all passing**, economy_sim md5 unchanged, Godot 8/8, validate_data green. 242 agents × 90 days = 39.8 s. Report: `docs/SESSION-02-REPORT.md`. **Session 02's gate obligations are met; no later session has been started.**
 
+# Session 03 — Advanced City & Urban Development Engine (owner order "BEGIN SESSION 03", 2026-11-21)
+
+**Gate check:** Session 02 completed + merged (PR #13, main `5be75f07`, 102 tests) before this session began, per the standing gate rule. **Implementation form:** extend the `tools/sim/` core — no module recreated or replaced; SQLite extensions additive only; `data/schema.sql` untouched. Full detail: `docs/SESSION-03-REPORT.md`.
+
+- [x] **Unit 01 — City Generation / Registry** (`tools/sim/cities.py`, `tools/sim/citygen.py`, `data/city2-shibnagar.json`): Rupsha City registered (boundary from blockout, climate derived from weather weights); Shibnagar Town generated deterministically through the same spec path, labelled GENERATED (label guarded by validate_data).
+- [x] **Unit 02 — Terrain Engine** (`tools/sim/terrain.py`): river/wetland/floodplain/hills/plain regions for both cities; construction validates terrain — building on water rejected, test-proven.
+- [x] **Unit 03 — Land Parcels** (`tools/sim/parcels.py`): 64 parcels from the plots (area, zoning, ownership, derived value, status) with persisted ownership history; ledger-paid transfers; subdivide/merge conserve area.
+- [x] **Unit 04 — Zoning** (`tools/sim/zoning.py`): 10 categories on the real zones/buildings; placement validation (allowed sets + density cap); grandfathered nonconformities reported.
+- [x] **Unit 05 — Buildings** (`tools/sim/buildings.py`): `building_state` extends the data buildings in place (floors, year, condition + decay/maintenance, value, live occupancy).
+- [x] **Unit 06 — Road Network** (`tools/sim/roads.py`): geometric graph (junctions/crossings/splits, documented endpoint snaps), Dijkstra per GDD-07 mode legality; walk graph is one connected network, test-proven.
+- [x] **Unit 07 — Infrastructure** (`tools/sim/infrastructure.py`): 8 networks × 16 zones; capacity/demand from live residents + workplaces; overload states degrade resident needs, test-proven.
+- [x] **Unit 08 — Population Distribution** (`tools/sim/distribution.py`): housing pressure, density, demand; intercity migration from measured pressure only (unemployed head + debt/rent burden), rent-ratio target, capped, persisted.
+- [x] **Unit 09 — City Services** (`tools/sim/services.py`): municipal budgets from designed revenue only (GDD-03 property tax 0.5%/yr owners-only; wage tax + rent measured from the ledger); road decay → funded maintenance capped by the city's real balance; service levels persisted.
+- [x] **Unit 10 — City Growth** (`tools/sim/growth.py`): development index/level/economic class derived from measured facts; growth commissions construction (District 1: extension densification), decline from measured loss; no random growth.
+- [x] **Unit 11 — Construction Lifecycle** (`tools/sim/construction.py`): GDD-08 lifecycle end-to-end; BOQ at scale 1.0 = exactly 86,700 NCr; financing freeze, storm halts, real engineer/crew, uninspected-stage defect risk; a full project completes and is occupied in tests.
+- [x] **Unit 12 — Visualization (data layer only)** (`tools/sim/cityview.py`): JSON city-state export + data-driven ASCII map + CLI `--city/--city-map/--analytics` for the future UE layer. **Criterion 13 (3D performance) DEFERRED to the owner's PC — not claimed.**
+- [x] **Unit 13 — City Analytics** (`tools/sim/analytics.py`): all statistics computed live from rows; monthly snapshots persisted; test-proven to change when the world changes.
+- [x] **Unit 14 — Multi-City Interaction** (`tools/sim/regional.py`): bridge + ferry connections persisted; intercity routing across both graphs; live commuter counts; monthly trade flows from measured facts.
+
+**Session 03 result:** COMPLETE 2026-11-21 — all 14 units implemented and test-proven (criterion 13 deferred by scope, as ordered); full suite **183 tests (53 + 49 + 81), all passing**, economy_sim md5 unchanged, Godot 8/8, validate_data green (city2 checks added). 242 agents × 90 days = 23.4 s; 4 households migrated to Shibnagar organically, 0 ledger mismatches. Report: `docs/SESSION-03-REPORT.md`. **Session 03's gate obligations are met; no later session has been started.**
+
 ## Status
 
 See `STATUS.md` (updated every unit).
