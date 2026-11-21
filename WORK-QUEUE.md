@@ -108,6 +108,26 @@ Design/data/scaffold layer, same scope limits, honesty rules and GitHub batching
 
 **Session 01 result:** COMPLETE 2026-11-21 — all 10 units implemented and test-proven; the Session 02 gate is now OPEN under the owner's standing rule (Session 02 itself starts only on the owner's order).
 
+# Session 02 — Family, Society & Social Civilization Engine (owner order "BEGIN SESSION 02", 2026-11-21)
+
+**Gate check:** Session 01 completed + merged (PR #12, main `8edf8c97`, 53 tests) before this session began, per the standing gate rule. **Implementation form:** extend Session 01's `tools/sim/` core — no module recreated or replaced; SQLite extensions additive only; `data/schema.sql` untouched. Full detail: `docs/SESSION-02-REPORT.md`.
+
+- [x] **Unit 01 — Family Formation** (`tools/sim/kinship.py`): extended kinship derived from the graph (grandparents, cousins, in-laws — never stored), guardianship, adoption via culture rule, `relationship_history` on every relationship.
+- [x] **Unit 02 — Household Management** (`tools/sim/households.py`): composition/living conditions; membership changes via life events only — leaving home + relocation added, rents resolved from buildings data (closes Session 01's move-house gap where the data supports it).
+- [x] **Unit 03 — Family Economy** (`tools/sim/family_economy.py`): monthly household accounts from the settlement's own numbers; education/healthcare lines honestly 0 (civic, unpriced); arrears → persistent debt → repayment.
+- [x] **Unit 04 — Social Relationship Engine** (`tools/sim/social.py`): colleague/neighbour/rival edges; familiarity/conflict/interaction dynamics from real encounters; derived strength.
+- [x] **Unit 05 — Community Engine** (`tools/sim/community.py`): 10 zone communities, residence-synced membership, measured participation, respect-graph leadership, fact-derived issues, weekly batch.
+- [x] **Unit 06 — Social Interaction Engine** (`social.py` + `events.py`): weekly neighbour gatherings, family visits, all interactions updating relationships + memories.
+- [x] **Unit 07 — Culture & Tradition** (`tools/sim/culture.py`, `data/culture-profiles.json`): culture as data-file configuration (2 profiles, no country hardcoded), household assignment, festival calendar, traditions, adoption flag.
+- [x] **Unit 08 — Education & Social Development** (`tools/sim/education.py`): enrolment sweep, measured attendance, performance with parent involvement, GDD-11 caps (20/24), college credentials gating the 4 credential professions at hiring.
+- [x] **Unit 09 — Social Events** (`tools/sim/events.py`): wedding/birth celebrations from real life events, culture festivals on calendar days, monthly public meetings on derived issues, family gatherings.
+- [x] **Unit 10 — Social Conflict & Resolution** (`tools/sim/conflicts.py`): conflicts diagnosed from measured conflict levels + circumstances (debt/strain/misunderstanding), mediation by leader/friend/elder, escalation after 3 failed attempts, 30-day cooldown.
+- [x] **Unit 11 — Social Mobility** (`tools/sim/mobility.py`): monthly status bookkeeping (economic band via economy_sim's band_for, career tier, education level) from real outcomes, both directions; relocation decision as the physical side.
+- [x] **Unit 12 — Generational Development** (`tools/sim/generations.py`): derived generation index + lineage, persisted generational history (births, inheritances, knowledge transfers), elder→child teaching through capped accrual.
+- [x] **Integration + observation**: engine weekly/monthly/daily cadences; `tools/sim/observation.py` + CLI `--inspect/--household/--community/--society` over live data; acceptance suite (restart integrity with all cadences, society-layer assertions).
+
+**Session 02 result:** COMPLETE 2026-11-21 — all 12 units implemented and test-proven; full suite **102 tests (53 Session 01 + 49 Session 02), all passing**, economy_sim md5 unchanged, Godot 8/8, validate_data green. 242 agents × 90 days = 39.8 s. Report: `docs/SESSION-02-REPORT.md`. **Session 02's gate obligations are met; no later session has been started.**
+
 ## Status
 
 See `STATUS.md` (updated every unit).

@@ -25,9 +25,36 @@ def main(argv=None):
     ap.add_argument("--population", type=int, default=240)
     ap.add_argument("--days", type=int, default=0)
     ap.add_argument("--summary-only", action="store_true")
+    # Session 02 observation: inspect real simulation data.
+    ap.add_argument("--inspect", metavar="CHARACTER_ID",
+                    help="person: profile, family tree, network,"
+                         " mobility, lineage")
+    ap.add_argument("--household", metavar="HOUSEHOLD_ID",
+                    help="household: composition, conditions, finances")
+    ap.add_argument("--community", metavar="ZONE_ID",
+                    help="community: population, leader, issues,"
+                         " facilities")
+    ap.add_argument("--society", action="store_true",
+                    help="society overview: all communities + counts")
     args = ap.parse_args(argv)
 
     sim = Simulation(args.db, seed=args.seed)
+    if args.inspect or args.household or args.community or args.society:
+        from tools.sim import observation
+        if args.inspect:
+            out = observation.inspect_person(sim.store, sim.data,
+                                             args.inspect)
+        elif args.household:
+            out = observation.inspect_household(sim.store, sim.data,
+                                                args.household)
+        elif args.community:
+            out = observation.inspect_community(sim.store, sim.data,
+                                                args.community)
+        else:
+            out = observation.society_overview(sim.store, sim.data)
+        print(json.dumps(out, indent=1, sort_keys=True, default=str))
+        sim.close()
+        return 0
     if not args.summary_only:
         stats = sim.generate_population(args.population)
         print(json.dumps({"population": stats}, indent=1, sort_keys=True))

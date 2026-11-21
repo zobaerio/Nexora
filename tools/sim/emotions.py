@@ -50,6 +50,9 @@ EVENT_EFFECTS = {
                 "sadness": 20},
     "study_gain": {"satisfaction": 5, "motivation": 5},
     "social_day": {"loneliness": -6, "happiness": 4},
+    # Session 02: community celebration (Unit 09 events).
+    "festival": {"happiness": 12, "loneliness": -12, "excitement": 10,
+                 "satisfaction": 6},
 }
 
 

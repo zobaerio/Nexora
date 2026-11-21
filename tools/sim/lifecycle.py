@@ -53,6 +53,16 @@ def template_id_for(store, character_id, age, employment):
         return "child_school_day", True
     if age <= 17:
         return "student_day", True
+    # Session 02 Unit 08: an enrolled college student runs the
+    # student_day template (study@college blocks are what their
+    # programme accrues from). Checked before employment: enrolment
+    # is a full-time commitment in v1.
+    enrolled = store.row(
+        "SELECT 1 FROM education_records WHERE character_id = ?"
+        " AND status = 'enrolled' AND programme != 'school'",
+        (character_id,))
+    if enrolled:
+        return "student_day", True
     if employment:
         return employment["profession_id"], False
     return "elder_day", True

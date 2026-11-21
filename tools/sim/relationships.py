@@ -21,7 +21,8 @@ import json
 from . import emotions as emotions_mod
 from . import memory as memory_mod
 
-SYMMETRIC = ("spouse", "sibling", "friend", "partner")
+SYMMETRIC = ("spouse", "sibling", "friend", "partner",
+             "colleague", "neighbour", "rival")
 
 
 def _clamp(v):
@@ -52,6 +53,8 @@ def add_edge(store, a, b, relation_type, game_minutes, trust=0,
                  flags=json.dumps(flags or {}),
                  last_interaction_at_game_minutes=game_minutes,
                  created_at_game_minutes=game_minutes)
+    record_history(store, a, b, relation_type, "formed", game_minutes,
+                   relationship_id=rid, flags=flags)
     if both_ways and a != b:
         rid2 = store.next_id("RL", "relationships", "relationship_id")
         store.insert("relationships", relationship_id=rid2,
@@ -62,7 +65,42 @@ def add_edge(store, a, b, relation_type, game_minutes, trust=0,
                      flags=json.dumps(flags or {}),
                      last_interaction_at_game_minutes=game_minutes,
                      created_at_game_minutes=game_minutes)
+        record_history(store, b, a, relation_type, "formed",
+                       game_minutes, relationship_id=rid2, flags=flags)
     return rid
+
+
+def record_history(store, a, b, relation_type, event, game_minutes,
+                   relationship_id=None, details=None, flags=None):
+    """Session 02 Unit 01: every relationship carries a history —
+    formation, status changes, endings — in relationship_history.
+    Formation is recorded by add_edge itself; later status changes
+    (conflict, mediation, adoption...) call this directly."""
+    hid = store.next_id("RH", "relationship_history", "history_id")
+    det = dict(details or {})
+    if flags:
+        det["flags"] = flags
+    store.insert("relationship_history", history_id=hid,
+                 relationship_id=relationship_id,
+                 from_character_id=a, to_character_id=b,
+                 relation_type=relation_type, event=event,
+                 details=json.dumps(det), game_minutes=game_minutes)
+    return hid
+
+
+def history_of(store, a, b=None):
+    """The recorded history of one character's relationships (or of
+    one pair), oldest first."""
+    if b is not None:
+        return store.rows(
+            "SELECT * FROM relationship_history WHERE"
+            " ((from_character_id = ? AND to_character_id = ?)"
+            " OR (from_character_id = ? AND to_character_id = ?))"
+            " ORDER BY game_minutes, history_id", (a, b, b, a))
+    return store.rows(
+        "SELECT * FROM relationship_history WHERE from_character_id = ?"
+        " OR to_character_id = ? ORDER BY game_minutes, history_id",
+        (a, a))
 
 
 def adjust_scores(store, a, b, game_minutes, trust=0, affection=0,

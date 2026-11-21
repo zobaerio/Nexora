@@ -40,8 +40,18 @@ kind; prices.json has none). It is labelled wherever it surfaces.
 """
 import json
 
+from . import community as community_mod
+from . import conflicts as conflicts_mod
+from . import culture as culture_mod
 from . import decisions as decisions_mod
+from . import education as education_mod
 from . import emotions as emotions_mod
+from . import events as events_mod
+from . import family_economy
+from . import generations as generations_mod
+from . import kinship as kinship_mod
+from . import mobility as mobility_mod
+from . import social as social_mod
 from . import identity as identity_mod
 from . import interaction as interaction_mod
 from . import lifecycle
@@ -216,8 +226,18 @@ class Simulation:
                     decisions_mod.add_skill_xp(store, cid, skills[1],
                                                int(hours * 0.25))
         for cid, hours in study_hours.items():
-            decisions_mod.add_skill_xp(store, cid, "subject_knowledge",
-                                       int(hours))
+            # Session 02 Unit 08: study accrues by enrolment —
+            # school students into subject_knowledge under the
+            # GDD-11 cap, college students into their programme
+            # skill under its cap, everyone else as before.
+            if education_mod.is_school_student(store, cid):
+                education_mod.accrue_school_study(store, cid, hours)
+            elif education_mod.college_enrolment(store, cid):
+                education_mod.accrue_college_study(store, cid, hours)
+            else:
+                decisions_mod.add_skill_xp(store, cid,
+                                           "subject_knowledge",
+                                           int(hours))
 
         # Daily rollover.
         used_names = {(c["first_name"], c["last_name"]) for c in
@@ -248,11 +268,57 @@ class Simulation:
                                  day_end, used_names)
         if day % 7 == 6:
             rel.weekly_drift(store, day_end)
+            self._weekly_social(day_end)
+        # Session 02 Unit 09: culture festivals fall on their
+        # calendar day (day-of-year), for the households whose
+        # culture celebrates them.
+        for profile, festival in culture_mod.festivals_on(
+                data, day % 365):
+            for h in store.rows("SELECT household_id FROM households"
+                                " WHERE dissolved_at_game_minutes"
+                                " IS NULL"):
+                culture_mod.ensure_culture(store, data,
+                                           h["household_id"], day_end)
+            events_mod.run_festival(store, data, self.rng, profile,
+                                    festival, day_end)
         if (day + 1) % 30 == 0:
             self._settle_month(day)
+            self._monthly_social(day)
         store.set_world(game_minutes=day_end, day_index=day + 1,
                         weather_preset=preset)
         store.commit()
+
+    # -- Session 02 social cadences -------------------------------------
+    # Weekly and monthly batch passes, in the same scheduled-update
+    # spirit as Session 01: no per-tick full scans, every pass is a
+    # bounded sweep over the tables its unit owns.
+
+    def _weekly_social(self, day_end):
+        store, data = self.store, self.data
+        social_mod.neighbour_gathering(store, self.rng, data, day_end)
+        social_mod.weekly_decay(store, day_end)
+        community_mod.weekly_update(store, data, self.rng, day_end)
+        conflicts_mod.weekly_scan(store, self.rng, data, day_end)
+        kinship_mod.ensure_guardianship(store, day_end)
+
+    def _monthly_social(self, last_day):
+        store, data = self.store, self.data
+        game_minutes = (last_day + 1) * 1440
+        for h in store.rows("SELECT household_id FROM households"
+                            " WHERE dissolved_at_game_minutes IS NULL"):
+            culture_mod.ensure_culture(store, data, h["household_id"],
+                                       game_minutes)
+        education_mod.monthly_sweep(store, data, game_minutes)
+        events_mod.celebrate_life_events(store, data, self.rng,
+                                         game_minutes)
+        events_mod.family_gathering(store, data, self.rng, game_minutes)
+        for zone in sorted(data.zones):
+            events_mod.public_meeting(store, data, self.rng, zone,
+                                      game_minutes)
+        mobility_mod.monthly_check(store, data, game_minutes)
+        generations_mod.knowledge_transfer(store, data, game_minutes)
+        generations_mod.record_history_sweep(store, game_minutes)
+        kinship_mod.maybe_adopt(store, data, game_minutes)
 
     def run_days(self, n):
         for _ in range(n):
@@ -404,6 +470,10 @@ class Simulation:
                 if mrow and mrow["role"] == "head":
                     head = m
                     break
+            # Session 02 Unit 03: last month's arrears are repaid
+            # before this month's costs (no-op when debt-free).
+            family_economy.repay_debt(store, hid, head["character_id"],
+                                      game_minutes)
             band = "lower"
             if earners:
                 band = econ.band_for(data.wage(
@@ -450,12 +520,14 @@ class Simulation:
                                       ["percent_of_raise_consumed"] / 100)
                 emotions_mod.apply_event(store, cid, "payday")
             # Pensions (SIM ASSUMPTION amount — see module docstring).
+            pension_total = 0
             for m in members:
                 cid = m["character_id"]
                 if ages[cid] >= 65 and cid not in gross_by:
                     store.transfer("SYS-CITY", cid, PENSION_NCR_PER_MONTH,
                                    "pension", game_minutes,
                                    note="elder pension (sim assumption)")
+                    pension_total += PENSION_NCR_PER_MONTH
 
             # Costs: rent by the head (or richest member if the head
             # cannot cover it), living costs split by income share.
@@ -474,9 +546,11 @@ class Simulation:
                 band, max(adults, 1), children,
                 [e[1]["profession_id"] for e in earners])
             total_living = sum(living.values()) + uplift_total
+            taxi_rental_total = 0
             for m, emp in earners:
                 if emp["profession_id"] == "taxi_driver":
-                    total_living += rental_day * econ.WORK_DAYS
+                    taxi_rental_total += rental_day * econ.WORK_DAYS
+            total_living += taxi_rental_total
             if gross_by:
                 total_gross = sum(gross_by.values()) or 1
                 for cid, gross in gross_by.items():
@@ -504,6 +578,20 @@ class Simulation:
                     if target and store.balance(cid) >= target:
                         decisions_mod.complete_goals_of_type(
                             store, cid, "save_amount", game_minutes)
+            # Session 02 Unit 03: the family's monthly accounts,
+            # written from this settlement's own numbers. Education
+            # and healthcare stay 0 — civic provision, no fee line
+            # exists in prices.json (family_economy docstring).
+            rent_paid = tenancy["rent_per_month"] if tenancy else 0
+            family_economy.record_month(
+                store, hid, (last_day + 1) // 30, game_minutes,
+                income=sum(gross_by.values()) + pension_total,
+                food=living["food"], housing=rent_paid,
+                transport=living["transport"] + taxi_rental_total,
+                other=(living["utilities"] + living["clothing"]
+                       + living["eating"] + living["services"]
+                       + uplift_total),
+                emergency=unpaid)
 
     # -- reporting ---------------------------------------------------------------
     def summary(self):
@@ -550,6 +638,27 @@ class Simulation:
             "decisions": decisions,
             "avg_happiness": emo["h"],
             "avg_stress": emo["s"],
+            # Session 02 society layer, same read-live discipline.
+            "communities": store.row(
+                "SELECT COUNT(*) AS n FROM communities")["n"],
+            "social_events": store.row(
+                "SELECT COUNT(*) AS n FROM social_events")["n"],
+            "households_in_debt": store.row(
+                "SELECT COUNT(*) AS n FROM household_state"
+                " WHERE debt_ncr > 0")["n"],
+            "students_enrolled": store.row(
+                "SELECT COUNT(*) AS n FROM education_records"
+                " WHERE status = 'enrolled'")["n"],
+            "credentials_completed": store.row(
+                "SELECT COUNT(*) AS n FROM education_records"
+                " WHERE status = 'completed' AND programme !="
+                " 'school'")["n"],
+            "open_conflicts": store.row(
+                "SELECT COUNT(*) AS n FROM conflict_records"
+                " WHERE status = 'open'")["n"],
+            "neighbour_edges": store.row(
+                "SELECT COUNT(*) AS n FROM relationships"
+                " WHERE relation_type = 'neighbour'")["n"],
         }
 
     def profile(self, character_id):
