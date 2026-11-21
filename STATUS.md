@@ -1,7 +1,17 @@
 # NEXORA — Development Status
 
-**Continuous development:** ✅ QUEUE COMPLETE — Units A–J all merged to GitHub (owner order 2026-11-20 23:48 fulfilled 2026-11-21; scheduled runs stopped)
-**Repo:** https://github.com/zobaerio/Nexora · main after PR #3: `7c5071c7`
+**Continuous development:** RUNNING — Queue 1 (A–J) complete + merged; Queue 2 (K–O) ordered by the owner 2026-11-21 07:08 ("Continue"). Note: PR #4 was a duplicate of PR #3 created by a late scheduled run; closed 2026-11-21, no content difference.
+**Repo:** https://github.com/zobaerio/Nexora · main after PR #3: `7c5071c7` (STATUS finalised `7ed1b6a3`)
+
+## Queue 2 (ordered 2026-11-21)
+
+| Unit | State | PR |
+|---|---|---|
+| K — Character Movement C++ | ✅ Complete + verified locally (testbed-matched values, braces balanced) — Queue 2 batch | — |
+| L — Game Data Tables | ✅ Complete + verified locally (JSON parse + full cross-reference validation) — Queue 2 batch | — |
+| M — Save System Scaffold | ✅ Complete + verified locally (schema-mapped USaveGame scaffold) — Queue 2 batch | — |
+| N — UI & Panels Design | Queued | — |
+| O — NPC Behaviour Design | Queued | — |
 
 | Unit | State | PR |
 |---|---|---|

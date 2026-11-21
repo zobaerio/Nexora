@@ -31,6 +31,20 @@ When the queue empties: write a completion summary into `STATUS.md`, keep the qu
 
 **Recovery note (run 2026-11-21 03:45):** the 01:45 run's batch push was cut twice by service restarts and the branch was never created, so this run re-pushed the same 35-file batch on `feat/run-20261121-0145` (main confirmed still `675bb183`, no open PRs, no duplication). **Outcome: failed a third time — the write approval card timed out while the owner slept (see STATUS.md "Push block (2026-11-21 03:45 run)").** The merge needs one awake-time approval; later runs re-attempt the same batch.
 
+**Queue 1 result:** Units A–J completed and merged 2026-11-21 (PRs #2, #3; main `7c5071c7`, STATUS finalised `7ed1b6a3`). The recovery note above is history — the batch landed once the owner approved while awake.
+
+---
+
+# Queue 2 — ordered by the owner ("Continue", 2026-11-21 07:08)
+
+Same scope limits, honesty rules and GitHub batching rule as Queue 1. All UE C++ remains UNCOMPILED SCAFFOLD until compiled on the owner's PC.
+
+- [x] **Unit K — Character Movement C++ (Phase 3 prep)** (`ue-project/Source/Nexora/NexoraCharacter.*` expanded + `docs/TECH-MOVEMENT.md`): implement the movement the Unit D stubs promised — Enhanced Input move/look/sprint/jump, CharacterMovement settings matched to the Godot testbed acceptance values (walk 5.0 m/s, run ≈8.8 m/s, jump apex ≈1.6 m), spring-arm camera boom 4.5 m with collision shortening; tech note maps every testbed test to its UE equivalent check.
+- [x] **Unit L — Game Data Tables** (`data/prices.json` + `data/buildings-district1.json` + `data/missions.json`): structured data behind the GDDs — wage/price/rent tables consistent with GDD-03 and professions.json; District 1 property stock (from GDD-02) with ids, zone, type, price/rent; missions from GDD-04 Levels 1–8 with objectives/rewards/unlocks. All JSON must parse; cross-references (profession ids, zone ids, mission ids) must resolve.
+- [x] **Unit M — Save System Scaffold** (`ue-project/Source/Nexora/Save/NexoraSaveGame.*` + `docs/TECH-SAVE-SYSTEM.md`): USaveGame-based save/load scaffold mapping the GDD-01 single-player state onto schema.sql's save_slots/world_state design; versioning + migration note; uncompiled-scaffold labelling.
+- [ ] **Unit N — UI & Panels Design** (`docs/GDD-05-UI-AND-PANELS.md`): HUD layout, character profile screen (owner's example card), Environment Control Panel (time/weather controls from the owner's spec), main menu + pause flow, settings; wireframe descriptions + widget class list for UMG implementation later.
+- [ ] **Unit O — NPC Behaviour Design** (`docs/GDD-06-NPC-BEHAVIOUR.md`): per-profession daily-life state machines tied to npc-schedules.json, crowd tiers (full character vs Mass representation) consistent with the Phase 2 sheet, conversation + memory hooks tied to GDD-01's two-kind memory model, honesty notes on what Mass AI can/cannot do at this scale.
+
 ## Status
 
 See `STATUS.md` (updated every unit).
