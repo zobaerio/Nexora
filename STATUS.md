@@ -1,16 +1,16 @@
 # NEXORA — Development Status
 
-**Continuous development:** Queue 4 (U–X) COMPLETE 2026-11-21 — economy findings fixed in the data and proven by the simulator v2 re-run (batch PR this push; merge sha recorded by the finalisation push). Queues 1–3 = Units A–T all on GitHub main. Note: PR #4 was a duplicate of PR #3 created by a late scheduled run; closed 2026-11-21, no content difference.
-**Repo:** https://github.com/zobaerio/Nexora · main after PR #8: `bc195468`
+**Continuous development:** Queue 4 (U–X) COMPLETE + merged 2026-11-21 (PR #9, main `153a1433`). Queues 1–4 = Units A–X all on GitHub main. Note: PR #4 was a duplicate of PR #3 created by a late scheduled run; closed 2026-11-21, no content difference.
+**Repo:** https://github.com/zobaerio/Nexora · main after PR #9: `153a1433`
 
 ## Queue 4 (ordered 2026-11-21 — economy findings from Unit T)
 
 | Unit | State | PR |
 |---|---|---|
-| U — Taxi Rental Fix (Finding 1) | ✅ Done — cab rental 800 → 200/day in prices.json + GDD-03 §3.3/§8 + GDD-07 §2 + vehicles.json; renting entry −13,700 → +1,600/mo | this batch |
-| V — Senior Cost Scaling (Finding 2) | ✅ Done — eating-out + services lines and 35%-of-raise lifestyle uplift in prices.json; GDD-03 §3.1/§11 | this batch |
-| W — Per-Profession Starting Balances (Finding 3) | ✅ Done — starting_balance_ncr ×11 in professions.json (dip × 1.25 rule; civil keeps 25,000; pilot 51,000) | this batch |
-| X — Simulator v2 + Re-run (Finding 6) | ✅ Done — full business P&L + 8% business tax in the sim; docs/ECONOMY-SIM-REPORT-V2.md with verbatim output + before/after | this batch |
+| U — Taxi Rental Fix (Finding 1) | ✅ Merged + blob-verified on main (prices.json `142e14ba`) — cab rental 800 → 200/day; renting entry −13,700 → +1,600/mo | #9 |
+| V — Senior Cost Scaling (Finding 2) | ✅ Merged + blob-verified on main (GDD-03 `11a8395a`) — eating-out + services lines, 35%-of-raise lifestyle uplift | #9 |
+| W — Per-Profession Starting Balances (Finding 3) | ✅ Merged + blob-verified on main (professions.json `a8c2ba32`) — starting_balance_ncr ×11 (dip × 1.25 rule; civil keeps 25,000; pilot 51,000) | #9 |
+| X — Simulator v2 + Re-run (Finding 6) | ✅ Merged + blob-verified on main (report `7abd6654`, sim `bfcb7577`) — full business P&L + 8% business tax; docs/ECONOMY-SIM-REPORT-V2.md | #9 |
 
 ## Queue 4 completion summary (2026-11-21)
 
