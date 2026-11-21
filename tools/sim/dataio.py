@@ -75,6 +75,15 @@ class WorldData:
         # every health/disease/research rate labelled SIM MODEL.
         self.education_health_config = _load_json(
             "education-health-config.json")
+        # Session 07: the transportation layer's data — vehicle
+        # classes (speeds, capacities, fuel consumption, road
+        # rights) and the transport configuration (transit routes
+        # over real zones, congestion/condition models, and every
+        # rate with no design basis labelled SIM MODEL there).
+        self.vehicles_file = _load_json("vehicles.json")
+        self.vehicle_types = {v["id"]: v
+                              for v in self.vehicles_file["vehicles"]}
+        self.transport_config = _load_json("transport-config.json")
 
     # -- canonical accessors -------------------------------------------------
     # Employment tiers run 1..5 (professions.json progression), but

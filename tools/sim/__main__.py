@@ -83,9 +83,20 @@ def main(argv=None):
     ap.add_argument("--development", action="store_true",
                     help="human development indicators + methodology"
                          " + research")
+    # Session 07 transportation observation: real sim data only.
+    ap.add_argument("--transport", action="store_true",
+                    help="transport: vehicles, trips, congestion,"
+                         " transit, freight, statistics")
     args = ap.parse_args(argv)
 
     sim = Simulation(args.db, seed=args.seed)
+    if args.transport:
+        from tools.sim import transportview
+        out = transportview.transport_view(sim.store, sim.data)
+        print(json.dumps(out, indent=1, sort_keys=True,
+                         default=str))
+        sim.close()
+        return 0
     if args.education or args.health or args.development:
         from tools.sim import humandevview
         if args.education:

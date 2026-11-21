@@ -71,6 +71,7 @@ from . import generations as generations_mod
 from . import kinship as kinship_mod
 from . import mobility as mobility_mod
 from . import social as social_mod
+from . import transport as transport_mod
 from . import identity as identity_mod
 from . import interaction as interaction_mod
 from . import lifecycle
@@ -126,6 +127,12 @@ class Simulation:
         # for the population) — hand-built worlds have no Session
         # 06 layer and every Session 06 pass no-ops for them.
         stats["humandev"] = humandev_mod.setup_humandev(
+            self.store, self.data, 480)
+        # Session 07: the transportation layer seeds last (its
+        # fleets and trucks read the economy's businesses and the
+        # population's taxi drivers) — hand-built worlds have no
+        # Session 07 layer and every Session 07 pass no-ops.
+        stats["transport"] = transport_mod.setup_transport(
             self.store, self.data, 480)
         return stats
 
@@ -321,6 +328,14 @@ class Simulation:
         if humandev_mod.is_setup(store):
             health_mod.daily_pass(store, data, self.rng, day, day_end,
                                   preset)
+        # Session 07: the day's physical movement — trips from the
+        # day's instantiated schedules, clinic journeys and
+        # emergency referrals from today's Session 06 records, and
+        # the traffic those trips create. Runs after the health
+        # pass so today's visits exist. No-ops when not set up.
+        if transport_mod.is_setup(store):
+            transport_mod.daily_pass(store, data, self.rng, day,
+                                     day_end, preset)
         if day % 7 == 6:
             rel.weekly_drift(store, day_end)
             self._weekly_social(day_end)
@@ -347,6 +362,7 @@ class Simulation:
             self._monthly_economy_close(day)
             self._monthly_government(day)
             self._monthly_humandev(day)
+            self._monthly_transport(day)
         store.set_world(game_minutes=day_end, day_index=day + 1,
                         weather_preset=preset)
         store.commit()
@@ -403,12 +419,17 @@ class Simulation:
         distribution_mod.monthly_migration(store, data, game_minutes)
         growth_mod.monthly_growth(store, data, month_index,
                                   game_minutes)
-        regional_mod.monthly_flows(store, data, month_index,
-                                   game_minutes)
+        flows = regional_mod.monthly_flows(store, data, month_index,
+                                           game_minutes)
         # Session 04 Unit 13: the flows become physical (inventory
         # moves between the cities) and fiscal (tariffs collect).
         trade_mod.settle_trade(store, data, month_index,
                                game_minutes)
+        # Session 07: each flow also leaves a freight shipment
+        # record (route + congested arrival over the bridge).
+        if transport_mod.is_setup(store):
+            transport_mod.record_trade_shipments(
+                store, data, month_index, game_minutes, flows)
         analytics_mod.record_snapshots(store, data, month_index,
                                        game_minutes)
         cities_mod.refresh_registry(store, data, game_minutes)
@@ -435,8 +456,16 @@ class Simulation:
         effects = crises_mod.active_effects(store)
         market_mod.production_pass(store, data, month_index,
                                    game_minutes, storm_days=storm_days)
-        market_mod.supply_chain_pass(store, data, month_index,
-                                     game_minutes)
+        orders = market_mod.supply_chain_pass(store, data,
+                                              month_index,
+                                              game_minutes)
+        # Session 07: the orders become physical freight
+        # shipments (vehicle, route, congested arrival, delay).
+        # The money already moved inside the supply pass; this
+        # records the journey only. No-ops when not set up.
+        if transport_mod.is_setup(store):
+            transport_mod.record_shipments(store, data, month_index,
+                                           game_minutes, orders)
         # Converters run once more on what the supply chain just
         # delivered, so this month's inputs become this month's
         # food and garments rather than next month's.
@@ -504,6 +533,22 @@ class Simulation:
         month_index = (last_day + 1) // 30
         humandev_mod.monthly_pass(store, data, self.rng, month_index,
                                   game_minutes)
+
+    # -- Session 07 transportation cadence ----------------------
+    # Monthly, after human development: taxi cabs for new
+    # drivers, the vehicle purchase sweep, fleet maintenance,
+    # the transit subsidy, migration journeys and the monthly
+    # transport statistics. No-ops when the layer was never
+    # set up.
+
+    def _monthly_transport(self, last_day):
+        store, data = self.store, self.data
+        if not transport_mod.is_setup(store):
+            return
+        game_minutes = (last_day + 1) * 1440
+        month_index = (last_day + 1) // 30
+        transport_mod.monthly_pass(store, data, self.rng, month_index,
+                                   game_minutes)
 
     def run_days(self, n):
         for _ in range(n):
@@ -1018,6 +1063,10 @@ class Simulation:
             # set up).
             "humandev": self._humandev_summary()
             if humandev_mod.is_setup(store) else {},
+            # Session 07 transportation layer (empty when not
+            # set up).
+            "transport": transport_mod.transport_summary(store)
+            if transport_mod.is_setup(store) else {},
         }
 
     def _humandev_summary(self):
