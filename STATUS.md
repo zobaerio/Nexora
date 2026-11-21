@@ -1,15 +1,15 @@
 # NEXORA — Development Status
 
 **Continuous development:** RUNNING — Queue 1 (A–J) complete + merged; Queue 2 (K–O) ordered by the owner 2026-11-21 07:08 ("Continue"). Note: PR #4 was a duplicate of PR #3 created by a late scheduled run; closed 2026-11-21, no content difference.
-**Repo:** https://github.com/zobaerio/Nexora · main after PR #3: `7c5071c7` (STATUS finalised `7ed1b6a3`)
+**Repo:** https://github.com/zobaerio/Nexora · main after PR #5: `ece37381`
 
 ## Queue 2 (ordered 2026-11-21)
 
 | Unit | State | PR |
 |---|---|---|
-| K — Character Movement C++ | ✅ Complete + verified locally (testbed-matched values, braces balanced) — Queue 2 batch | — |
-| L — Game Data Tables | ✅ Complete + verified locally (JSON parse + full cross-reference validation) — Queue 2 batch | — |
-| M — Save System Scaffold | ✅ Complete + verified locally (schema-mapped USaveGame scaffold) — Queue 2 batch | — |
+| K — Character Movement C++ | ✅ Merged + blob-verified on main (NexoraCharacter.cpp `0cc0ae4e`, TECH-MOVEMENT.md `9373b40c`) | #5 |
+| L — Game Data Tables | ✅ Merged + blob-verified on main (missions `77f65eb3`, buildings `98f612dc`, prices `bd9ccfec`) | #5 |
+| M — Save System Scaffold | ✅ Merged + blob-verified on main (NexoraSaveGame.h `958b7e42`, .cpp `b739de72`) | #5 |
 | N — UI & Panels Design | Queued | — |
 | O — NPC Behaviour Design | Queued | — |
 
