@@ -59,9 +59,42 @@ def main(argv=None):
     ap.add_argument("--finances", metavar="CHARACTER_ID",
                     help="a person's financial profile from the"
                          " ledger")
+    # Session 05 government observation: real sim data only.
+    ap.add_argument("--government", action="store_true",
+                    help="government overview: country, offices,"
+                         " parties, treasuries, approval, integrity")
+    ap.add_argument("--election", metavar="ELECTION_ID",
+                    help="election: results + ballots cast")
+    ap.add_argument("--policy", metavar="POLICY_ID",
+                    help="policy: object, spend, measured outcome")
+    ap.add_argument("--budget", action="store_true",
+                    help="budgets + public debt")
+    ap.add_argument("--court", action="store_true",
+                    help="court: case counts + the law book")
+    ap.add_argument("--diplomacy", action="store_true",
+                    help="diplomacy: partner model + agreements")
     args = ap.parse_args(argv)
 
     sim = Simulation(args.db, seed=args.seed)
+    if args.government or args.election or args.policy \
+            or args.budget or args.court or args.diplomacy:
+        from tools.sim import govview
+        if args.government:
+            out = govview.overview(sim.store, sim.data)
+        elif args.election:
+            out = govview.election_view(sim.store, args.election)
+        elif args.policy:
+            out = govview.policy_view(sim.store, args.policy)
+        elif args.budget:
+            out = govview.budget_view(sim.store)
+        elif args.court:
+            out = govview.court_view(sim.store)
+        else:
+            out = govview.diplomacy_view(sim.store)
+        print(json.dumps(out, indent=1, sort_keys=True,
+                         default=str))
+        sim.close()
+        return 0
     if args.economy or args.business or args.bank \
             or args.indicators or args.finances:
         from tools.sim import econview

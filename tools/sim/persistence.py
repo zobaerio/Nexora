@@ -49,6 +49,20 @@ Session 01):
   event_ref (the owner's traceability order: every unit of money
   carries its idempotency key and the simulation event that
   caused it) and businesses.category / status.
+- Session 05 additions (bottom of SCHEMA): countries, treasuries,
+  institutions, offices, parties, party_memberships,
+  citizen_opinion, opinion_snapshots, elections, ballots,
+  citizen_feedback, policies, budgets, civil_service, laws,
+  court_cases, incidents, audits, coi_records, integrity_reports,
+  external_partners, agreements, development_plans,
+  government_events — the government/politics layer. schema.sql
+  has no government structures at all; each is recorded as a gap
+  in docs/SESSION-05-REPORT.md. Ballots are append-only like the
+  ledger (immutability triggers in _migrate). Two more column
+  migrations: world_state.government_setup and
+  vacancies.employer_account_id. Government authority exists
+  ONLY as this in-simulation data — it grants nothing outside
+  the sim (the owner's platform/government separation directive).
 - characters.first_name / last_name / birthplace / nationality /
   family_background — Session 01 Unit 01 identity fields that
   schema.sql folds into display_name / leaves implicit.
@@ -812,6 +826,296 @@ CREATE TABLE IF NOT EXISTS household_consumption (
     unmet_units REAL NOT NULL DEFAULT 0,
     PRIMARY KEY (household_id, month_index, good_id)
 );
+-- SESSION 05 tables (additive only; see SESSION-05-REPORT.md) ------------
+-- The government/politics layer. schema.sql has no government
+-- structures; every table here is a recorded gap. All authority in
+-- these tables is in-simulation data only (owner's separation
+-- directive): an office row can move simulated money through the
+-- ledger; it grants no access to anything outside the sim.
+-- countries: the data model supports multiple countries; exactly
+-- one is populated (a second record is constructible — Unit 01's
+-- test does that without fabricating a second nation).
+CREATE TABLE IF NOT EXISTS countries (
+    country_id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    capital_city_id TEXT,
+    currency_code TEXT,
+    next_election_month INTEGER,
+    created_at_game_minutes INTEGER NOT NULL DEFAULT 0
+);
+-- treasuries: the Session 04 deferred question answered — SYS-CITY
+-- stays the NATIONAL treasury; each city gains its own municipal
+-- treasury account (a system character row) by a recorded,
+-- conservation-preserving allocation (see government.py).
+CREATE TABLE IF NOT EXISTS treasuries (
+    account_id TEXT PRIMARY KEY,
+    scope TEXT NOT NULL,
+    city_id TEXT,
+    label TEXT,
+    opening_balance_ncr INTEGER NOT NULL DEFAULT 0,
+    opening_advance_ncr INTEGER NOT NULL DEFAULT 0,
+    opened_at_game_minutes INTEGER NOT NULL DEFAULT 0
+);
+CREATE TABLE IF NOT EXISTS institutions (
+    institution_id TEXT PRIMARY KEY,
+    country_id TEXT NOT NULL,
+    name TEXT NOT NULL,
+    branch TEXT NOT NULL,
+    level TEXT NOT NULL DEFAULT 'national',
+    city_id TEXT,
+    authority TEXT NOT NULL DEFAULT '[]',
+    account_id TEXT,
+    active INTEGER NOT NULL DEFAULT 1
+);
+CREATE TABLE IF NOT EXISTS offices (
+    office_id TEXT PRIMARY KEY,
+    institution_id TEXT NOT NULL,
+    title TEXT NOT NULL,
+    holder_character_id TEXT,
+    constituency_city_id TEXT,
+    appointed_via TEXT,
+    term_started_at_game_minutes INTEGER,
+    term_ended_at_game_minutes INTEGER,
+    status TEXT NOT NULL DEFAULT 'vacant'
+);
+CREATE INDEX IF NOT EXISTS idx_offices_holder
+    ON offices(holder_character_id, status);
+CREATE TABLE IF NOT EXISTS parties (
+    party_id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    short TEXT,
+    account_id TEXT,
+    leader_character_id TEXT,
+    stances TEXT NOT NULL DEFAULT '{}',
+    platform TEXT,
+    status TEXT NOT NULL DEFAULT 'registered',
+    founded_at_game_minutes INTEGER NOT NULL DEFAULT 0
+);
+CREATE TABLE IF NOT EXISTS party_memberships (
+    party_id TEXT NOT NULL,
+    character_id TEXT NOT NULL,
+    role TEXT NOT NULL DEFAULT 'member',
+    joined_at_game_minutes INTEGER NOT NULL DEFAULT 0,
+    left_at_game_minutes INTEGER,
+    PRIMARY KEY (party_id, character_id)
+);
+CREATE TABLE IF NOT EXISTS citizen_opinion (
+    character_id TEXT PRIMARY KEY,
+    approval REAL NOT NULL DEFAULT 50,
+    support_party_id TEXT,
+    components TEXT NOT NULL DEFAULT '{}',
+    updated_month INTEGER NOT NULL DEFAULT 0,
+    updated_at_game_minutes INTEGER NOT NULL DEFAULT 0
+);
+CREATE TABLE IF NOT EXISTS opinion_snapshots (
+    month_index INTEGER PRIMARY KEY,
+    mean_approval REAL,
+    support_shares TEXT NOT NULL DEFAULT '{}',
+    respondents INTEGER NOT NULL DEFAULT 0,
+    game_minutes INTEGER NOT NULL
+);
+CREATE TABLE IF NOT EXISTS elections (
+    election_id TEXT PRIMARY KEY,
+    country_id TEXT NOT NULL,
+    month_index INTEGER NOT NULL,
+    status TEXT NOT NULL DEFAULT 'scheduled',
+    rules TEXT NOT NULL DEFAULT '{}',
+    turnout INTEGER NOT NULL DEFAULT 0,
+    eligible INTEGER NOT NULL DEFAULT 0,
+    results TEXT NOT NULL DEFAULT '{}',
+    winner_party_id TEXT,
+    game_minutes INTEGER
+);
+-- ballots: one row per voter per election, enforced by the UNIQUE
+-- constraint; append-only via triggers (see _migrate), like the
+-- ledger — a cast ballot can never be edited or removed.
+CREATE TABLE IF NOT EXISTS ballots (
+    ballot_id TEXT PRIMARY KEY,
+    election_id TEXT NOT NULL,
+    character_id TEXT NOT NULL,
+    city_id TEXT NOT NULL,
+    party_id TEXT NOT NULL,
+    game_minutes INTEGER NOT NULL,
+    UNIQUE (election_id, character_id)
+);
+CREATE INDEX IF NOT EXISTS idx_ballots_election
+    ON ballots(election_id);
+CREATE TABLE IF NOT EXISTS citizen_feedback (
+    feedback_id TEXT PRIMARY KEY,
+    kind TEXT NOT NULL,
+    character_id TEXT,
+    topic TEXT NOT NULL,
+    stance TEXT,
+    details TEXT NOT NULL DEFAULT '{}',
+    status TEXT NOT NULL DEFAULT 'open',
+    response TEXT,
+    created_at_game_minutes INTEGER NOT NULL,
+    closed_at_game_minutes INTEGER
+);
+CREATE TABLE IF NOT EXISTS policies (
+    policy_id TEXT PRIMARY KEY,
+    kind TEXT NOT NULL,
+    title TEXT NOT NULL,
+    institution_id TEXT,
+    city_id TEXT,
+    proposed_by TEXT,
+    approved_by TEXT,
+    status TEXT NOT NULL DEFAULT 'proposed',
+    budget_ncr INTEGER NOT NULL DEFAULT 0,
+    duration_months INTEGER NOT NULL DEFAULT 0,
+    months_run INTEGER NOT NULL DEFAULT 0,
+    expected TEXT NOT NULL DEFAULT '{}',
+    actual TEXT NOT NULL DEFAULT '{}',
+    created_month INTEGER NOT NULL DEFAULT 0,
+    created_at_game_minutes INTEGER NOT NULL DEFAULT 0,
+    ended_at_game_minutes INTEGER
+);
+CREATE TABLE IF NOT EXISTS budgets (
+    budget_id TEXT PRIMARY KEY,
+    fiscal_year INTEGER NOT NULL,
+    status TEXT NOT NULL DEFAULT 'draft',
+    forecast_revenue_ncr INTEGER NOT NULL DEFAULT 0,
+    allocations TEXT NOT NULL DEFAULT '{}',
+    actuals TEXT NOT NULL DEFAULT '{}',
+    approved_by TEXT,
+    borrowed_loan_id TEXT,
+    created_month INTEGER NOT NULL DEFAULT 0,
+    created_at_game_minutes INTEGER NOT NULL DEFAULT 0,
+    closed_at_game_minutes INTEGER
+);
+CREATE TABLE IF NOT EXISTS civil_service (
+    record_id TEXT PRIMARY KEY,
+    character_id TEXT NOT NULL,
+    institution_id TEXT NOT NULL,
+    vacancy_id TEXT,
+    role TEXT,
+    status TEXT NOT NULL DEFAULT 'active',
+    evaluation_score REAL,
+    evaluations INTEGER NOT NULL DEFAULT 0,
+    started_at_game_minutes INTEGER NOT NULL DEFAULT 0,
+    ended_at_game_minutes INTEGER
+);
+CREATE TABLE IF NOT EXISTS laws (
+    law_id TEXT PRIMARY KEY,
+    title TEXT NOT NULL,
+    kind TEXT NOT NULL,
+    effect TEXT NOT NULL DEFAULT '{}',
+    proposed_by TEXT,
+    status TEXT NOT NULL DEFAULT 'proposed',
+    debate TEXT NOT NULL DEFAULT '[]',
+    votes_for INTEGER NOT NULL DEFAULT 0,
+    votes_against INTEGER NOT NULL DEFAULT 0,
+    effective_month INTEGER,
+    created_at_game_minutes INTEGER NOT NULL DEFAULT 0,
+    enacted_at_game_minutes INTEGER
+);
+-- court_cases: allegation and finding are separate columns by
+-- design (Unit 10): an allegation is a claim recorded from a real
+-- sim dispute; only a judgment writes the finding.
+CREATE TABLE IF NOT EXISTS court_cases (
+    case_id TEXT PRIMARY KEY,
+    case_type TEXT NOT NULL,
+    source_kind TEXT NOT NULL,
+    source_ref TEXT NOT NULL,
+    plaintiff_id TEXT,
+    defendant_id TEXT,
+    allegation TEXT NOT NULL DEFAULT '{}',
+    finding TEXT,
+    status TEXT NOT NULL DEFAULT 'filed',
+    judge_character_id TEXT,
+    judgment TEXT,
+    remedy_ncr INTEGER NOT NULL DEFAULT 0,
+    appeal_of TEXT,
+    created_at_game_minutes INTEGER NOT NULL DEFAULT 0,
+    closed_at_game_minutes INTEGER,
+    UNIQUE (source_kind, source_ref)
+);
+CREATE TABLE IF NOT EXISTS incidents (
+    incident_id TEXT PRIMARY KEY,
+    incident_type TEXT NOT NULL,
+    city_id TEXT,
+    source_kind TEXT,
+    source_ref TEXT,
+    reporter_character_id TEXT,
+    officer_character_id TEXT,
+    description TEXT,
+    status TEXT NOT NULL DEFAULT 'reported',
+    outcome TEXT,
+    case_id TEXT,
+    created_at_game_minutes INTEGER NOT NULL DEFAULT 0,
+    closed_at_game_minutes INTEGER,
+    UNIQUE (source_kind, source_ref)
+);
+CREATE INDEX IF NOT EXISTS idx_incidents_city
+    ON incidents(city_id, status);
+CREATE TABLE IF NOT EXISTS audits (
+    audit_id TEXT PRIMARY KEY,
+    scope TEXT NOT NULL,
+    month_index INTEGER NOT NULL DEFAULT 0,
+    discrepancies TEXT NOT NULL DEFAULT '[]',
+    discrepancy_count INTEGER NOT NULL DEFAULT 0,
+    result TEXT NOT NULL,
+    integrity_index REAL,
+    auditor_character_id TEXT,
+    game_minutes INTEGER NOT NULL
+);
+CREATE TABLE IF NOT EXISTS coi_records (
+    coi_id TEXT PRIMARY KEY,
+    character_id TEXT NOT NULL,
+    office_id TEXT NOT NULL,
+    business_id TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'declared',
+    detected_at_game_minutes INTEGER NOT NULL DEFAULT 0,
+    UNIQUE (office_id, business_id)
+);
+CREATE TABLE IF NOT EXISTS integrity_reports (
+    report_id TEXT PRIMARY KEY,
+    reporter_character_id TEXT,
+    subject_character_id TEXT,
+    allegation TEXT NOT NULL DEFAULT '{}',
+    status TEXT NOT NULL DEFAULT 'filed',
+    outcome TEXT,
+    created_at_game_minutes INTEGER NOT NULL DEFAULT 0,
+    closed_at_game_minutes INTEGER
+);
+-- external_partners: the ONE external counterpart is a labelled
+-- model account (like the SYS accounts), never a populated nation.
+CREATE TABLE IF NOT EXISTS external_partners (
+    partner_id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    account_id TEXT,
+    relation_score REAL NOT NULL DEFAULT 50,
+    model_note TEXT,
+    created_at_game_minutes INTEGER NOT NULL DEFAULT 0
+);
+CREATE TABLE IF NOT EXISTS agreements (
+    agreement_id TEXT PRIMARY KEY,
+    partner_id TEXT NOT NULL,
+    kind TEXT NOT NULL,
+    terms TEXT NOT NULL DEFAULT '{}',
+    status TEXT NOT NULL DEFAULT 'proposed',
+    signed_by TEXT,
+    started_month INTEGER,
+    created_at_game_minutes INTEGER NOT NULL DEFAULT 0
+);
+CREATE TABLE IF NOT EXISTS development_plans (
+    plan_id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    targets TEXT NOT NULL DEFAULT '{}',
+    baseline TEXT NOT NULL DEFAULT '{}',
+    status TEXT NOT NULL DEFAULT 'active',
+    created_month INTEGER NOT NULL DEFAULT 0,
+    created_at_game_minutes INTEGER NOT NULL DEFAULT 0
+);
+CREATE TABLE IF NOT EXISTS government_events (
+    event_id TEXT PRIMARY KEY,
+    event_type TEXT NOT NULL,
+    actor_character_id TEXT,
+    details TEXT NOT NULL DEFAULT '{}',
+    game_minutes INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_govevents_type
+    ON government_events(event_type, game_minutes);
 """
 
 # Additive column migrations for tables that predate a session.
@@ -824,6 +1128,9 @@ MIGRATIONS = (
     ("businesses", "category", "TEXT"),
     ("businesses", "status", "TEXT NOT NULL DEFAULT 'active'"),
     ("world_state", "economy_setup", "INTEGER NOT NULL DEFAULT 0"),
+    ("world_state", "government_setup", "INTEGER NOT NULL DEFAULT 0"),
+    ("vacancies", "employer_account_id", "TEXT"),
+    ("vacancies", "employer_institution_id", "TEXT"),
 )
 
 SYSTEM_ACCOUNTS = ("SYS-CITY", "SYS-EMPLOYERS", "SYS-MARKET", "SYS-BANK")
@@ -867,6 +1174,19 @@ class Store:
             " BEFORE DELETE ON economy_ledger BEGIN"
             " SELECT RAISE(ABORT, 'economy_ledger is append-only');"
             " END")
+        # Session 05: cast ballots are immutable for the same
+        # reason — an election record that can be edited is not an
+        # audit trail.
+        self.conn.execute(
+            "CREATE TRIGGER IF NOT EXISTS trg_ballots_no_update"
+            " BEFORE UPDATE ON ballots BEGIN"
+            " SELECT RAISE(ABORT, 'ballots are immutable');"
+            " END")
+        self.conn.execute(
+            "CREATE TRIGGER IF NOT EXISTS trg_ballots_no_delete"
+            " BEFORE DELETE ON ballots BEGIN"
+            " SELECT RAISE(ABORT, 'ballots are immutable');"
+            " END")
 
     def close(self):
         self.conn.commit()
@@ -874,12 +1194,28 @@ class Store:
 
     # -- ids ---------------------------------------------------------------
     def next_id(self, prefix, table, column):
-        if prefix not in self._counters:
-            row = self.conn.execute(
-                f"SELECT COUNT(*) AS n FROM {table}").fetchone()
-            self._counters[prefix] = row["n"]
-        self._counters[prefix] += 1
-        return f"{prefix}{self._counters[prefix]:06d}"
+        """Next sequential id for (prefix, table). The counter is
+        seeded from the MAXIMUM existing numeric suffix for the
+        prefix in that table — never from COUNT(*): literal-id
+        rows (system accounts) and rows written by earlier
+        processes must not shift the sequence, or a resumed run
+        would mint different ids than an uninterrupted one (the
+        Session 01 restart-equivalence guarantee). Keyed by
+        (prefix, table) because two tables may share a prefix
+        (price_history / parcel_history both use PH)."""
+        key = (prefix, table)
+        if key not in self._counters:
+            rows = self.conn.execute(
+                f"SELECT {column} AS v FROM {table} WHERE"
+                f" {column} LIKE ?", (prefix + "%",)).fetchall()
+            best = 0
+            for r in rows:
+                suffix = r["v"][len(prefix):]
+                if suffix.isdigit():
+                    best = max(best, int(suffix))
+            self._counters[key] = best
+        self._counters[key] += 1
+        return f"{prefix}{self._counters[key]:06d}"
 
     # -- generic row helpers -------------------------------------------------
     def insert(self, table, **row):

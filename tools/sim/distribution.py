@@ -178,6 +178,15 @@ def monthly_migration(store, data, game_minutes):
     """The monthly pass: pressure-qualified households migrate,
     capped, in deterministic (household_id) order, both
     directions."""
+    # Session 05 Unit 09 hook: an enacted migration law scales the
+    # monthly cap by its recorded openness factor (default 1.0 —
+    # worlds without the government layer, or without such a law,
+    # migrate exactly as Session 03 built them).
+    cap = MAX_MIGRATIONS_PER_MONTH
+    if store.world().get("government_setup"):
+        from . import justice as justice_mod
+        cap = max(0, round(cap * justice_mod.migration_openness(
+            store, data)))
     moved = []
     for spec in data.city_specs():
         other = cities_mod.SHIBNAGAR if spec["city_id"] \
@@ -185,7 +194,7 @@ def monthly_migration(store, data, game_minutes):
         count = 0
         for h in cities_mod.city_households(store, data,
                                             spec["city_id"]):
-            if count >= MAX_MIGRATIONS_PER_MONTH:
+            if count >= cap:
                 break
             if h["created_at_game_minutes"] > game_minutes \
                     - 30 * 1440:
