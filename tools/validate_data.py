@@ -479,6 +479,55 @@ def main():
               and tc["subsidy"]["per_boarding_ncr"] > 0,
               "transport model parameters are positive")
 
+    # -- Session 08: environment-config.json ----------------------
+    # Seasons must tile the 365-day year exactly once; regions and
+    # scenario cities must be the two real cities; scenario ids
+    # unique; crops must reference Session 04's produce good cycle
+    # honestly (plant seasons exist); climate scenarios carry the
+    # baseline; no scenario is armed by default.
+    try:
+        data["environment-config.json"] = load(
+            "environment-config.json")
+        print("  ok: environment-config.json parses")
+    except Exception as e:
+        check(False, "environment-config.json parses", f"({e})")
+    if "environment-config.json" in data:
+        ec = data["environment-config.json"]
+        covered = [0] * 365
+        for s in ec["seasons"]:
+            for d in range(s["day_of_year_start"],
+                           s["day_of_year_end"] + 1):
+                covered[d] += 1
+        check(all(c == 1 for c in covered),
+              "environment seasons tile the 365-day year exactly once")
+        city_ids = {"rupsha_city", "shibnagar_town"}
+        check(set(ec["regions"]) == city_ids,
+              "environment regions are the two real cities")
+        scen = ec["scenarios"]
+        check(len({s["id"] for s in scen}) == len(scen),
+              "environment scenario ids are unique")
+        check(all(s["city_id"] in city_ids and s["duration_days"] > 0
+                  and 0 < s["intensity"] <= 1 for s in scen),
+              "environment scenarios target real cities with valid"
+              " parameters")
+        check(ec["armed_scenarios"] == [],
+              "no disaster scenario is armed by default")
+        season_ids = {s["id"] for s in ec["seasons"]}
+        check(all(c["plant_season"] in season_ids
+                  and c["growth_months"] > 0
+                  and c["yield_units_per_parcel"] > 0
+                  for c in ec["agriculture"]["crops"]),
+              "crops plant in real seasons with valid cycles")
+        check("baseline" in ec["climate_scenarios"]
+              and ec["active_climate_scenario"] in
+              ec["climate_scenarios"],
+              "climate scenarios include the active baseline")
+        check(ec["water_model"]["flood_level_m"] > 0
+              and ec["flood_model"]["building_condition_loss_per_day"]
+              > 0 and ec["disaster_response"]
+              ["relief_ncr_per_household"] > 0,
+              "environment model parameters are positive")
+
     return finish()
 
 

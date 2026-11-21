@@ -84,6 +84,12 @@ class WorldData:
         self.vehicle_types = {v["id"]: v
                               for v in self.vehicles_file["vehicles"]}
         self.transport_config = _load_json("transport-config.json")
+        # Session 08: the environment layer's configuration —
+        # seasons, regional weather/water/soil/crop/pollution
+        # models, vegetation + wildlife indices, disaster
+        # scenarios and response parameters, every rate labelled
+        # SIM MODEL in the file itself.
+        self.environment_config = _load_json("environment-config.json")
 
     # -- canonical accessors -------------------------------------------------
     # Employment tiers run 1..5 (professions.json progression), but

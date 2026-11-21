@@ -41,6 +41,13 @@ LAW_KINDS = {
                "development"),
     "migration_openness": ("factor", "migration_openness_bounds",
                            "economy"),
+    # Session 08: the environmental hook — an enacted emission
+    # limit measurably reduces the industry component of the
+    # environment layer's air-pollution index and speeds
+    # vegetation recovery (environment.effective_emission_
+    # reduction reads the law book like the hooks above).
+    "emission_limit": ("reduction_percent",
+                       "emission_limit_percent_bounds", "development"),
 }
 CONFLICT_FAULT_LEVEL = 40        # social_profiles conflict level
 APPEAL_FAULT_LEVEL = 60          # stricter threshold on appeal
