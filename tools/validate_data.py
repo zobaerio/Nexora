@@ -427,6 +427,58 @@ def main():
         check(isinstance(eh["disease"]["scenarios"], list),
               "disease scenarios are a list (empty by default)")
 
+    # -- Session 07: transport-config.json -------------------------
+    # Transit stops must be real zone ids of the route's city (the
+    # ferry's second stop is the other city's ghat zone); vehicle
+    # types must resolve into vehicles.json; tank capacities and
+    # emission factors must cover every fuel type vehicles.json
+    # uses; the ferry route id must be Session 03's persisted
+    # regional connection.
+    try:
+        data["transport-config.json"] = load("transport-config.json")
+        print("  ok: transport-config.json parses")
+    except Exception as e:
+        check(False, "transport-config.json parses", f"({e})")
+    if "transport-config.json" in data:
+        tc = data["transport-config.json"]
+        vehicles = {v["id"]: v for v in load("vehicles.json")["vehicles"]}
+        zones_by_city = {
+            "rupsha_city": set(data["buildings-district1.json"]
+                               ["zones"]),
+            "shibnagar_town": set(data["city2-shibnagar.json"]["zones"]),
+        }
+        all_zones = set().union(*zones_by_city.values())
+        routes = tc["transit_routes"]
+        check(len({r["route_id"] for r in routes}) == len(routes),
+              "transit route ids are unique")
+        check(all(r["vehicle_type"] is None
+                  or r["vehicle_type"] in vehicles for r in routes),
+              "transit vehicle types resolve into vehicles.json")
+        check(all(all(s in zones_by_city[r["city_id"]]
+                      or (r["kind"] == "ferry" and s in all_zones)
+                      for s in r["stops"]) for r in routes),
+              "transit stops are real zone ids")
+        check(all(r["terminal_building_id"] in
+                  {b["id"] for b in buildings}
+                  or r["terminal_building_id"] in
+                  {p["id"] for p in data["city2-shibnagar.json"]
+                   ["properties"]} for r in routes),
+              "transit terminals are real buildings")
+        check(any(r["route_id"] == "RC-FERRY-1" and r["kind"] == "ferry"
+                  for r in routes),
+              "ferry route is Session 03's RC-FERRY-1 connection")
+        fuel_types = {v["fuel_type"] for v in vehicles.values()}
+        check(all(f in tc["emissions_kg_per_unit"] for f in fuel_types),
+              "emission factors cover every vehicles.json fuel type")
+        check(all(v["id"] in tc["tanks"] and tc["tanks"][v["id"]] >= 0
+                  for v in vehicles.values()),
+              "tank capacities cover every vehicles.json class")
+        check(tc["congestion"]["k"] > 0
+              and tc["congestion"]["max_factor"] >= 1
+              and tc["mode_choice"]["walk_max_distance_m"] > 0
+              and tc["subsidy"]["per_boarding_ncr"] > 0,
+              "transport model parameters are positive")
+
     return finish()
 
 

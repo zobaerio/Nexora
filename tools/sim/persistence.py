@@ -80,6 +80,15 @@ Session 01):
 - characters.first_name / last_name / birthplace / nationality /
   family_background — Session 01 Unit 01 identity fields that
   schema.sql folds into display_name / leaves implicit.
+- Session 07 additions (bottom of SCHEMA): vehicles, trips,
+  road_loads, transit_routes, transit_runs, freight_shipments,
+  vehicle_events, transport_statistics — the transportation
+  layer. schema.sql has a vehicles concept only inside the UE
+  design docs; none of these tables exist there, and each gap is
+  recorded in docs/SESSION-07-REPORT.md. Two more column
+  migrations: world_state.transport_setup and
+  road_segments.closed (Session 03's road table gains the
+  closure state Session 07 routing honours).
 """
 import json
 import sqlite3
@@ -1409,6 +1418,125 @@ CREATE TABLE IF NOT EXISTS human_development_indicators (
     indicators TEXT NOT NULL DEFAULT '{}',
     UNIQUE (scope, month_index)
 );
+-- Session 07 additions: the transportation layer. Vehicles are
+-- persistent entities; trips are the physical movement record
+-- every journey leaves; road_loads is the day's measured traffic
+-- (the congestion evidence); transit routes/runs, freight
+-- shipments (Session 04 orders made physical) and monthly
+-- transport statistics complete the layer.
+CREATE TABLE IF NOT EXISTS vehicles (
+    vehicle_id TEXT PRIMARY KEY,
+    vehicle_type TEXT NOT NULL,
+    owner_character_id TEXT,
+    owner_business_id TEXT,
+    operator_character_id TEXT,
+    city_id TEXT,
+    home_zone TEXT,
+    current_zone TEXT,
+    fuel_litres REAL NOT NULL DEFAULT 0,
+    fuel_capacity_litres REAL NOT NULL DEFAULT 0,
+    odometer_km REAL NOT NULL DEFAULT 0,
+    condition REAL NOT NULL DEFAULT 92,
+    status TEXT NOT NULL DEFAULT 'active',
+    acquisition TEXT NOT NULL DEFAULT 'fleet',
+    acquired_at_game_minutes INTEGER NOT NULL DEFAULT 0
+);
+CREATE INDEX IF NOT EXISTS idx_vehicles_owner
+    ON vehicles(owner_character_id);
+CREATE INDEX IF NOT EXISTS idx_vehicles_operator
+    ON vehicles(operator_character_id);
+CREATE TABLE IF NOT EXISTS trips (
+    trip_id TEXT PRIMARY KEY,
+    character_id TEXT,
+    day_index INTEGER NOT NULL,
+    purpose TEXT NOT NULL,
+    origin_zone TEXT NOT NULL,
+    destination_zone TEXT NOT NULL,
+    mode TEXT NOT NULL,
+    vehicle_id TEXT,
+    route_id TEXT,
+    segment_ids TEXT NOT NULL DEFAULT '[]',
+    distance_m REAL NOT NULL DEFAULT 0,
+    depart_minute INTEGER NOT NULL,
+    free_flow_min REAL NOT NULL DEFAULT 0,
+    travel_min REAL NOT NULL DEFAULT 0,
+    arrive_minute INTEGER NOT NULL DEFAULT 0,
+    fare_ncr INTEGER NOT NULL DEFAULT 0,
+    fare_basis TEXT NOT NULL DEFAULT 'none',
+    fuel_litres REAL NOT NULL DEFAULT 0,
+    status TEXT NOT NULL DEFAULT 'completed',
+    details TEXT NOT NULL DEFAULT '{}'
+);
+CREATE INDEX IF NOT EXISTS idx_trips_day ON trips(day_index);
+CREATE INDEX IF NOT EXISTS idx_trips_character
+    ON trips(character_id, day_index);
+CREATE TABLE IF NOT EXISTS road_loads (
+    day_index INTEGER NOT NULL,
+    segment_id TEXT NOT NULL,
+    hour INTEGER NOT NULL,
+    vehicle_count REAL NOT NULL DEFAULT 0,
+    capacity_vph REAL NOT NULL DEFAULT 0,
+    congestion_factor REAL NOT NULL DEFAULT 1,
+    PRIMARY KEY (day_index, segment_id, hour)
+);
+CREATE TABLE IF NOT EXISTS transit_routes (
+    route_id TEXT PRIMARY KEY,
+    city_id TEXT NOT NULL,
+    kind TEXT NOT NULL,
+    name TEXT NOT NULL,
+    stops_json TEXT NOT NULL DEFAULT '[]',
+    headway_min INTEGER NOT NULL DEFAULT 30,
+    capacity_per_hour INTEGER NOT NULL DEFAULT 0,
+    status TEXT NOT NULL DEFAULT 'active'
+);
+CREATE TABLE IF NOT EXISTS transit_runs (
+    run_id TEXT PRIMARY KEY,
+    route_id TEXT NOT NULL,
+    day_index INTEGER NOT NULL,
+    hour INTEGER NOT NULL,
+    boardings INTEGER NOT NULL DEFAULT 0,
+    capacity INTEGER NOT NULL DEFAULT 0,
+    UNIQUE (route_id, day_index, hour)
+);
+CREATE TABLE IF NOT EXISTS freight_shipments (
+    shipment_id TEXT PRIMARY KEY,
+    month_index INTEGER NOT NULL,
+    kind TEXT NOT NULL DEFAULT 'supply_order',
+    from_business_id TEXT,
+    to_business_id TEXT,
+    from_city_id TEXT,
+    to_city_id TEXT,
+    good_id TEXT,
+    units REAL NOT NULL DEFAULT 0,
+    vehicle_id TEXT,
+    segment_ids TEXT NOT NULL DEFAULT '[]',
+    distance_km REAL NOT NULL DEFAULT 0,
+    freight_ncr INTEGER NOT NULL DEFAULT 0,
+    departed_at INTEGER NOT NULL DEFAULT 0,
+    free_flow_min REAL NOT NULL DEFAULT 0,
+    travel_min REAL NOT NULL DEFAULT 0,
+    arrives_at INTEGER NOT NULL DEFAULT 0,
+    delay_min REAL NOT NULL DEFAULT 0,
+    status TEXT NOT NULL DEFAULT 'in_transit',
+    details TEXT NOT NULL DEFAULT '{}'
+);
+CREATE INDEX IF NOT EXISTS idx_shipments_status
+    ON freight_shipments(status);
+CREATE TABLE IF NOT EXISTS vehicle_events (
+    event_id TEXT PRIMARY KEY,
+    vehicle_id TEXT NOT NULL,
+    kind TEXT NOT NULL,
+    game_minutes INTEGER NOT NULL,
+    details TEXT NOT NULL DEFAULT '{}'
+);
+CREATE TABLE IF NOT EXISTS transport_statistics (
+    snapshot_id TEXT PRIMARY KEY,
+    scope TEXT NOT NULL,
+    month_index INTEGER NOT NULL,
+    game_minutes INTEGER NOT NULL,
+    statistics TEXT NOT NULL DEFAULT '{}',
+    UNIQUE (scope, month_index)
+);
 """
 
 # Additive column migrations for tables that predate a session.
@@ -1426,6 +1554,8 @@ MIGRATIONS = (
     ("vacancies", "employer_account_id", "TEXT"),
     ("vacancies", "employer_institution_id", "TEXT"),
     ("examination_results", "jitter", "REAL NOT NULL DEFAULT 0"),
+    ("world_state", "transport_setup", "INTEGER NOT NULL DEFAULT 0"),
+    ("road_segments", "closed", "INTEGER NOT NULL DEFAULT 0"),
 )
 
 SYSTEM_ACCOUNTS = ("SYS-CITY", "SYS-EMPLOYERS", "SYS-MARKET", "SYS-BANK")
