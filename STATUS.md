@@ -1,7 +1,23 @@
 # NEXORA — Development Status
 
-**Continuous development:** Queue 3 (P–T) COMPLETE + merged 2026-11-21 (PRs #7, #8). Queues 1–3 = Units A–T all on GitHub main. Note: PR #4 was a duplicate of PR #3 created by a late scheduled run; closed 2026-11-21, no content difference.
+**Continuous development:** Queue 4 (U–X) COMPLETE 2026-11-21 — economy findings fixed in the data and proven by the simulator v2 re-run (batch PR this push; merge sha recorded by the finalisation push). Queues 1–3 = Units A–T all on GitHub main. Note: PR #4 was a duplicate of PR #3 created by a late scheduled run; closed 2026-11-21, no content difference.
 **Repo:** https://github.com/zobaerio/Nexora · main after PR #8: `bc195468`
+
+## Queue 4 (ordered 2026-11-21 — economy findings from Unit T)
+
+| Unit | State | PR |
+|---|---|---|
+| U — Taxi Rental Fix (Finding 1) | ✅ Done — cab rental 800 → 200/day in prices.json + GDD-03 §3.3/§8 + GDD-07 §2 + vehicles.json; renting entry −13,700 → +1,600/mo | this batch |
+| V — Senior Cost Scaling (Finding 2) | ✅ Done — eating-out + services lines and 35%-of-raise lifestyle uplift in prices.json; GDD-03 §3.1/§11 | this batch |
+| W — Per-Profession Starting Balances (Finding 3) | ✅ Done — starting_balance_ncr ×11 in professions.json (dip × 1.25 rule; civil keeps 25,000; pilot 51,000) | this batch |
+| X — Simulator v2 + Re-run (Finding 6) | ✅ Done — full business P&L + 8% business tax in the sim; docs/ECONOMY-SIM-REPORT-V2.md with verbatim output + before/after | this batch |
+
+## Queue 4 completion summary (2026-11-21)
+
+- **All four Unit T findings are FIXED and proven by the v2 re-run** (deterministic, two runs byte-identical; report's output block machine-verified verbatim): no SURVIVAL FAIL (was 1), no IMPLAUSIBLY FAST (was 9 — senior savings now 39.9–55.7%), no BRIDGE FAIL (all 12 entry rows end month 1 ≥ 0 with their starting balances), business rows now carry a full P&L reconciled to the canonical bands (Δ ±20 disclosed).
+- **What changed in the data:** cab rental 800 → 200/day; two living-cost lines + lifestyle uplift added; `business_model` P&L added; starting balances added. **No wage band and no rent tier moved.**
+- **Honest leftovers (in the v2 report, §5):** pilot/entry is TIGHT (2.6%) under the upper lifestyle band; police/entry thinned to 11.1%; taxi senior sits at 55.7%, a whisker over the 55% target edge. All recorded as playtesting observations, none stealth-fixed.
+- **Next honest milestone (unchanged):** Phase 1 on the owner's PC (UE 5.8.x + 400 m test scene). Owner still owes Step 0: PC specs (GPU/RAM/SSD).
 
 ## Queue 3 (ordered 2026-11-21)
 

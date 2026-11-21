@@ -1,6 +1,6 @@
 {
   "currency": "Nexora Credits (NCr)",
-  "notes": "Income bands are monthly wages in Nexora Credits, design v1 — Unit F (economy GDD) owns final tuning. playable_in_v1 marks the three professions the master plan (Part C #11, Phase 6) makes playable first; all others are NPC-run until later phases. workplace_zone values are GDD-02 district ids.",
+  "notes": "Income bands are monthly wages in Nexora Credits, design v1 — Unit F (economy GDD) owns final tuning. playable_in_v1 marks the three professions the master plan (Part C #11, Phase 6) makes playable first; all others are NPC-run until later phases. workplace_zone values are GDD-02 district ids. starting_balance_ncr (Queue 4 / Unit W) is the new-character starting balance per profession, sized from the economy simulator's month-1 dip so no profession starts underwater (docs/ECONOMY-SIM-REPORT-V2.md).",
   "professions": [
     {
       "gameplay_summary": "Physical site work on staged builds; the labour backbone of the Civil Engineer loop. NPC-run in v1; a natural future playable entry job.",
@@ -43,6 +43,7 @@
           "unlock": "Construction skill 85 + reputation in district"
         }
       ],
+      "starting_balance_ncr": 5000,
       "workplace": "Construction sites and the industry-edge yard",
       "workplace_zone": "d1_industry"
     },
@@ -87,6 +88,7 @@
           "unlock": "Engineering 85 + capital to register a construction business"
         }
       ],
+      "starting_balance_ncr": 25000,
       "starting_example": "The owner's example character starts here: Middle Class, 25,000 NCr balance, rented apartment in Nexora Central City (GDD-01 §1, §7).",
       "workplace": "Construction site office + staged build plot (District 1 industry edge)",
       "workplace_zone": "d1_industry"
@@ -132,6 +134,7 @@
           "unlock": "Medicine 90 or capital for a clinic business"
         }
       ],
+      "starting_balance_ncr": 30000,
       "workplace": "District clinic, Civic Quarter",
       "workplace_zone": "d1_civic"
     },
@@ -176,6 +179,7 @@
           "unlock": "Teaching 85 + reputation"
         }
       ],
+      "starting_balance_ncr": 11000,
       "workplace": "District school, Civic Quarter (college lecturers: d1_education)",
       "workplace_zone": "d1_civic"
     },
@@ -220,6 +224,7 @@
           "unlock": "Law enforcement 88 + district reputation"
         }
       ],
+      "starting_balance_ncr": 20000,
       "workplace": "Police station, Civic Quarter + patrol routes",
       "workplace_zone": "d1_civic"
     },
@@ -264,6 +269,7 @@
           "unlock": "Register transport business (Unit F)"
         }
       ],
+      "starting_balance_ncr": 5000,
       "workplace": "Taxi/CNG depot, Industry Edge; fares across all zones",
       "workplace_zone": "d1_industry"
     },
@@ -308,6 +314,7 @@
           "unlock": "Capital for own restaurant/tea stall business"
         }
       ],
+      "starting_balance_ncr": 11000,
       "workplace": "Restaurant kitchen, Boro Bazar",
       "workplace_zone": "d1_market"
     },
@@ -352,6 +359,7 @@
           "unlock": "Programming 85 or register a software business"
         }
       ],
+      "starting_balance_ncr": 20000,
       "workplace": "Office block, Uptown Heights (some remote-work schedules)",
       "workplace_zone": "d1_uptown"
     },
@@ -397,6 +405,7 @@
           "unlock": "Godown lease + trading 80 (business, Unit F)"
         }
       ],
+      "starting_balance_ncr": 5000,
       "workplace": "Own shop unit, Boro Bazar market hall / spine",
       "workplace_zone": "d1_market"
     },
@@ -442,6 +451,7 @@
           "unlock": "Top-decile district net worth + market influence events"
         }
       ],
+      "starting_balance_ncr": 30000,
       "workplace": "Own company office (Uptown) + owned premises across zones",
       "workplace_zone": "d1_uptown"
     },
@@ -486,9 +496,10 @@
           "unlock": "Flying 90 or charter business capital"
         }
       ],
+      "starting_balance_ncr": 51000,
       "workplace": "Regional airport (Phase 8 travel content — no airport exists in District 1, GDD-02 §8)",
       "workplace_zone": "off_district"
     }
   ],
-  "version": "1.0"
+  "version": "1.1"
 }

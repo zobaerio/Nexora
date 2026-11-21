@@ -60,6 +60,10 @@ Source: `data/professions.json` `income_band_monthly`. Reproduced here as the ca
 | Transport — own car (fuel + upkeep) | — | 3,500 | 8,000 |
 | Utilities (power, water, internet) | 500 | 800 | 2,000 |
 | Clothing / personal | 600 | 1,500 | 5,000 |
+| Eating out (monthly budget) | 300 | 1,050 | 3,600 |
+| Household services & family support | 0 | 800 | 2,500 |
+
+**Tier scaling (Queue 4, §11):** the table above is the *entry-tier* household. Above entry, living costs also rise by the **lifestyle uplift**: 35% of the raise (tier wage − entry wage) is consumed by lifestyle — eating out more, household help, family support, better transport. This is what stops senior tiers saving 71–84% of gross (simulator Finding 2) without inventing a separate price list per tier. The 35% lives in `prices.json` `lifestyle_uplift` and is the single knob if playtesting wants senior savings looser or tighter.
 
 ### 3.2 Rent (per month, District 1)
 
@@ -82,7 +86,7 @@ Rent is paid on the 1st of the in-game month from the household pool (GDD-01 §5
 | Motorbike | 120,000 | The District 1 workhorse. |
 | Car (small) | 450,000 | Mid-tier goal. |
 | Car (premium) | 1,200,000 | Upper-tier marker. |
-| Taxi (licensed cab) | 650,000 | Needed for the taxi loop at scale; rentable by the day (800/day) first. |
+| Taxi (licensed cab) | 650,000 | Needed for the taxi loop at scale; rentable by the day (200/day) first. |
 
 ### 3.4 Construction materials (per unit, market-priced — the Civil Engineer loop buys these)
 
@@ -145,11 +149,11 @@ The owner's real profession, turned into the game's signature job loop. One job,
 1. **Stock** — buy from wholesalers (market prices, §3.4-style catalogue for goods). Stock is inventory, not magic: it occupies shelf space and expires (perishables).
 2. **Price** — set shelf prices. Above the market band, footfall drops; below it, margin dies. The district's footfall depends on location (`d1_market` > side street) and on weather (rain drives customers under cover — into the shop).
 3. **Sell** — daily takings land in the business ledger. Regulars form (relationship scores, GDD-01 §6) and regulars spend more.
-4. **Grow** — profit funds a bigger shop, more stock lines, an employee. The §2 bands (12k → 26k → 55k) are the takings milestones, not wages.
+4. **Grow** — profit funds a bigger shop, more stock lines, an employee. The §2 bands (12k → 26k → 55k) are the **profit** milestones the loop is tuned to — revenue minus stock, rent and staff (§5), not wages and not raw takings. *(Wording corrected in Queue 4 / Unit X: v1.0 called these "takings milestones", which contradicted §2's "Profit, not wage" and `professions.json`'s income note; the simulator v2 report records the reconciliation.)*
 
 ## 8. Taxi Driver Loop (playable, Phase 6)
 
-1. **Get a cab** — rent by the day (800 NCr) or buy (650,000 NCr, or a loan, §4.3).
+1. **Get a cab** — rent by the day (200 NCr) or buy (650,000 NCr, or a loan, §4.3).
 2. **Take fares** — passengers hail on the street and at the launch terminal / market / station anchors. Fare = base 60 + 25/km, surge ×1.5 in rain (`taxi_demand_up`) and at night.
 3. **Costs** — fuel per km, upkeep per week, traffic fines if the player drives badly (the city account receives them — §2 police note).
 4. **Reputation** — on-time, clean cab, fair fares → regulars and better-paying longer fares. Overcharging (a real choice the game allows) pays once and costs regulars forever.
@@ -176,4 +180,12 @@ If any band fails, the economy is re-tuned in the data (wages, prices, rent) —
 - Multiplayer market behaviour (player-to-player trading) → Phase 9; the ledger shape already supports it, the rules do not exist yet.
 - Inter-city / inter-planet trade → Phase 8/10; prices in other cities are their own tables, same shape.
 
-*End of GDD-03 v1.0. Changes happen by PR; wage changes update `data/professions.json` and this table together.*
+## 11. Queue 4 Tuning Log (2026-11-21) — Simulator Findings Fixed in the Data
+
+The Unit T simulator (`docs/ECONOMY-SIM-REPORT.md`) ran the v1 numbers and reported four findings. Queue 4 fixes them here, in the data — each change below names its finding, and `docs/ECONOMY-SIM-REPORT-V2.md` carries the before/after proof from the re-run.
+
+- **Unit U — Taxi rental (Finding 1):** cab rental **800 → 200 NCr/day** (§3.3, §8, `prices.json`). At 800/day an entry driver renting full-time lost ~13,700/month — the rent-before-you-buy on-ramp (§8 step 1) was a bankruptcy trap, and the depot recovered the 650,000 cab price in ~2.6 rental-years besides. At 200/day the renter nets ≈ +1,900/month: clearly worse than owning the rickshaw (+7,100), survivable, and the depot recovers the cab price over ~10 rental-years. The fare band did not move — the loop was sound; the rental price was the disagreement.
+- **Unit V — Senior cost scaling (Finding 2):** two new monthly lines (eating-out budget, household services & family support, §3.1) plus the **lifestyle uplift** (35% of any raise above entry is consumed by lifestyle). Senior savings move from 71–84% into roughly the 35–55% band, so the property ladder's top end (a tier-5 house in ~18 months of idle saving) paces properly again. Wages were *not* compressed — the ladder's rewards stay; the costs grow up to meet them, which is also how the derived class display (GDD-01 §7) stays honest.
+- **Unit W — Starting balances (Finding 3):** `starting_balance_ncr` is now per profession in `data/professions.json`, sized from the simulator's month-1 dip (zero-start minimum balance × 1.25, rounded up to the next 1,000, minimum 5,000). The civil engineer keeps the canonical 25,000 (§1) — it covers his dip with the intended buffer. A pilot now starts at 44,000 instead of drowning at −34,800 in month one.
+
+*End of GDD-03 v1.0 + Queue 4 tuning log. Changes happen by PR; wage changes update `data/professions.json` and this table together.*
