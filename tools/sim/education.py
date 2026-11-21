@@ -7,6 +7,9 @@ The education loop GDD-11 designed, implemented against Session
   School (b_d1_civic_school, from the buildings data) — a row in
   education_records, swept monthly so newborns ageing in and
   children arriving by guardianship are picked up by the same rule.
+  (Session 06: school_id_for enrols Shibnagar-resident children at
+  Shibnagar Primary School instead — the school in their own city;
+  Rupsha behaviour is unchanged.)
 - Attendance is measured, not assumed: the fraction of the last 30
   days whose persisted schedule contains a study block at the
   institution's location (school / college), read from
@@ -56,6 +59,35 @@ def _building_id(data, name):
 
 def school_id(data):
     return _building_id(data, "District School")
+
+
+def shibnagar_school_id(data):
+    for b in data.city2_file["properties"]:
+        if b["name"] == "Shibnagar Primary School":
+            return b["id"]
+    return None
+
+
+def school_id_for(store, data, character_id):
+    """Session 06: a child enrols at the school of the city they
+    live in — the same zone-membership rule the city layer counts
+    population by. Rupsha residents (and everyone without a known
+    city, including all genesis households) keep the District
+    School, so pre-Session-06 behaviour is unchanged there;
+    Shibnagar residents enrol at Shibnagar Primary School, the
+    school that actually exists in their city."""
+    row = store.row(
+        "SELECT h.district_id FROM characters c JOIN households h"
+        " ON h.household_id = c.household_id WHERE"
+        " c.character_id = ?", (character_id,))
+    if row and row["district_id"]:
+        for spec in data.city_specs():
+            if row["district_id"] in spec["zones"]:
+                if spec["city_id"] == "shibnagar_town":
+                    return shibnagar_school_id(data) \
+                        or school_id(data)
+                break
+    return school_id(data)
 
 
 def college_id(data):
@@ -124,7 +156,19 @@ def enrol_school_sweep(store, data, game_minutes):
                               (rec["record_id"],))
             continue
         if 3 <= age <= 17 and rec is None:
-            _enrol(store, cid, sid, SCHOOL_PROGRAMME, game_minutes)
+            # A terminal record (completed / dropped out — the
+            # dropout status arrived with Session 06) is final:
+            # the automatic sweep never re-enrols over it (and
+            # re-enrolling at the same school would violate the
+            # records' UNIQUE key).
+            terminal = store.row(
+                "SELECT 1 FROM education_records WHERE character_id"
+                " = ? AND programme = ? AND status IN ('completed',"
+                " 'dropped_out')", (cid, SCHOOL_PROGRAMME))
+            if terminal:
+                continue
+            _enrol(store, cid, school_id_for(store, data, cid),
+                   SCHOOL_PROGRAMME, game_minutes)
             memory_mod.log_life_event(store, cid, "school_enrolled",
                                       game_minutes)
             count += 1
@@ -144,6 +188,23 @@ def enrol_college(store, data, character_id, profession_id,
     the record opened, and completion later converts both."""
     from . import identity as identity_mod
     cid_ = college_id(data)
+    existing = store.row("SELECT * FROM education_records WHERE"
+                         " character_id = ? AND institution_id = ?"
+                         " AND programme = ?",
+                         (character_id, cid_, profession_id))
+    if existing is not None:
+        # One record per (student, institution, programme) — the
+        # table's UNIQUE key. A dropped-out student who chooses
+        # college again (a deliberate decision, unlike the school
+        # sweep) reactivates their record instead of duplicating
+        # it; any other existing record is returned as-is.
+        if existing["status"] == "dropped_out":
+            store.execute("UPDATE education_records SET status ="
+                          " 'enrolled', started_at_game_minutes = ?,"
+                          " completed_at_game_minutes = NULL WHERE"
+                          " record_id = ?",
+                          (game_minutes, existing["record_id"]))
+        return existing["record_id"]
     rid = _enrol(store, character_id, cid_, profession_id, game_minutes)
     identity_mod.add_goal(store, character_id, "stage",
                           "college_programme",

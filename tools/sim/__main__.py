@@ -73,9 +73,31 @@ def main(argv=None):
                     help="court: case counts + the law book")
     ap.add_argument("--diplomacy", action="store_true",
                     help="diplomacy: partner model + agreements")
+    # Session 06 human development observation: real sim data only.
+    ap.add_argument("--education", action="store_true",
+                    help="education: institutions, teachers,"
+                         " examinations, certifications")
+    ap.add_argument("--health", action="store_true",
+                    help="health: facilities, capacity, inventory,"
+                         " conditions, visits, disease")
+    ap.add_argument("--development", action="store_true",
+                    help="human development indicators + methodology"
+                         " + research")
     args = ap.parse_args(argv)
 
     sim = Simulation(args.db, seed=args.seed)
+    if args.education or args.health or args.development:
+        from tools.sim import humandevview
+        if args.education:
+            out = humandevview.education_view(sim.store, sim.data)
+        elif args.health:
+            out = humandevview.health_view(sim.store, sim.data)
+        else:
+            out = humandevview.development_view(sim.store, sim.data)
+        print(json.dumps(out, indent=1, sort_keys=True,
+                         default=str))
+        sim.close()
+        return 0
     if args.government or args.election or args.policy \
             or args.budget or args.court or args.diplomacy:
         from tools.sim import govview

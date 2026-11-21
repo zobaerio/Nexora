@@ -255,7 +255,16 @@ def daily_check(store, rng, character, day_index, game_minutes):
                 memory_mod.log_life_event(store, cid, "retirement",
                                           game_minutes)
     roll = rng.stream("death", cid, day_index).random()
-    if roll < death_probability(age):
+    p = death_probability(age)
+    if age >= 65:
+        # Session 06 (GDD-12 §3.4): the death rule reads elder
+        # stage PLUS active/recent serious conditions. The
+        # multiplier is 1.0 whenever no open serious condition
+        # exists — including every world without the Session 06
+        # layer — so pre-Session-06 behaviour is unchanged there.
+        from . import health as health_mod
+        p *= health_mod.mortality_multiplier(store, cid)
+    if roll < p:
         die(store, cid, game_minutes)
         return "died"
     return None

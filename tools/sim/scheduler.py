@@ -281,8 +281,12 @@ def instantiate(data, character, day_index, rng, needs=None, traits=None,
     blocks = _bend_for_needs(blocks, needs, traits, character["is_life_stage"])
     blocks = _apply_weather(blocks, weather_effects, profession_id)
     if rest_day:
+        # A rest day bends work AND study blocks home (Session 06:
+        # GDD-12 §4.1 — illness replaces the day's work/study with
+        # rest; GDD-11 §2 — illness is the only designed source of
+        # school absence, and it acts through exactly this bend).
         for b in blocks:
-            if b["activity"] == "work":
+            if b["activity"] in ("work", "study"):
                 b["activity"] = "home"
                 b["location"] = "home"
                 b["rest_day"] = True
