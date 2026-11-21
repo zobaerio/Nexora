@@ -56,6 +56,14 @@ class WorldData:
         self.blockout = _load_json("district1-blockout.json")
         self.city2_file = _load_json("city2-shibnagar.json")
         self.econ = _load_economy_sim()
+        # Session 04: the economy layer's configuration — goods
+        # catalogue, production recipes, economy config (tax rules
+        # referencing prices.json, crisis thresholds, scenarios).
+        self.goods_file = _load_json("economy-goods.json")
+        self.goods = {g["id"]: g for g in self.goods_file["goods"]}
+        self.recipes_file = _load_json("production-recipes.json")
+        self.recipes = self.recipes_file["recipes"]
+        self.economy_config = _load_json("economy-config.json")
 
     # -- canonical accessors -------------------------------------------------
     # Employment tiers run 1..5 (professions.json progression), but

@@ -215,6 +215,65 @@ def main():
     NOTES.append("city2-shibnagar.json is GENERATED (citygen.py); "
                  "its label is a guarded honesty rule, not a defect")
 
+    # Session 04: the economy layer's data files. Goods carry an
+    # anchor into prices.json or an explicit SIM MODEL label;
+    # recipes reference real goods and real categories; the
+    # economy config's tax rules reference (never copy) the
+    # canonical prices.json rates.
+    for n in ("economy-goods.json", "production-recipes.json",
+              "economy-config.json"):
+        try:
+            data[n] = load(n)
+            print(f"  ok: {n} parses")
+        except Exception as e:
+            check(False, f"{n} parses", f"({e})")
+    if "economy-goods.json" in data:
+        goods = data["economy-goods.json"]["goods"]
+        good_ids = [g["id"] for g in goods]
+        check(len(good_ids) == len(set(good_ids)),
+              "economy goods have unique ids")
+        check(all(g["base_price_ncr"] > 0 for g in goods),
+              "economy goods have positive base prices")
+        unlabelled = [g["id"] for g in goods
+                      if not g.get("anchor")
+                      and "SIM MODEL" not in g.get("sim_model_note", "")]
+        check(not unlabelled,
+              "every unanchored good price is labelled SIM MODEL",
+              f"unlabelled={unlabelled}")
+        cats = {g["category"] for g in goods}
+        check(cats <= {"food", "clothing", "household", "agriculture",
+                       "manufactured"},
+              "goods categories within the Session 04 vocabulary",
+              f"extra={cats}")
+    if "production-recipes.json" in data \
+            and "economy-goods.json" in data:
+        good_ids = {g["id"] for g in data["economy-goods.json"]["goods"]}
+        recipes = data["production-recipes.json"]["recipes"]
+        bad = []
+        for r in recipes:
+            if r["output_good"] not in good_ids:
+                bad.append((r["id"], "output"))
+            for g in r["goods_in"]:
+                if g not in good_ids:
+                    bad.append((r["id"], g))
+        check(not bad, "recipe goods_in/output resolve to goods",
+              f"bad={bad}")
+        check(all(r["units_per_run"] > 0 and r["crew_per_run"] > 0
+                  for r in recipes),
+              "recipes have positive run size and crew")
+    if "economy-config.json" in data:
+        cfg = data["economy-config.json"]
+        check(cfg["currency"]["code"] == "NCr"
+              and cfg["currency"]["name"] in prices["currency"],
+              "economy config currency matches prices.json")
+        check(cfg["tax_rules"]["income_tax"]["source"].startswith(
+            "prices.json"), "income tax rule references prices.json")
+        check(0 < cfg["tax_rules"]["sales_tax_percent"] < 100
+              and 0 < cfg["tax_rules"]["import_tariff_percent"] < 100,
+              "SIM MODEL tax rates are sane percents")
+        check(cfg["bank"]["genesis_capital_ncr"] > 0,
+              "bank genesis capital is positive")
+
     return finish()
 
 

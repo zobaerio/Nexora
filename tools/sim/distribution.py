@@ -78,12 +78,16 @@ def residential_demand(store, data, city_id):
 
 
 def housing_pressure(store, data, city_id):
-    """Occupied / total residential units of a city, live."""
+    """Occupied / total residential units of a city, live.
+    Residential property types only — Session 04 materialised
+    commercial units as property rows too, and a shop is not
+    housing stock."""
     zones = data.city_spec(city_id)["zones"]
     marks = ",".join("?" for _ in zones)
     rows = store.rows(
         f"SELECT status, COUNT(*) AS n FROM properties WHERE"
-        f" district_id IN ({marks}) GROUP BY status", tuple(zones))
+        f" district_id IN ({marks}) AND property_type IN"
+        f" ('apartment', 'house') GROUP BY status", tuple(zones))
     total = sum(r["n"] for r in rows)
     occupied = sum(r["n"] for r in rows if r["status"] == "rented")
     return {"total_units": total, "occupied_units": occupied,

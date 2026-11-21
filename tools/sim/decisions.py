@@ -231,11 +231,27 @@ def _cand_start_business(ctx):
                      name=f"{ctx['char']['display_name']} "
                           f"{'Enterprises' if firm else 'Store'}",
                      business_type="company" if firm else "shop",
-                     owner_character_id=cid,
+                     category="professional_services" if firm
+                     else "retail",
+                     owner_character_id=cid, status="active",
                      founded_at_game_minutes=ctx["game_minutes"])
-        store.transfer(cid, "SYS-MARKET", cost, "purchase",
+        # Session 04 Unit 04: the founding money splits — part is
+        # the firm's real capital on its own ledger account, the
+        # rest is founding costs paid to the market. The founder's
+        # total outflow is unchanged from Session 01.
+        from . import business as business_mod
+        capital = round(cost * 0.4)
+        store.transfer(cid, None, capital, "business_capital",
+                       ctx["game_minutes"],
+                       note="founding capital",
+                       related_business_id=bid, to_business_id=bid)
+        store.transfer(cid, "SYS-MARKET", cost - capital, "purchase",
                        ctx["game_minutes"], note="business founding costs",
                        related_business_id=bid)
+        business_mod.log_event(store, bid, "registered",
+                               {"founded_by": "decision",
+                                "capital_ncr": capital},
+                               ctx["game_minutes"])
         if ctx["employment"]:
             store.execute("UPDATE employments SET"
                           " ended_at_game_minutes = ?"
@@ -521,10 +537,215 @@ def _cand_enrol_college(ctx):
     return u, run
 
 
+def _cand_job_change(ctx):
+    """Session 04 Unit 15: an employed adult moves to a posted
+    vacancy that pays meaningfully more — the labour market's
+    other side. Only exists when the economy layer is live."""
+    from . import business as business_mod
+    from . import labour as labour_mod
+    store = ctx["store"]
+    if not business_mod.is_setup(store):
+        return None
+    emp = ctx["employment"]
+    if not emp or emp["profession_id"] in ("shop_owner",
+                                           "business_owner"):
+        return None
+    if ctx["age"] < 18 or ctx["age"] > 60:
+        return None
+    since = _days_since_decision(store, ctx["cid"], "job_change",
+                                 ctx["game_minutes"])
+    if since is not None and since < 90:
+        return None
+    best = None
+    for v in store.rows("SELECT * FROM vacancies WHERE status ="
+                        " 'open' ORDER BY vacancy_id"):
+        if v["wage_per_month"] < emp["wage_per_month"] * 1.15:
+            continue
+        if not labour_mod._eligible(store, ctx["data"], ctx["cid"],
+                                    v["profession_id"]):
+            continue
+        if best is None or v["wage_per_month"] \
+                > best["wage_per_month"]:
+            best = v
+    if best is None:
+        return None
+    gain = best["wage_per_month"] / max(1, emp["wage_per_month"]) - 1
+    u = 0.3 + ctx["profile"]["ambition"] / 250 + gain * 0.3
+
+    def run():
+        store.execute("UPDATE employments SET"
+                      " ended_at_game_minutes = ?"
+                      " WHERE employment_id = ?",
+                      (ctx["game_minutes"], emp["employment_id"]))
+        eid = store.next_id("EM", "employments", "employment_id")
+        store.insert(
+            "employments", employment_id=eid, character_id=ctx["cid"],
+            profession_id=best["profession_id"],
+            employer_business_id=best["employer_business_id"],
+            employer_character_id="SYS-CITY"
+            if best["employer_kind"] == "civic" else None,
+            tier=1, wage_per_month=best["wage_per_month"],
+            started_at_game_minutes=ctx["game_minutes"])
+        store.execute(
+            "UPDATE vacancies SET status = 'filled',"
+            " filled_by_character_id = ?, closed_at_game_minutes = ?"
+            " WHERE vacancy_id = ?",
+            (ctx["cid"], ctx["game_minutes"], best["vacancy_id"]))
+        memory_mod.log_life_event(
+            store, ctx["cid"], "job_change", ctx["game_minutes"],
+            details={"from": emp["profession_id"],
+                     "to": best["profession_id"],
+                     "wage": best["wage_per_month"]})
+        emotions_mod.apply_event(store, ctx["cid"], "job_gain")
+        return {"vacancy_id": best["vacancy_id"],
+                "profession": best["profession_id"],
+                "wage": best["wage_per_month"]}
+    return u, run
+
+
+def _cand_invest(ctx):
+    """Session 04 Unit 15: surplus cash buys equity in the most
+    profitable recorded business — risk tolerance gates it."""
+    from . import banking as banking_mod
+    from . import business as business_mod
+    store = ctx["store"]
+    if not business_mod.is_setup(store):
+        return None
+    balance = store.balance(ctx["cid"])
+    if balance < 150000 or ctx["profile"]["risk_tolerance"] < 50:
+        return None
+    since = _days_since_decision(store, ctx["cid"], "invest",
+                                 ctx["game_minutes"])
+    if since is not None and since < 45:
+        return None
+    best = store.row(
+        "SELECT bm.business_id, bm.profit_ncr FROM business_monthly"
+        " bm JOIN businesses b ON b.business_id = bm.business_id"
+        " WHERE b.closed_at_game_minutes IS NULL AND bm.profit_ncr"
+        " > 0 ORDER BY bm.profit_ncr DESC, bm.business_id LIMIT 1")
+    if best is None:
+        return None
+    u = 0.3 + ctx["profile"]["risk_tolerance"] / 300
+
+    def run():
+        amount = round(balance * 0.1)
+        inv = banking_mod.buy_shares(
+            store, ctx["data"], ctx["cid"], best["business_id"],
+            amount, ctx["game_minutes"],
+            event_ref=f"decision:invest:{ctx['cid']}")
+        return {"business_id": best["business_id"],
+                "invested": inv["invested_ncr"] if inv else 0,
+                "shares": inv["shares"] if inv else 0}
+    return u, run
+
+
+def _cand_bank_deposit(ctx):
+    """Session 04 Unit 15: idle cash above a keep-back moves into
+    the bank (where it earns the design savings rate and funds
+    lending). Discipline-driven."""
+    from . import banking as banking_mod
+    from . import business as business_mod
+    store = ctx["store"]
+    if not business_mod.is_setup(store):
+        return None
+    if banking_mod.account_of(store, ctx["cid"]) is None:
+        return None
+    balance = store.balance(ctx["cid"])
+    if balance < 40000:
+        return None
+    since = _days_since_decision(store, ctx["cid"], "bank_deposit",
+                                 ctx["game_minutes"])
+    if since is not None and since < 30:
+        return None
+    u = 0.32 + ctx["profile"]["discipline"] / 400
+
+    def run():
+        amount = round((balance - 20000) * 0.3)
+        moved = banking_mod.deposit(
+            store, ctx["cid"], amount, ctx["game_minutes"],
+            event_ref=f"decision:deposit:{ctx['cid']}")
+        return {"deposited_ncr": moved}
+    return u, run
+
+
+def _cand_buy_home_mortgage(ctx):
+    """Session 04 Unit 15: buy the rented home with a mortgage —
+    the design deposit (prices.json loans) from the buyer's own
+    funds, the rest disbursed by the bank against its credit
+    assessment. Exists only alongside the economy layer; the
+    cash purchase (buy_home) still wins when it is affordable
+    because its utility is higher."""
+    from . import banking as banking_mod
+    from . import business as business_mod
+    store = ctx["store"]
+    if not business_mod.is_setup(store):
+        return None
+    hh = _household_ctx(ctx)
+    if not hh or hh["role"] != "head" or not hh["tenancy"]:
+        return None
+    prop = store.row("SELECT * FROM properties WHERE property_id"
+                     " = ?", (hh["tenancy"]["property_id"],))
+    if not prop or not prop["market_value"]:
+        return None
+    price = prop["market_value"]
+    balance = store.balance(ctx["cid"])
+    if balance >= price * 1.1:
+        return None  # cash purchase is available and preferred
+    deposit_pct = ctx["data"].prices["loans"]["mortgage"][
+        "deposit_percent"]
+    deposit = round(price * deposit_pct / 100)
+    if balance < deposit + 5000:
+        return None
+    credit = banking_mod.assess_credit(store, ctx["data"],
+                                       ctx["cid"])
+    if credit["monthly_income_ncr"] <= 0:
+        return None
+    u = 0.28 + ctx["profile"]["ambition"] / 300 \
+        + ctx["emotions"]["satisfaction"] / 400
+
+    def run():
+        loan = banking_mod.disburse_loan(
+            store, ctx["data"], ctx["cid"], "mortgage",
+            price - deposit, ctx["game_minutes"],
+            property_id=prop["property_id"], pay_to_character=False)
+        if loan is None:
+            return {"mortgage": None, "refused": True}
+        store.transfer(ctx["cid"], "SYS-MARKET", deposit, "purchase",
+                       ctx["game_minutes"], note="mortgage deposit",
+                       related_property_id=prop["property_id"])
+        store.transfer("SYS-BANK", "SYS-MARKET", price - deposit,
+                       "mortgage_disbursement", ctx["game_minutes"],
+                       note="mortgage disbursement",
+                       related_property_id=prop["property_id"],
+                       transfer_key=f"loan:{loan['loan_id']}:pay",
+                       event_ref=f"loan:{loan['loan_id']}")
+        store.execute("UPDATE properties SET owner_household_id = ?,"
+                      " owner_character_id = ?, status = 'owned'"
+                      " WHERE property_id = ?",
+                      (hh["hid"], ctx["cid"], prop["property_id"]))
+        store.execute("UPDATE tenancies SET ended_at_game_minutes = ?"
+                      " WHERE tenancy_id = ?",
+                      (ctx["game_minutes"], hh["tenancy"]["tenancy_id"]))
+        memory_mod.log_life_event(store, ctx["cid"], "bought_home",
+                                  ctx["game_minutes"],
+                                  details={"property_id":
+                                           prop["property_id"],
+                                           "mortgage_loan_id":
+                                           loan["loan_id"]})
+        emotions_mod.apply_event(store, ctx["cid"], "moved_home")
+        complete_goals_of_type(store, ctx["cid"], "own_house",
+                               ctx["game_minutes"])
+        return {"property_id": prop["property_id"], "price": price,
+                "deposit": deposit, "loan_id": loan["loan_id"]}
+    return u, run
+
+
 CANDIDATES = (_cand_seek_employment, _cand_promotion, _cand_train,
               _cand_start_business, _cand_buy_home, _cand_marry,
               _cand_have_child, _cand_socialise, _cand_rest,
-              _cand_leave_home, _cand_relocate, _cand_enrol_college)
+              _cand_leave_home, _cand_relocate, _cand_enrol_college,
+              _cand_job_change, _cand_invest, _cand_bank_deposit,
+              _cand_buy_home_mortgage)
 # NOTE (Session 01): a move-house decision was absent in v1 because
 # the properties table carries no rent column for vacant units.
 # Session 02 closes that gap honestly: rents for vacant units

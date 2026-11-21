@@ -36,6 +36,19 @@ Session 01):
   recorded as a gap in docs/SESSION-03-REPORT.md.
 - characters.is_system — marks system accounts (city/employers/market)
   that schema.sql represents as reserved character rows.
+- Session 04 additions (bottom of SCHEMA): bank_accounts, loans,
+  investments, business_inventory, inventory_movements,
+  market_prices, price_history, vacancies, job_applications,
+  business_monthly, business_events, economic_indicators,
+  crisis_records, government_finance, household_consumption —
+  the economy/business layer. schema.sql has a `businesses` table
+  (mirrored above) but no banking, market, labour-market or
+  indicator structures; each is recorded as a gap in
+  docs/SESSION-04-REPORT.md. Two additive column migrations ride
+  along (see MIGRATIONS): economy_ledger.transfer_key /
+  event_ref (the owner's traceability order: every unit of money
+  carries its idempotency key and the simulation event that
+  caused it) and businesses.category / status.
 - characters.first_name / last_name / birthplace / nationality /
   family_background — Session 01 Unit 01 identity fields that
   schema.sql folds into display_name / leaves implicit.
@@ -612,9 +625,208 @@ CREATE TABLE IF NOT EXISTS migration_records (
     reason TEXT NOT NULL DEFAULT '{}',
     game_minutes INTEGER NOT NULL
 );
+-- SESSION 04 tables (additive only; see SESSION-04-REPORT.md) ------------
+-- bank_accounts / loans: the banking layer (Unit 08). An account's
+-- balance is a liability record of the bank, reconciled against
+-- the ledger: balance == deposits - withdrawals for that customer
+-- (interest is paid out to cash, loans live in `loans`). schema.sql
+-- has no banking tables; recorded as a gap.
+CREATE TABLE IF NOT EXISTS bank_accounts (
+    account_id TEXT PRIMARY KEY,
+    character_id TEXT NOT NULL UNIQUE,
+    account_type TEXT NOT NULL DEFAULT 'savings',
+    balance_cached INTEGER NOT NULL DEFAULT 0,
+    opened_at_game_minutes INTEGER NOT NULL DEFAULT 0,
+    closed_at_game_minutes INTEGER
+);
+CREATE TABLE IF NOT EXISTS loans (
+    loan_id TEXT PRIMARY KEY,
+    borrower_character_id TEXT NOT NULL,
+    kind TEXT NOT NULL DEFAULT 'bank_loan',
+    principal_ncr INTEGER NOT NULL,
+    outstanding_ncr INTEGER NOT NULL,
+    annual_rate_percent REAL NOT NULL,
+    term_months INTEGER NOT NULL,
+    months_elapsed INTEGER NOT NULL DEFAULT 0,
+    interest_paid_ncr INTEGER NOT NULL DEFAULT 0,
+    missed_payments INTEGER NOT NULL DEFAULT 0,
+    status TEXT NOT NULL DEFAULT 'active',
+    property_id TEXT,
+    started_at_game_minutes INTEGER NOT NULL DEFAULT 0,
+    updated_at_game_minutes INTEGER NOT NULL DEFAULT 0
+);
+CREATE INDEX IF NOT EXISTS idx_loans_borrower
+    ON loans(borrower_character_id, status);
+-- investments: equity participation in real businesses (Unit 09).
+-- Valuation is computed live from the business's net worth model;
+-- only shares and the invested total are stored.
+CREATE TABLE IF NOT EXISTS investments (
+    investment_id TEXT PRIMARY KEY,
+    character_id TEXT NOT NULL,
+    business_id TEXT NOT NULL,
+    shares INTEGER NOT NULL DEFAULT 0,
+    invested_ncr INTEGER NOT NULL DEFAULT 0,
+    status TEXT NOT NULL DEFAULT 'active',
+    created_at_game_minutes INTEGER NOT NULL DEFAULT 0,
+    updated_at_game_minutes INTEGER NOT NULL DEFAULT 0,
+    UNIQUE (character_id, business_id)
+);
+-- business_inventory / inventory_movements: the goods layer
+-- (Units 05/06/14). Every quantity change is a movement row with
+-- its cause and counterparty — inventory is as auditable as money.
+CREATE TABLE IF NOT EXISTS business_inventory (
+    business_id TEXT NOT NULL,
+    good_id TEXT NOT NULL,
+    quantity REAL NOT NULL DEFAULT 0,
+    PRIMARY KEY (business_id, good_id)
+);
+CREATE TABLE IF NOT EXISTS inventory_movements (
+    movement_id TEXT PRIMARY KEY,
+    business_id TEXT NOT NULL,
+    good_id TEXT NOT NULL,
+    delta REAL NOT NULL,
+    kind TEXT NOT NULL,
+    counterparty_business_id TEXT,
+    amount_ncr INTEGER NOT NULL DEFAULT 0,
+    details TEXT NOT NULL DEFAULT '{}',
+    game_minutes INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_invmove_business
+    ON inventory_movements(business_id, game_minutes);
+-- market_prices / price_history: Unit 07's dynamic price layer.
+-- Every price change persists the signal values that caused it.
+CREATE TABLE IF NOT EXISTS market_prices (
+    city_id TEXT NOT NULL,
+    good_id TEXT NOT NULL,
+    price_ncr INTEGER NOT NULL,
+    updated_month INTEGER NOT NULL DEFAULT 0,
+    PRIMARY KEY (city_id, good_id)
+);
+CREATE TABLE IF NOT EXISTS price_history (
+    history_id TEXT PRIMARY KEY,
+    city_id TEXT NOT NULL,
+    good_id TEXT NOT NULL,
+    old_price_ncr INTEGER NOT NULL,
+    new_price_ncr INTEGER NOT NULL,
+    signals TEXT NOT NULL DEFAULT '{}',
+    game_minutes INTEGER NOT NULL
+);
+-- vacancies / job_applications: Unit 03's labour market.
+CREATE TABLE IF NOT EXISTS vacancies (
+    vacancy_id TEXT PRIMARY KEY,
+    employer_kind TEXT NOT NULL DEFAULT 'business',
+    employer_business_id TEXT,
+    profession_id TEXT NOT NULL,
+    city_id TEXT,
+    wage_per_month INTEGER NOT NULL DEFAULT 0,
+    status TEXT NOT NULL DEFAULT 'open',
+    filled_by_character_id TEXT,
+    posted_month INTEGER NOT NULL DEFAULT 0,
+    created_at_game_minutes INTEGER NOT NULL DEFAULT 0,
+    closed_at_game_minutes INTEGER
+);
+CREATE TABLE IF NOT EXISTS job_applications (
+    application_id TEXT PRIMARY KEY,
+    vacancy_id TEXT NOT NULL,
+    character_id TEXT NOT NULL,
+    score REAL NOT NULL DEFAULT 0,
+    status TEXT NOT NULL DEFAULT 'pending',
+    game_minutes INTEGER NOT NULL
+);
+-- business_monthly / business_events: per-business P&L history
+-- (Unit 04) and the business audit trail (founding, capital,
+-- distress, closure, dividend and investment events).
+CREATE TABLE IF NOT EXISTS business_monthly (
+    business_id TEXT NOT NULL,
+    month_index INTEGER NOT NULL,
+    revenue_ncr INTEGER NOT NULL DEFAULT 0,
+    costs_ncr INTEGER NOT NULL DEFAULT 0,
+    tax_ncr INTEGER NOT NULL DEFAULT 0,
+    profit_ncr INTEGER NOT NULL DEFAULT 0,
+    employees INTEGER NOT NULL DEFAULT 0,
+    status_after TEXT NOT NULL DEFAULT 'active',
+    PRIMARY KEY (business_id, month_index)
+);
+CREATE TABLE IF NOT EXISTS business_events (
+    event_id TEXT PRIMARY KEY,
+    business_id TEXT NOT NULL,
+    event_type TEXT NOT NULL,
+    details TEXT NOT NULL DEFAULT '{}',
+    game_minutes INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_bizevents_business
+    ON business_events(business_id, game_minutes);
+-- economic_indicators: Unit 11's monthly snapshots (the
+-- indicators themselves are computed live in indicators.py;
+-- methodology documented there).
+CREATE TABLE IF NOT EXISTS economic_indicators (
+    scope TEXT NOT NULL,
+    month_index INTEGER NOT NULL,
+    metrics TEXT NOT NULL DEFAULT '{}',
+    game_minutes INTEGER NOT NULL,
+    PRIMARY KEY (scope, month_index)
+);
+-- crisis_records: Unit 12's measured crisis detections.
+CREATE TABLE IF NOT EXISTS crisis_records (
+    crisis_id TEXT PRIMARY KEY,
+    crisis_type TEXT NOT NULL,
+    scope TEXT NOT NULL DEFAULT 'national',
+    status TEXT NOT NULL DEFAULT 'active',
+    severity TEXT NOT NULL DEFAULT '{}',
+    opened_month INTEGER NOT NULL DEFAULT 0,
+    opened_at_game_minutes INTEGER NOT NULL DEFAULT 0,
+    resolved_at_game_minutes INTEGER,
+    clean_months INTEGER NOT NULL DEFAULT 0,
+    details TEXT NOT NULL DEFAULT '{}'
+);
+-- government_finance: Unit 10's per-city monthly public accounts,
+-- summed from the ledger itself (revenue by reason) and from the
+-- municipal expenditure records.
+CREATE TABLE IF NOT EXISTS government_finance (
+    city_id TEXT NOT NULL,
+    month_index INTEGER NOT NULL,
+    revenue_income_tax_ncr INTEGER NOT NULL DEFAULT 0,
+    revenue_business_tax_ncr INTEGER NOT NULL DEFAULT 0,
+    revenue_property_tax_ncr INTEGER NOT NULL DEFAULT 0,
+    revenue_sales_tax_ncr INTEGER NOT NULL DEFAULT 0,
+    revenue_tariff_ncr INTEGER NOT NULL DEFAULT 0,
+    revenue_rent_ncr INTEGER NOT NULL DEFAULT 0,
+    revenue_other_ncr INTEGER NOT NULL DEFAULT 0,
+    spend_services_ncr INTEGER NOT NULL DEFAULT 0,
+    spend_construction_ncr INTEGER NOT NULL DEFAULT 0,
+    spend_pensions_ncr INTEGER NOT NULL DEFAULT 0,
+    spend_other_ncr INTEGER NOT NULL DEFAULT 0,
+    city_balance_after INTEGER,
+    public_debt_ncr INTEGER NOT NULL DEFAULT 0,
+    game_minutes INTEGER NOT NULL,
+    PRIMARY KEY (city_id, month_index)
+);
+-- household_consumption: Unit 14's goods-layer record of what a
+-- household actually consumed (and what it could not get).
+CREATE TABLE IF NOT EXISTS household_consumption (
+    household_id TEXT NOT NULL,
+    month_index INTEGER NOT NULL,
+    good_id TEXT NOT NULL,
+    units REAL NOT NULL DEFAULT 0,
+    spend_ncr INTEGER NOT NULL DEFAULT 0,
+    unmet_units REAL NOT NULL DEFAULT 0,
+    PRIMARY KEY (household_id, month_index, good_id)
+);
 """
 
-SYSTEM_ACCOUNTS = ("SYS-CITY", "SYS-EMPLOYERS", "SYS-MARKET")
+# Additive column migrations for tables that predate a session.
+# (table, column, column DDL) — applied only when the column is
+# missing, so existing worlds open unchanged and gain the new
+# structures. CREATE TABLE IF NOT EXISTS cannot do this alone.
+MIGRATIONS = (
+    ("economy_ledger", "transfer_key", "TEXT"),
+    ("economy_ledger", "event_ref", "TEXT"),
+    ("businesses", "category", "TEXT"),
+    ("businesses", "status", "TEXT NOT NULL DEFAULT 'active'"),
+    ("world_state", "economy_setup", "INTEGER NOT NULL DEFAULT 0"),
+)
+
+SYSTEM_ACCOUNTS = ("SYS-CITY", "SYS-EMPLOYERS", "SYS-MARKET", "SYS-BANK")
 
 
 class Store:
@@ -626,8 +838,35 @@ class Store:
         self.conn = sqlite3.connect(path)
         self.conn.row_factory = sqlite3.Row
         self.conn.executescript(SCHEMA)
+        self._migrate()
         self.conn.commit()
         self._counters = {}
+
+    def _migrate(self):
+        """Additive column migrations (see MIGRATIONS): existing
+        worlds gain new columns in place; nothing is rewritten."""
+        for table, column, ddl in MIGRATIONS:
+            cols = [r["name"] for r in self.conn.execute(
+                f"PRAGMA table_info({table})").fetchall()]
+            if column not in cols:
+                self.conn.execute(
+                    f"ALTER TABLE {table} ADD COLUMN {column} {ddl}")
+        self.conn.execute(
+            "CREATE UNIQUE INDEX IF NOT EXISTS idx_ledger_transfer_key"
+            " ON economy_ledger(transfer_key)")
+        # The ledger is append-only (the Session 04 traceability
+        # order: history is never rewritten). Enforced in the
+        # database itself, not by convention.
+        self.conn.execute(
+            "CREATE TRIGGER IF NOT EXISTS trg_ledger_no_update"
+            " BEFORE UPDATE ON economy_ledger BEGIN"
+            " SELECT RAISE(ABORT, 'economy_ledger is append-only');"
+            " END")
+        self.conn.execute(
+            "CREATE TRIGGER IF NOT EXISTS trg_ledger_no_delete"
+            " BEFORE DELETE ON economy_ledger BEGIN"
+            " SELECT RAISE(ABORT, 'economy_ledger is append-only');"
+            " END")
 
     def close(self):
         self.conn.commit()
@@ -670,13 +909,17 @@ class Store:
         if self.world() is None:
             self.insert("world_state", id=1, game_minutes=start_minutes,
                         sim_seed=str(seed))
-            for sid in SYSTEM_ACCOUNTS:
+        # System accounts exist in every world, including worlds
+        # created before an account was added (Session 04: SYS-BANK).
+        for sid in SYSTEM_ACCOUNTS:
+            if self.row("SELECT 1 FROM characters WHERE character_id"
+                        " = ?", (sid,)) is None:
                 self.insert("characters", character_id=sid,
                             display_name=f"System: {sid}",
                             sim_tier="ambient", sex=None,
                             born_at_game_minutes=0, is_system=1,
                             balance_cached=0)
-            self.commit()
+        self.commit()
 
     def set_world(self, **fields):
         sets = ", ".join(f"{k} = ?" for k in fields)
@@ -686,26 +929,56 @@ class Store:
     # -- money: the ledger is the truth (GDD-01 §8) ---------------------------
     def transfer(self, from_id, to_id, amount, reason, game_minutes,
                  note=None, related_property_id=None,
-                 related_business_id=None):
+                 related_business_id=None, transfer_key=None,
+                 event_ref=None, from_business_id=None,
+                 to_business_id=None):
         """Append-only ledger row + balance caches, one transaction.
-        System accounts may go negative (they are the money source/sink);
-        regular characters may not spend below zero — the caller checks,
-        this method enforces it for non-system senders."""
+
+        The owner's Session 04 traceability order: every unit of
+        money carries its source, its destination, a reason code
+        and — where the caller supplies them — an idempotency key
+        (transfer_key: replaying the same key returns the original
+        ledger row and moves nothing twice) and the simulation
+        event that caused it (event_ref: a decision id, a month
+        settlement tag, a project/business/month key).
+
+        Endpoints are characters (from_id/to_id) or businesses
+        (from_business_id/to_business_id); a transfer may mix them
+        (an owner capitalising their business, a business paying a
+        person). System accounts may go negative (they are the
+        money source/sink); regular characters and businesses may
+        not spend below zero — the caller checks, this method
+        enforces it for non-system senders."""
         amount = int(amount)
         if amount <= 0:
             return None
+        if transfer_key is not None:
+            existing = self.row(
+                "SELECT ledger_id FROM economy_ledger"
+                " WHERE transfer_key = ?", (transfer_key,))
+            if existing is not None:
+                return existing["ledger_id"]
         if from_id is not None and from_id not in SYSTEM_ACCOUNTS:
             bal = self.balance(from_id)
             if bal < amount:
                 raise ValueError(
                     f"insufficient funds: {from_id} has {bal}, needs {amount}")
-        lid = None
+        if from_business_id is not None:
+            bal = self.business_balance(from_business_id)
+            if bal < amount:
+                raise ValueError(
+                    f"insufficient funds: business {from_business_id}"
+                    f" has {bal}, needs {amount}")
         cur = self.conn.execute(
             "INSERT INTO economy_ledger (from_character_id, to_character_id,"
+            " from_business_id, to_business_id,"
             " amount, reason_code, related_property_id, related_business_id,"
-            " note, game_minutes) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-            (from_id, to_id, amount, reason, related_property_id,
-             related_business_id, note, game_minutes))
+            " note, game_minutes, transfer_key, event_ref)"
+            " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            (from_id, to_id, from_business_id, to_business_id,
+             amount, reason, related_property_id,
+             related_business_id, note, game_minutes, transfer_key,
+             event_ref))
         lid = cur.lastrowid
         if from_id is not None:
             self.conn.execute(
@@ -715,7 +988,20 @@ class Store:
             self.conn.execute(
                 "UPDATE characters SET balance_cached = balance_cached + ?"
                 " WHERE character_id = ?", (amount, to_id))
+        if from_business_id is not None:
+            self.conn.execute(
+                "UPDATE businesses SET balance_cached = balance_cached"
+                " - ? WHERE business_id = ?", (amount, from_business_id))
+        if to_business_id is not None:
+            self.conn.execute(
+                "UPDATE businesses SET balance_cached = balance_cached"
+                " + ? WHERE business_id = ?", (amount, to_business_id))
         return lid
+
+    def business_balance(self, business_id):
+        r = self.row("SELECT balance_cached FROM businesses"
+                     " WHERE business_id = ?", (business_id,))
+        return r["balance_cached"] if r else 0
 
     def balance(self, character_id):
         r = self.row("SELECT balance_cached FROM characters"
@@ -725,8 +1011,10 @@ class Store:
     def ledger_sum_check(self):
         """Reconciliation: every character's cache must equal its ledger
         sum (seed balances are ledger rows too, so this must hold
-        exactly). Returns a list of mismatches — empty means the ledger
-        and the caches agree (GDD-01 §8's reconciliation job)."""
+        exactly), and — Session 04 — every business's cache must
+        equal its business-column ledger sum. Returns a list of
+        mismatches — empty means the ledger and the caches agree
+        (GDD-01 §8's reconciliation job)."""
         mismatches = []
         chars = self.rows("SELECT character_id, balance_cached FROM characters")
         for c in chars:
@@ -739,4 +1027,15 @@ class Store:
                 " WHERE from_character_id = ?", (cid,))["s"]
             if inn - out != c["balance_cached"]:
                 mismatches.append((cid, c["balance_cached"], inn - out))
+        for b in self.rows("SELECT business_id, balance_cached"
+                           " FROM businesses"):
+            bid = b["business_id"]
+            inn = self.row(
+                "SELECT COALESCE(SUM(amount),0) AS s FROM economy_ledger"
+                " WHERE to_business_id = ?", (bid,))["s"]
+            out = self.row(
+                "SELECT COALESCE(SUM(amount),0) AS s FROM economy_ledger"
+                " WHERE from_business_id = ?", (bid,))["s"]
+            if inn - out != b["balance_cached"]:
+                mismatches.append((bid, b["balance_cached"], inn - out))
         return mismatches
