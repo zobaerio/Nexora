@@ -1,0 +1,907 @@
+{
+  "achievements": [
+    {
+      "how": "Sleep one night in District 1",
+      "id": "first_night_in_rupsha",
+      "name": "First Night in Rupsha",
+      "tier": "Bronze"
+    },
+    {
+      "how": "Receive your first wage",
+      "id": "payday",
+      "name": "Payday",
+      "tier": "Bronze"
+    },
+    {
+      "how": "5 neighbours at relationship 40+",
+      "id": "neighbourhood_hero",
+      "name": "Neighbourhood Hero",
+      "tier": "Bronze"
+    },
+    {
+      "how": "Hold 100,000 NCr at once",
+      "id": "saver",
+      "name": "Saver",
+      "tier": "Silver"
+    },
+    {
+      "how": "Own any property",
+      "id": "homeowner",
+      "name": "Homeowner",
+      "tier": "Silver"
+    },
+    {
+      "how": "Reach Senior tier in any profession",
+      "id": "master_craftsman",
+      "name": "Master Craftsman",
+      "tier": "Silver"
+    },
+    {
+      "how": "Own a business with 3+ employees",
+      "id": "business_owner",
+      "name": "Business Owner",
+      "tier": "Silver"
+    },
+    {
+      "how": "Work 7 storm days without missing a shift",
+      "id": "storm_rider",
+      "name": "Storm Rider",
+      "tier": "Silver"
+    },
+    {
+      "how": "Three generations alive in your family tree",
+      "id": "family_three_generations",
+      "name": "Family Man / Family Woman",
+      "tier": "Gold"
+    },
+    {
+      "how": "City reputation 80+",
+      "id": "city_father_mother",
+      "name": "City Father / City Mother",
+      "tier": "Gold"
+    },
+    {
+      "how": "Net worth 1,000,000 NCr",
+      "id": "millionaire",
+      "name": "Millionaire",
+      "tier": "Gold"
+    },
+    {
+      "how": "Complete Level 8",
+      "id": "space_explorer",
+      "name": "Space Explorer",
+      "tier": "Gold"
+    },
+    {
+      "how": "Net worth 2,000,000 NCr + reputation 90 + 3 generations",
+      "id": "living_legend",
+      "name": "Living Legend",
+      "tier": "Platinum"
+    }
+  ],
+  "levels": [
+    {
+      "level": 1,
+      "name": "A New Beginning",
+      "name_status": "owner-given"
+    },
+    {
+      "level": 2,
+      "name": "Settling In",
+      "name_status": "proposed — owner confirms or renames (GDD-04 header)"
+    },
+    {
+      "level": 3,
+      "name": "First Home",
+      "name_status": "proposed — owner confirms or renames (GDD-04 header)"
+    },
+    {
+      "level": 4,
+      "name": "Master Your Craft",
+      "name_status": "proposed — owner confirms or renames (GDD-04 header)"
+    },
+    {
+      "level": 5,
+      "name": "Roots & Family",
+      "name_status": "proposed — owner confirms or renames (GDD-04 header)"
+    },
+    {
+      "level": 6,
+      "name": "A Name in the City",
+      "name_status": "proposed — owner confirms or renames (GDD-04 header)"
+    },
+    {
+      "level": 7,
+      "name": "Beyond One City",
+      "name_status": "proposed — owner confirms or renames (GDD-04 header)"
+    },
+    {
+      "level": 8,
+      "name": "Space Explorer",
+      "name_status": "owner-given"
+    }
+  ],
+  "missions": [
+    {
+      "id": "1.1",
+      "level": 1,
+      "objectives": [
+        "Arrive at the launch terminal",
+        "Walk to your apartment",
+        "Sleep one night"
+      ],
+      "profession_refs": [],
+      "rewards": {
+        "credits_ncr": 1000,
+        "other": [],
+        "reputation": [
+          {
+            "amount": 5,
+            "scope": "district"
+          }
+        ]
+      },
+      "title": "First Steps",
+      "unlocks": [
+        "Apartment (home anchor)",
+        "Bicycle purchase"
+      ],
+      "zone_refs": [
+        "d1_riverfront",
+        "d1_midtown"
+      ]
+    },
+    {
+      "id": "1.2",
+      "level": 1,
+      "objectives": [
+        "Visit the job board",
+        "Take any entry job",
+        "Complete one full work day"
+      ],
+      "profession_refs": [],
+      "rewards": {
+        "credits_ncr": null,
+        "other": [
+          "First wage at the taken job's GDD-03 §2 band"
+        ],
+        "reputation": []
+      },
+      "title": "A Job to Do",
+      "unlocks": [
+        "Job board filters",
+        "Work uniform"
+      ],
+      "zone_refs": [
+        "d1_civic"
+      ]
+    },
+    {
+      "id": "1.3",
+      "level": 1,
+      "objectives": [
+        "Meet 3 neighbours",
+        "Help one neighbour with a small task (carry, fetch, fix)"
+      ],
+      "profession_refs": [],
+      "rewards": {
+        "credits_ncr": null,
+        "other": [],
+        "reputation": [
+          {
+            "amount": 10,
+            "scope": "relationship_each_met"
+          },
+          {
+            "amount": 5,
+            "scope": "district"
+          }
+        ]
+      },
+      "title": "Know Your Neighbours",
+      "unlocks": [
+        "Neighbour favour system"
+      ],
+      "zone_refs": [
+        "d1_midtown"
+      ]
+    },
+    {
+      "id": "1.4",
+      "level": 1,
+      "objectives": [
+        "Watch the sunset from the riverfront promenade",
+        "Visit the tea stall"
+      ],
+      "profession_refs": [],
+      "rewards": {
+        "credits_ncr": null,
+        "other": [
+          "Memory event: First evening in Rupsha"
+        ],
+        "reputation": []
+      },
+      "title": "The River at Dusk",
+      "unlocks": [
+        "Promenade leisure anchor",
+        "Photo mode"
+      ],
+      "zone_refs": [
+        "d1_riverfront",
+        "d1_market"
+      ]
+    },
+    {
+      "id": "2.1",
+      "level": 2,
+      "objectives": [
+        "Reach skill 20 in your profession's primary skill"
+      ],
+      "profession_refs": [],
+      "rewards": {
+        "credits_ncr": 2000,
+        "other": [],
+        "reputation": [
+          {
+            "amount": 10,
+            "scope": "profession"
+          }
+        ]
+      },
+      "title": "Learn the Trade",
+      "unlocks": [
+        "Skill training (evening classes)"
+      ],
+      "zone_refs": []
+    },
+    {
+      "id": "2.2",
+      "level": 2,
+      "objectives": [
+        "Save 15,000 NCr above your starting balance"
+      ],
+      "profession_refs": [],
+      "rewards": {
+        "credits_ncr": 1500,
+        "other": [
+          "Reward is an interest bonus (GDD-04 §2)"
+        ],
+        "reputation": []
+      },
+      "title": "Rainy Day Fund",
+      "unlocks": [
+        "Bank savings account (4% annual, GDD-03 §4.4)"
+      ],
+      "zone_refs": [
+        "d1_civic"
+      ]
+    },
+    {
+      "id": "2.3",
+      "level": 2,
+      "objectives": [
+        "Buy a week's food at Boro Bazar",
+        "Haggle once, successfully"
+      ],
+      "profession_refs": [],
+      "rewards": {
+        "credits_ncr": 500,
+        "other": [],
+        "reputation": [
+          {
+            "amount": 5,
+            "scope": "market"
+          }
+        ]
+      },
+      "title": "The Market Run",
+      "unlocks": [
+        "Haggling",
+        "Market regular status"
+      ],
+      "zone_refs": [
+        "d1_market"
+      ]
+    },
+    {
+      "id": "2.4",
+      "level": 2,
+      "objectives": [
+        "Raise one friendship to 40+ (trust/affection)"
+      ],
+      "profession_refs": [],
+      "rewards": {
+        "credits_ncr": null,
+        "other": [
+          "Memory event"
+        ],
+        "reputation": [
+          {
+            "amount": 10,
+            "scope": "district"
+          }
+        ]
+      },
+      "title": "A Friend in the City",
+      "unlocks": [
+        "Friend favour missions"
+      ],
+      "zone_refs": []
+    },
+    {
+      "id": "3.1",
+      "level": 3,
+      "objectives": [
+        "Save 70,000 NCr (20% of a Tier 2 flat) or secure a mortgage"
+      ],
+      "profession_refs": [],
+      "rewards": {
+        "credits_ncr": 3000,
+        "other": [],
+        "reputation": []
+      },
+      "title": "The Deposit",
+      "unlocks": [
+        "Mortgage applications (GDD-03 §4.3)"
+      ],
+      "zone_refs": [
+        "d1_civic"
+      ]
+    },
+    {
+      "id": "3.2",
+      "level": 3,
+      "objectives": [
+        "View 3 properties",
+        "Choose one",
+        "Complete the purchase"
+      ],
+      "profession_refs": [],
+      "rewards": {
+        "credits_ncr": null,
+        "other": [
+          "Property deed (Tier 2 flat)"
+        ],
+        "reputation": []
+      },
+      "title": "House Hunting",
+      "unlocks": [
+        "Property ownership",
+        "Furnishing (Phase 5/6)"
+      ],
+      "zone_refs": []
+    },
+    {
+      "id": "3.3",
+      "level": 3,
+      "objectives": [
+        "Furnish the flat from the catalogue (5 items, any tier)"
+      ],
+      "profession_refs": [],
+      "rewards": {
+        "credits_ncr": null,
+        "other": [
+          "+10 comfort",
+          "Memory event"
+        ],
+        "reputation": []
+      },
+      "title": "Make It Yours",
+      "unlocks": [
+        "Furniture catalogue",
+        "Home customisation"
+      ],
+      "zone_refs": []
+    },
+    {
+      "id": "3.4",
+      "level": 3,
+      "objectives": [
+        "Host 3 friends at home"
+      ],
+      "profession_refs": [],
+      "rewards": {
+        "credits_ncr": null,
+        "other": [],
+        "reputation": [
+          {
+            "amount": 15,
+            "scope": "relationships"
+          },
+          {
+            "amount": 10,
+            "scope": "district"
+          }
+        ]
+      },
+      "title": "Housewarming",
+      "unlocks": [
+        "Hosting / social events"
+      ],
+      "zone_refs": []
+    },
+    {
+      "id": "4.1",
+      "level": 4,
+      "objectives": [
+        "Reach Mid tier in your profession (GDD-03 §2 progression rules)"
+      ],
+      "profession_refs": [],
+      "rewards": {
+        "credits_ncr": null,
+        "other": [
+          "Wage band rises to Mid"
+        ],
+        "reputation": []
+      },
+      "title": "Mid-Tier",
+      "unlocks": [
+        "Mid-tier jobs",
+        "Mentoring"
+      ],
+      "zone_refs": []
+    },
+    {
+      "id": "4.2",
+      "level": 4,
+      "objectives": [
+        "Complete one flagship-loop job end to end (Civil Engineer: plan, estimate, supervise, payment; other professions: equivalent loop)"
+      ],
+      "profession_refs": [
+        "civil_engineer"
+      ],
+      "rewards": {
+        "credits_ncr": 5000,
+        "other": [
+          "Plus the loop's own fee (GDD-03 §6)"
+        ],
+        "reputation": [
+          {
+            "amount": 20,
+            "scope": "profession"
+          }
+        ]
+      },
+      "title": "The Big Job",
+      "unlocks": [
+        "Large contracts"
+      ],
+      "zone_refs": []
+    },
+    {
+      "id": "4.3",
+      "level": 4,
+      "objectives": [
+        "Mentor a junior (NPC) to skill 20"
+      ],
+      "profession_refs": [],
+      "rewards": {
+        "credits_ncr": null,
+        "other": [
+          "Memory event"
+        ],
+        "reputation": [
+          {
+            "amount": 15,
+            "scope": "profession"
+          }
+        ]
+      },
+      "title": "Teach Someone",
+      "unlocks": [
+        "Mentoring system"
+      ],
+      "zone_refs": []
+    },
+    {
+      "id": "4.4",
+      "level": 4,
+      "objectives": [
+        "Work through one storm week without missing a shift"
+      ],
+      "profession_refs": [],
+      "rewards": {
+        "credits_ncr": 2000,
+        "other": [
+          "+10 resilience trait nudge"
+        ],
+        "reputation": []
+      },
+      "title": "Storm Season",
+      "unlocks": [
+        "Weather-hardened reputation"
+      ],
+      "zone_refs": []
+    },
+    {
+      "id": "5.1",
+      "level": 5,
+      "objectives": [
+        "Build a relationship to partner level (affection 70+)"
+      ],
+      "profession_refs": [],
+      "rewards": {
+        "credits_ncr": null,
+        "other": [
+          "Memory event: Partnership"
+        ],
+        "reputation": []
+      },
+      "title": "Someone Special",
+      "unlocks": [
+        "Partnership / marriage events"
+      ],
+      "zone_refs": []
+    },
+    {
+      "id": "5.2",
+      "level": 5,
+      "objectives": [
+        "Form or join a household",
+        "Share the expense pool"
+      ],
+      "profession_refs": [],
+      "rewards": {
+        "credits_ncr": null,
+        "other": [
+          "Household management UI"
+        ],
+        "reputation": []
+      },
+      "title": "A Household Together",
+      "unlocks": [
+        "Joint finances",
+        "Shared property"
+      ],
+      "zone_refs": []
+    },
+    {
+      "id": "5.3",
+      "level": 5,
+      "objectives": [
+        "Welcome a child (birth/adoption event)"
+      ],
+      "profession_refs": [],
+      "rewards": {
+        "credits_ncr": null,
+        "other": [
+          "Memory event"
+        ],
+        "reputation": [
+          {
+            "amount": 20,
+            "scope": "family"
+          }
+        ]
+      },
+      "title": "The Next Generation",
+      "unlocks": [
+        "Child life stage",
+        "School system"
+      ],
+      "zone_refs": [
+        "d1_civic"
+      ]
+    },
+    {
+      "id": "5.4",
+      "level": 5,
+      "objectives": [
+        "Start a business with a family member, or employ one"
+      ],
+      "profession_refs": [],
+      "rewards": {
+        "credits_ncr": null,
+        "other": [
+          "Business licence fee waived"
+        ],
+        "reputation": []
+      },
+      "title": "The Family Business",
+      "unlocks": [
+        "Family business rules (GDD-03 §5)"
+      ],
+      "zone_refs": []
+    },
+    {
+      "id": "6.1",
+      "level": 6,
+      "objectives": [
+        "Reach Senior tier in your profession"
+      ],
+      "profession_refs": [],
+      "rewards": {
+        "credits_ncr": null,
+        "other": [
+          "Wage band rises to Senior"
+        ],
+        "reputation": []
+      },
+      "title": "Senior Tier",
+      "unlocks": [
+        "Senior contracts",
+        "City advisory"
+      ],
+      "zone_refs": []
+    },
+    {
+      "id": "6.2",
+      "level": 6,
+      "objectives": [
+        "Complete a city contract (school repair, market upgrade, or riverfront work)"
+      ],
+      "profession_refs": [],
+      "rewards": {
+        "credits_ncr": 25000,
+        "other": [],
+        "reputation": [
+          {
+            "amount": 30,
+            "scope": "city"
+          }
+        ]
+      },
+      "title": "The Civic Job",
+      "unlocks": [
+        "City contracts board"
+      ],
+      "zone_refs": [
+        "d1_civic"
+      ]
+    },
+    {
+      "id": "6.3",
+      "level": 6,
+      "objectives": [
+        "Hire 3 employees (NPC)",
+        "Pay them for 30 days"
+      ],
+      "profession_refs": [],
+      "rewards": {
+        "credits_ncr": null,
+        "other": [],
+        "reputation": [
+          {
+            "amount": 20,
+            "scope": "business"
+          }
+        ]
+      },
+      "title": "Employ Others",
+      "unlocks": [
+        "Employer status",
+        "Payroll"
+      ],
+      "zone_refs": []
+    },
+    {
+      "id": "6.4",
+      "level": 6,
+      "objectives": [
+        "Help organise the district festival (fund, staff, or build)"
+      ],
+      "profession_refs": [],
+      "rewards": {
+        "credits_ncr": null,
+        "other": [
+          "Memory event"
+        ],
+        "reputation": [
+          {
+            "amount": 25,
+            "scope": "district"
+          }
+        ]
+      },
+      "title": "The District Festival",
+      "unlocks": [
+        "Festival (annual event)"
+      ],
+      "zone_refs": []
+    },
+    {
+      "id": "7.1",
+      "level": 7,
+      "objectives": [
+        "Travel to District 2 / City 2",
+        "Spend 3 nights there"
+      ],
+      "profession_refs": [],
+      "rewards": {
+        "credits_ncr": 5000,
+        "other": [
+          "Travel memory event"
+        ],
+        "reputation": []
+      },
+      "title": "The Other Side",
+      "unlocks": [
+        "Inter-city travel",
+        "Second home"
+      ],
+      "zone_refs": []
+    },
+    {
+      "id": "7.2",
+      "level": 7,
+      "objectives": [
+        "Open a branch or take a contract in the second city"
+      ],
+      "profession_refs": [],
+      "rewards": {
+        "credits_ncr": 15000,
+        "other": [],
+        "reputation": [
+          {
+            "amount": 20,
+            "scope": "new_city"
+          }
+        ]
+      },
+      "title": "Two-City Business",
+      "unlocks": [
+        "Branch businesses"
+      ],
+      "zone_refs": []
+    },
+    {
+      "id": "7.3",
+      "level": 7,
+      "objectives": [
+        "Drive/ride the inter-city route in one trip (no fast travel)"
+      ],
+      "profession_refs": [],
+      "rewards": {
+        "credits_ncr": 3000,
+        "other": [
+          "Memory event"
+        ],
+        "reputation": []
+      },
+      "title": "The Long Road",
+      "unlocks": [
+        "Route mastery",
+        "Roadside stops"
+      ],
+      "zone_refs": []
+    },
+    {
+      "id": "7.4",
+      "level": 7,
+      "objectives": [
+        "Complete a cross-city project (both cities benefit)"
+      ],
+      "profession_refs": [],
+      "rewards": {
+        "credits_ncr": null,
+        "other": [],
+        "reputation": [
+          {
+            "amount": 40,
+            "scope": "both_cities"
+          }
+        ]
+      },
+      "title": "A Bridge Between",
+      "unlocks": [
+        "Cross-city contracts"
+      ],
+      "zone_refs": []
+    },
+    {
+      "id": "8.1",
+      "level": 8,
+      "objectives": [
+        "Qualify for the space programme (Senior tier + savings 500,000 NCr + reputation 80)"
+      ],
+      "profession_refs": [],
+      "rewards": {
+        "credits_ncr": null,
+        "other": [
+          "Programme acceptance"
+        ],
+        "reputation": []
+      },
+      "title": "The Application",
+      "unlocks": [
+        "Space programme"
+      ],
+      "zone_refs": []
+    },
+    {
+      "id": "8.2",
+      "level": 8,
+      "objectives": [
+        "Complete zero-g and survival training (skill challenges)"
+      ],
+      "profession_refs": [],
+      "rewards": {
+        "credits_ncr": 10000,
+        "other": [],
+        "reputation": [
+          {
+            "amount": 30,
+            "scope": "district"
+          }
+        ]
+      },
+      "title": "Training",
+      "unlocks": [
+        "Training facility"
+      ],
+      "zone_refs": []
+    },
+    {
+      "id": "8.3",
+      "level": 8,
+      "objectives": [
+        "Crew the first mission to Nexora-7 (data/planets.json)"
+      ],
+      "profession_refs": [],
+      "rewards": {
+        "credits_ncr": null,
+        "other": [
+          "Memory event: First launch"
+        ],
+        "reputation": []
+      },
+      "title": "First Launch",
+      "unlocks": [
+        "Spacecraft",
+        "Nexora-7 landing"
+      ],
+      "zone_refs": []
+    },
+    {
+      "id": "8.4",
+      "level": 8,
+      "objectives": [
+        "Establish the first foothold on Nexora-7",
+        "Return with a survey"
+      ],
+      "profession_refs": [],
+      "rewards": {
+        "credits_ncr": 50000,
+        "other": [
+          "Title: Space Explorer"
+        ],
+        "reputation": []
+      },
+      "title": "A New World",
+      "unlocks": [
+        "Planetary settlement (Phase 10)"
+      ],
+      "zone_refs": []
+    }
+  ],
+  "notes": "Level names 2-7 are proposed in GDD-04 and await owner confirmation; name_status says so per level. Credit rewards are ledger mission_reward amounts (GDD-03 §4.1) and are always paid from an existing account per the GDD-03 design law — a null credits_ncr means the GDD gives no flat credit reward (payment comes from wages, fees or deeds instead). Missions 7.x reference District 2 / City 2, which have no District 1 zone ids — their zone_refs are deliberately empty. Mission ids keep the GDD's own numbering (1.1-8.4) so data, GDD and schema mission_progress rows trace 1:1.",
+  "side_mission_types": [
+    {
+      "examples": "Deliver, fetch, carry, fix for an NPC",
+      "reward_pattern": "200-2,000 NCr + relationship",
+      "type": "errands"
+    },
+    {
+      "examples": "Extra shifts, overtime, cover for a sick colleague",
+      "reward_pattern": "Wage + reputation",
+      "type": "work_shifts"
+    },
+    {
+      "examples": "Lend money (ledger loan, GDD-03 §4.3), mediate a dispute, find a lost item",
+      "reward_pattern": "Relationship + small credits",
+      "type": "favours"
+    },
+    {
+      "examples": "Festival stalls, storm clean-up, market day",
+      "reward_pattern": "Reputation + memory events",
+      "type": "events"
+    },
+    {
+      "examples": "Find all landmarks, photograph the district, ride every bus route",
+      "reward_pattern": "500 NCr each + Explorer progress",
+      "type": "discovery"
+    }
+  ],
+  "source_doc": "docs/GDD-04-MISSIONS-AND-PROGRESSION.md §1 (level rules), §2 (levels 1-8), §3 (side missions), §5 (achievements). Objectives, rewards and unlocks are transcribed from the GDD tables; structure only — dialogue and cutscene content are Phase 5/6 work (GDD-04 §6).",
+  "version": "1.0"
+}

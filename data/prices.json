@@ -1,0 +1,293 @@
+{
+  "construction_materials": [
+    {
+      "id": "cement_bag_50kg",
+      "name": "Cement",
+      "notes": "Price index moves ±15% with the market (GDD-03 §5/§3.4).",
+      "price_ncr": 550,
+      "unit": "50 kg bag"
+    },
+    {
+      "id": "brick_first_class",
+      "name": "Brick (1st class)",
+      "price_ncr": 12000,
+      "unit": "1,000 pcs"
+    },
+    {
+      "id": "rebar_60_grade",
+      "name": "Rebar (60 grade)",
+      "price_ncr": 95000,
+      "unit": "tonne"
+    },
+    {
+      "id": "sand_river",
+      "name": "Sand (river)",
+      "price_ncr": 45,
+      "unit": "cubic ft"
+    },
+    {
+      "id": "stone_aggregate",
+      "name": "Stone aggregate",
+      "price_ncr": 60,
+      "unit": "cubic ft"
+    },
+    {
+      "id": "tiles_floor",
+      "name": "Tiles (floor)",
+      "price_ncr": 85,
+      "unit": "sq ft"
+    },
+    {
+      "id": "paint_weathercoat",
+      "name": "Paint (weathercoat)",
+      "price_ncr": 420,
+      "unit": "litre"
+    }
+  ],
+  "currency": "Nexora Credits (NCr)",
+  "eating_out_per_meal": {
+    "lower": 150,
+    "mid": 350,
+    "upper": 900
+  },
+  "living_costs_monthly": {
+    "clothing_personal": {
+      "lower": 600,
+      "mid": 1500,
+      "upper": 5000
+    },
+    "food_home_cooking": {
+      "lower": 2500,
+      "mid": 4500,
+      "upper": 9000
+    },
+    "transport_own_car_fuel_upkeep": {
+      "lower": null,
+      "mid": 3500,
+      "upper": 8000
+    },
+    "transport_public_bus_rickshaw": {
+      "lower": 800,
+      "mid": 1200,
+      "upper": null
+    },
+    "utilities_power_water_internet": {
+      "lower": 500,
+      "mid": 800,
+      "upper": 2000
+    }
+  },
+  "loans": {
+    "bank_loan": {
+      "annual_interest_percent": 12,
+      "max_multiple_of_monthly_income": 5,
+      "max_term_months": 24
+    },
+    "mortgage": {
+      "annual_interest_percent": 9,
+      "deposit_percent": 20,
+      "max_term_years": 20
+    },
+    "notes": "The bank lends only what it holds; no payday lenders, no hidden fees (GDD-03 §4.3-§4.4).",
+    "savings_annual_interest_percent": 4
+  },
+  "notes": "All values are v1 tuning in integer NCr (GDD-01 §8: no floats near money). Zone note: GDD-03 §1 calls the starter apartment's zone 'd1_residential'; that zone id does not exist in GDD-02, whose canonical id for the starter apartment building is 'd1_midtown' — all data files use d1_midtown.",
+  "owner_start_reference": {
+    "monthly_outgoings_ncr": 12500,
+    "monthly_surplus_approx_ncr": 9500,
+    "notes": "GDD-03 §1 reference household: rent 6000 + food 4500 + transport 1200 + utilities 800 = 12500.",
+    "profession_id": "civil_engineer",
+    "rent_tier": 3,
+    "starting_balance_ncr": 25000
+  },
+  "rent_monthly_by_tier": [
+    {
+      "buy_price_guide_ncr": null,
+      "rent_ncr": 2500,
+      "sold": false,
+      "tier": 1,
+      "type": "Single room / shared flat"
+    },
+    {
+      "buy_price_guide_ncr": 350000,
+      "rent_ncr": 4000,
+      "sold": true,
+      "tier": 2,
+      "type": "1-room flat"
+    },
+    {
+      "buy_price_guide_ncr": 750000,
+      "rent_ncr": 6000,
+      "sold": true,
+      "tier": 3,
+      "type": "2-room apartment"
+    },
+    {
+      "buy_price_guide_ncr": 1800000,
+      "rent_ncr": 12000,
+      "sold": true,
+      "tier": 4,
+      "type": "3-room house, small garden"
+    },
+    {
+      "buy_price_guide_ncr": 4500000,
+      "rent_ncr": 25000,
+      "sold": true,
+      "tier": 5,
+      "type": "Riverfront house / rooftop flat"
+    }
+  ],
+  "source_doc": "docs/GDD-03-ECONOMY-AND-PROFESSIONS.md §2 (wages), §3 (prices), §4 (tax/loans/savings), §8 (taxi fares). Wage bands are copied from data/professions.json, the canonical file (GDD-03 §2: if the two ever disagree, the JSON bands win and the GDD is fixed).",
+  "tax": {
+    "business_monthly_percent_of_profit": 8,
+    "income_monthly_brackets": [
+      {
+        "from_ncr": 0,
+        "rate_percent": 0,
+        "to_ncr": 15000
+      },
+      {
+        "from_ncr": 15001,
+        "rate_percent": 5,
+        "to_ncr": 40000
+      },
+      {
+        "from_ncr": 40001,
+        "rate_percent": 10,
+        "to_ncr": null
+      }
+    ],
+    "notes": "Deducted at pay time to the city account; amounts shown before the player commits (GDD-03 §4.2).",
+    "property_annual_percent_of_value": 0.5
+  },
+  "taxi_fares": {
+    "base_ncr": 60,
+    "cab_rental_ncr_per_day": 800,
+    "notes": "GDD-03 §8. Surge is the one float in the file by design: fares are computed then rounded to integer NCr before any ledger row is written.",
+    "per_km_ncr": 25,
+    "surge_conditions": [
+      "rain",
+      "night"
+    ],
+    "surge_multiplier": 1.5
+  },
+  "vehicles": [
+    {
+      "id": "bicycle",
+      "name": "Bicycle",
+      "notes": "No fuel cost; the honest starter vehicle.",
+      "price_ncr": 8000
+    },
+    {
+      "id": "rickshaw_own",
+      "name": "Rickshaw (own, for work)",
+      "notes": "Taxi-driver starter option.",
+      "price_ncr": 25000
+    },
+    {
+      "id": "motorbike",
+      "name": "Motorbike",
+      "notes": "The District 1 workhorse.",
+      "price_ncr": 120000
+    },
+    {
+      "id": "car_small",
+      "name": "Car (small)",
+      "notes": "Mid-tier goal.",
+      "price_ncr": 450000
+    },
+    {
+      "id": "car_premium",
+      "name": "Car (premium)",
+      "notes": "Upper-tier marker.",
+      "price_ncr": 1200000
+    },
+    {
+      "id": "taxi_licensed",
+      "name": "Taxi (licensed cab)",
+      "notes": "Needed for the taxi loop at scale; rentable first at 800 NCr/day.",
+      "price_ncr": 650000,
+      "rental_ncr_per_day": 800
+    }
+  ],
+  "version": "1.0",
+  "wages_monthly": [
+    {
+      "entry": 9000,
+      "mid": 14000,
+      "pay_schedule": "daily",
+      "profession_id": "construction_worker",
+      "senior": 20000
+    },
+    {
+      "entry": 22000,
+      "mid": 38000,
+      "pay_schedule": "monthly",
+      "profession_id": "civil_engineer",
+      "senior": 65000
+    },
+    {
+      "entry": 30000,
+      "mid": 55000,
+      "pay_schedule": "monthly",
+      "profession_id": "doctor",
+      "senior": 95000
+    },
+    {
+      "entry": 15000,
+      "mid": 24000,
+      "pay_schedule": "monthly",
+      "profession_id": "teacher",
+      "senior": 38000
+    },
+    {
+      "entry": 18000,
+      "mid": 28000,
+      "pay_schedule": "monthly",
+      "profession_id": "police_officer",
+      "senior": 45000
+    },
+    {
+      "entry": 14000,
+      "mid": 23000,
+      "pay_schedule": "per_fare",
+      "profession_id": "taxi_driver",
+      "senior": 36000
+    },
+    {
+      "entry": 13000,
+      "mid": 22000,
+      "pay_schedule": "monthly",
+      "profession_id": "chef",
+      "senior": 40000
+    },
+    {
+      "entry": 28000,
+      "mid": 52000,
+      "pay_schedule": "monthly",
+      "profession_id": "software_developer",
+      "senior": 90000
+    },
+    {
+      "entry": 12000,
+      "mid": 26000,
+      "pay_schedule": "daily_takings",
+      "profession_id": "shop_owner",
+      "senior": 55000
+    },
+    {
+      "entry": 40000,
+      "mid": 110000,
+      "pay_schedule": "monthly_draw",
+      "profession_id": "business_owner",
+      "senior": 300000
+    },
+    {
+      "entry": 45000,
+      "mid": 95000,
+      "pay_schedule": "monthly",
+      "profession_id": "pilot",
+      "senior": 180000
+    }
+  ]
+}
