@@ -89,6 +89,8 @@ def post_vacancies(store, data, month_index, game_minutes,
         if current >= target:
             continue
         wage = data.wage(profession_id, "entry")
+        from . import justice as justice_mod
+        wage = justice_mod.apply_wage_floor(store, data, wage)
         bill = business_mod.wage_bill(store, b["business_id"])
         if store.business_balance(b["business_id"]) \
                 < (bill + wage) * reserve_months:
@@ -122,10 +124,12 @@ def post_vacancies(store, data, month_index, game_minutes,
             " AND status = 'open'", (profession_id,))["n"]
         if existing:
             continue
+        from . import justice as justice_mod
         vid = _post_vacancy(
             store, employer_kind="civic", business_id=None,
             profession_id=profession_id, city_id=CIVIC_CITY,
-            wage=data.wage(profession_id, "entry"),
+            wage=justice_mod.apply_wage_floor(
+                store, data, data.wage(profession_id, "entry")),
             month_index=month_index, game_minutes=game_minutes)
         posted.append(vid)
     return posted
@@ -180,6 +184,10 @@ def match_vacancies(store, data, rng, month_index, game_minutes):
     day_index = now // 1440
     for v in store.rows("SELECT * FROM vacancies WHERE status = 'open'"
                         " ORDER BY vacancy_id"):
+        if v["employer_kind"] == "government":
+            continue  # Session 05: government posts are matched by
+            # the civil-service pass (admin.py), which records the
+            # institution assignment and pays from the treasury.
         best, best_score = None, -1
         for cid in unemployed:
             if not _eligible(store, data, cid, v["profession_id"]):

@@ -62,6 +62,19 @@ def settle_trade(store, data, month_index, game_minutes):
         return []
     tariff_rate = data.economy_config["tax_rules"][
         "import_tariff_percent"] / 100
+    # Session 05 hooks (both gated on the government layer and
+    # defaulting to exactly the configured rate): an enacted
+    # tariff law may move the rate inside its legal bounds, and an
+    # active trade agreement with the external partner adjusts it
+    # by the agreement's recorded delta.
+    if store.world().get("government_setup"):
+        from . import diplomacy as diplomacy_mod
+        from . import justice as justice_mod
+        tariff_rate = justice_mod.effective_tariff_percent(
+            store, data) / 100
+        tariff_rate = max(
+            0.0, tariff_rate + diplomacy_mod.tariff_delta(store,
+                                                           data) / 100)
     effects = crises_mod.active_effects(store)
     factor = effects["demand_factor"]
     out = []

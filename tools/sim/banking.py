@@ -165,6 +165,53 @@ def assess_credit(store, data, character_id):
     trailing wage income (ledger), months with wage income,
     current debt (loans + household arrears) and missed-payment
     history. Eligible maxima follow prices.json's loan terms."""
+    if character_id == "SYS-CITY":
+        # Session 05 Unit 07: the sovereign borrower. A treasury
+        # has no wages; its credit is assessed on recorded
+        # government revenue (the trailing 3 months of tax, sales
+        # tax, tariff, rent and commercial-rent inflows to
+        # SYS-CITY), under the same prices.json multiple and the
+        # same delinquency rule as any other borrower.
+        now = store.world()["game_minutes"]
+        since = now - 3 * 30 * 1440
+        rev = store.row(
+            "SELECT COALESCE(SUM(amount),0) AS s FROM economy_ledger"
+            " WHERE to_character_id = 'SYS-CITY' AND reason_code IN"
+            " ('tax', 'sales_tax', 'tariff', 'rent',"
+            " 'commercial_rent') AND game_minutes > ?",
+            (since,))["s"]
+        months = store.rows(
+            "SELECT DISTINCT (game_minutes / 43200) AS m FROM"
+            " economy_ledger WHERE to_character_id = 'SYS-CITY'"
+            " AND reason_code = 'tax' AND game_minutes > ?",
+            (since,))
+        loans = store.rows("SELECT * FROM loans WHERE"
+                           " borrower_character_id = 'SYS-CITY'"
+                           " AND status IN ('active', 'defaulted')")
+        debt = sum(l["outstanding_ncr"] for l in loans)
+        missed = sum(l["missed_payments"] for l in loans)
+        cfg = data.prices["loans"]
+        bl = cfg["bank_loan"]
+        monthly_income = rev // 3
+        max_bank_loan = monthly_income \
+            * bl["max_multiple_of_monthly_income"]
+        if missed >= 2:
+            max_bank_loan = 0
+        mg = cfg["mortgage"]
+        return {
+            "character_id": character_id,
+            "monthly_income_ncr": monthly_income,
+            "wage_months_observed": len(months),
+            "current_debt_ncr": debt,
+            "household_arrears_ncr": 0,
+            "missed_payments": missed,
+            "max_bank_loan_ncr": max(0, max_bank_loan - debt),
+            "bank_loan_rate_percent": bl["annual_interest_percent"],
+            "bank_loan_term_months": bl["max_term_months"],
+            "mortgage_rate_percent": mg["annual_interest_percent"],
+            "mortgage_deposit_percent": mg["deposit_percent"],
+            "mortgage_term_months": mg["max_term_years"] * 12,
+        }
     now = store.world()["game_minutes"]
     since = now - 3 * 30 * 1440
     wages = store.rows(

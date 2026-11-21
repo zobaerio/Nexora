@@ -274,6 +274,68 @@ def main():
         check(cfg["bank"]["genesis_capital_ncr"] > 0,
               "bank genesis capital is positive")
 
+    # Session 05: the government layer's configuration. Party
+    # ideology is data with the five canonical dimensions;
+    # election seats reference the two real cities; budget
+    # shares cannot exceed the forecast; legal bounds are
+    # ordered; the diplomacy partner is the labelled model
+    # account, never a second country.
+    try:
+        data["government-config.json"] = load("government-config.json")
+        print("  ok: government-config.json parses")
+    except Exception as e:
+        check(False, "government-config.json parses", f"({e})")
+    if "government-config.json" in data:
+        g = data["government-config.json"]
+        check(g["country"]["currency_code"] == "NCr",
+              "government country currency is NCr")
+        genesis = g["parties"]["genesis"]
+        pids = [p["party_id"] for p in genesis]
+        check(len(pids) == len(set(pids)),
+              "genesis party ids are unique")
+        dims = {"economy", "welfare", "services", "development",
+                "law_order"}
+        check(all(set(p["stances"]) == dims
+                  and all(0 <= v <= 100
+                          for v in p["stances"].values())
+                  for p in genesis),
+              "party stances are 0-100 over the 5 dimensions")
+        seats = g["elections"]["seats_per_city"]
+        check(set(seats) == {"rupsha_city", "shibnagar_town"}
+              and all(v > 0 for v in seats.values()),
+              "election seats cover exactly the two real cities")
+        check(g["country"]["capital_city_id"] in seats,
+              "the capital is a constituency")
+        check(g["elections"]["eligibility_age"] >= 18
+              and g["elections"]["term_months"] > 0,
+              "election rules are sane (18+, positive term)")
+        shares = g["budget"]["allocation_shares"]
+        check(all(v >= 0 for v in shares.values())
+              and sum(shares.values()) <= 1.0,
+              "budget allocation shares sum to <= 1",
+              f"sum={sum(shares.values())}")
+        bounds_ok = all(
+            isinstance(b, list) and len(b) == 2 and 0 <= b[0] < b[1]
+            for k, b in g["laws"].items() if k.endswith("_bounds"))
+        check(bounds_ok, "legal bounds are ordered pairs")
+        check(len(g["laws"]["constitution"]) >= 1,
+              "the constitution is present as data")
+        pol = g["policies"]
+        check(all(pol[k]["duration_months"] > 0 for k in pol
+                  if isinstance(pol[k], dict)
+                  and "duration_months" in pol[k]),
+              "policy durations are positive")
+        check(all(v > 0 for v in
+                  g["offices"]["allowance_ncr_per_month"].values()),
+              "office allowances are positive")
+        check(g["diplomacy"]["partner"]["account_id"]
+              == "SYS-EXTERNAL"
+              and g["diplomacy"]["genesis_grant_ncr"] > 0
+              and abs(g["diplomacy"]
+                      ["trade_agreement_tariff_delta_percent"])
+              <= g["laws"]["import_tariff_percent_bounds"][1],
+              "diplomacy partner is the labelled model account")
+
     return finish()
 
 

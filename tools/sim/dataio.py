@@ -64,6 +64,11 @@ class WorldData:
         self.recipes_file = _load_json("production-recipes.json")
         self.recipes = self.recipes_file["recipes"]
         self.economy_config = _load_json("economy-config.json")
+        # Session 05: the government layer's configuration —
+        # country identity (grounded in the identity data), parties
+        # and ideologies as data, election rules, policy/budget/
+        # judiciary/integrity parameters, legal bounds.
+        self.government_config = _load_json("government-config.json")
 
     # -- canonical accessors -------------------------------------------------
     # Employment tiers run 1..5 (professions.json progression), but

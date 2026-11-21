@@ -64,6 +64,7 @@ from . import education as education_mod
 from . import emotions as emotions_mod
 from . import events as events_mod
 from . import family_economy
+from . import government as gov_mod
 from . import generations as generations_mod
 from . import kinship as kinship_mod
 from . import mobility as mobility_mod
@@ -111,6 +112,12 @@ class Simulation:
         # every Session 04 pass no-ops for them.
         stats["economy"] = business_mod.setup_economy(
             self.store, self.data, self.rng)
+        # Session 05: the national government is founded with the
+        # world (one country, both cities, caretaker leadership
+        # until the month-1 election) — hand-built worlds have no
+        # government layer and every Session 05 pass no-ops.
+        stats["government"] = gov_mod.setup_government(
+            self.store, self.data, self.rng, 480)
         return stats
 
     def weather_for_day(self, day_index):
@@ -322,6 +329,7 @@ class Simulation:
             self._monthly_economy(day)
             self._monthly_city(day)
             self._monthly_economy_close(day)
+            self._monthly_government(day)
         store.set_world(game_minutes=day_end, day_index=day + 1,
                         weather_preset=preset)
         store.commit()
@@ -447,6 +455,23 @@ class Simulation:
         indicators_mod.snapshot_month(store, data, month_index,
                                       game_minutes)
         crises_mod.detect(store, data, month_index, game_minutes)
+
+    # -- Session 05 government cadence ---------------------------
+    # Monthly, last: the government reads the settled month
+    # (wages, taxes, budgets, indicators, trade) and acts on it —
+    # opinion, elections, civil service, allowances, treasury
+    # allocation, the annual budget, decisions, policies,
+    # courts, police, audit, diplomacy. No-ops when no
+    # government was founded.
+
+    def _monthly_government(self, last_day):
+        store, data = self.store, self.data
+        if not gov_mod.is_setup(store):
+            return
+        game_minutes = (last_day + 1) * 1440
+        month_index = (last_day + 1) // 30
+        gov_mod.monthly_pass(store, data, self.rng, month_index,
+                             game_minutes)
 
     def run_days(self, n):
         for _ in range(n):
@@ -579,6 +604,13 @@ class Simulation:
             return amount
         rate = self.data.economy_config["tax_rules"][
             "sales_tax_percent"]
+        if gov_mod.is_setup(self.store):
+            # Session 05 Unit 09: an enacted sales-tax law sets
+            # the rate (the accessor falls back to the configured
+            # rate when no law exists — identical behaviour).
+            from . import justice as justice_mod
+            rate = justice_mod.effective_sales_tax_percent(
+                self.store, self.data)
         tax = round(paid_total * rate / (100 + rate))
         if tax > 0:
             self.store.transfer(from_id, "SYS-CITY", tax, "sales_tax",
@@ -638,6 +670,18 @@ class Simulation:
             paid[emp["employment_id"]] = amount
         return paid
 
+    def _pay_government_wages(self, month_index, game_minutes):
+        """Session 05 Unit 08: civil servants employed by a
+        treasury are paid by that treasury in government.py's
+        pre-pass (the national treasury pays in full — overdraft
+        is recorded public debt; a municipal treasury pays what
+        it holds and records the shortfall). Returns
+        {employment_id: paid_gross} for the settlement's tax."""
+        if not gov_mod.is_setup(self.store):
+            return {}
+        return gov_mod.pay_government_wages(
+            self.store, self.data, month_index, game_minutes)
+
     def _settle_month(self, last_day):
         store, data = self.store, self.data
         econ = data.econ
@@ -655,6 +699,9 @@ class Simulation:
         # taxes and spends what was actually received.
         biz_wages = self._pay_business_wages((last_day + 1) // 30,
                                              game_minutes)
+        # Session 05: treasury-paid civil servants, same pattern.
+        gov_wages = self._pay_government_wages((last_day + 1) // 30,
+                                               game_minutes)
 
         for h, members in self._households():
             hid = h["household_id"]
@@ -718,6 +765,18 @@ class Simulation:
                         # this wage (see _pay_business_wages); tax
                         # falls on what was actually received.
                         gross = biz_wages.get(emp["employment_id"], 0)
+                        tax = econ.monthly_tax(gross, brackets)
+                        if tax > 0:
+                            store.transfer(cid, "SYS-CITY", tax, "tax",
+                                           game_minutes,
+                                           note="income tax")
+                    elif emp["employer_character_id"] \
+                            in gov_mod.TREASURY_ACCOUNTS \
+                            and gov_mod.is_setup(store):
+                        # Session 05: the treasury already paid
+                        # this wage (see _pay_government_wages);
+                        # tax falls on what was received.
+                        gross = gov_wages.get(emp["employment_id"], 0)
                         tax = econ.monthly_tax(gross, brackets)
                         if tax > 0:
                             store.transfer(cid, "SYS-CITY", tax, "tax",
@@ -920,6 +979,47 @@ class Simulation:
                               crises_mod.active_crises(store)],
             "latest_indicators": (indicators_mod.latest(
                 store, "national") or {}).get("metrics"),
+            # Session 05 government layer (empty when not set up).
+            "government": self._government_summary()
+            if gov_mod.is_setup(store) else {},
+        }
+
+    def _government_summary(self):
+        from . import policies as policies_mod
+        store = self.store
+        governing = store.row(
+            "SELECT holder_character_id FROM offices WHERE"
+            " institution_id = 'GOV-PM' AND title ="
+            " 'prime_minister' AND status = 'active' LIMIT 1")
+        governing_party = None
+        if governing and governing["holder_character_id"]:
+            from . import politics as politics_mod
+            governing_party = politics_mod.party_of(
+                store, governing["holder_character_id"])
+        approval = store.row("SELECT ROUND(AVG(approval), 2) AS a"
+                             " FROM citizen_opinion")
+        return {
+            "governing_party": governing_party,
+            "mean_approval": approval["a"],
+            "treasuries": gov_mod.government_balances(store),
+            "public_debt_ncr": policies_mod.public_debt(store),
+            "elections_held": store.row(
+                "SELECT COUNT(*) AS n FROM elections WHERE"
+                " winner_party_id IS NOT NULL")["n"],
+            "active_policies": store.row(
+                "SELECT COUNT(*) AS n FROM policies WHERE status"
+                " = 'active'")["n"],
+            "open_cases": store.row(
+                "SELECT COUNT(*) AS n FROM court_cases WHERE"
+                " status IN ('filed', 'appealed')")["n"],
+            "incidents_total": store.row(
+                "SELECT COUNT(*) AS n FROM incidents")["n"],
+            "civil_servants": store.row(
+                "SELECT COUNT(*) AS n FROM civil_service WHERE"
+                " status = 'active'")["n"],
+            "laws_enacted": store.row(
+                "SELECT COUNT(*) AS n FROM laws WHERE status ="
+                " 'enacted'")["n"],
         }
 
     def profile(self, character_id):
