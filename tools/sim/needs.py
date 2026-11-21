@@ -106,5 +106,19 @@ def daily_update(store, character_id, *, age, home_tier, balance,
            {n: _clamp(values[n]) for n in NEEDS}, game_minutes)
 
 
+def adjust(store, character_id, deltas, game_minutes):
+    """Apply explicit satisfaction deltas from a world system
+    (Session 03: infrastructure overload effects). Deltas are the
+    caller's measured facts, clamped like every other write."""
+    values = get_needs(store, character_id)
+    if values is None:
+        return
+    for need, delta in deltas.items():
+        if need in NEEDS:
+            values[need] += delta
+    _write(store, character_id,
+           {n: _clamp(values[n]) for n in NEEDS}, game_minutes)
+
+
 def deficit(values, need):
     return 100 - values[need]

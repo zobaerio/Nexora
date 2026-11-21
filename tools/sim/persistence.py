@@ -25,6 +25,15 @@ Session 01):
   social_events, conflict_records, status_history,
   generational_history — all additive CREATE TABLE IF NOT EXISTS;
   schema.sql gaps they imply are listed in docs/SESSION-02-REPORT.md.
+- Session 03 additions (bottom of SCHEMA): cities, city_zones,
+  terrain_regions, land_parcels, parcel_history, building_state,
+  road_segments, infrastructure_state, municipal_services,
+  municipal_budgets, construction_projects, city_events,
+  city_statistics, regional_connections, trade_flows,
+  migration_records — the city/urban layer. schema.sql has a
+  `properties` table (mirrored above) but no city, terrain, parcel,
+  road, infrastructure, municipal or construction tables; each is
+  recorded as a gap in docs/SESSION-03-REPORT.md.
 - characters.is_system — marks system accounts (city/employers/market)
   that schema.sql represents as reserved character rows.
 - characters.first_name / last_name / birthplace / nationality /
@@ -398,6 +407,211 @@ CREATE TABLE IF NOT EXISTS generational_history (
 );
 CREATE INDEX IF NOT EXISTS idx_genhist_character
     ON generational_history(character_id);
+-- SESSION 03 tables (additive only; see SESSION-03-REPORT.md) ------------
+-- cities / city_zones: the city registry (Unit 01). schema.sql knows
+-- districts only as TEXT ids on properties/households; a city layer
+-- is a recorded gap.
+CREATE TABLE IF NOT EXISTS cities (
+    city_id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    kind TEXT NOT NULL,
+    district_label TEXT,
+    boundary TEXT NOT NULL DEFAULT '{}',
+    climate TEXT,
+    development_level TEXT,
+    development_index REAL NOT NULL DEFAULT 0,
+    economic_class TEXT,
+    land_area_sqm REAL NOT NULL DEFAULT 0,
+    created_at_game_minutes INTEGER NOT NULL DEFAULT 0,
+    updated_at_game_minutes INTEGER NOT NULL DEFAULT 0
+);
+CREATE TABLE IF NOT EXISTS city_zones (
+    zone_id TEXT PRIMARY KEY,
+    city_id TEXT NOT NULL,
+    name TEXT,
+    zone_category TEXT,
+    bbox TEXT NOT NULL DEFAULT '{}'
+);
+-- terrain_regions: Unit 02. schema.sql has no terrain model; gap.
+CREATE TABLE IF NOT EXISTS terrain_regions (
+    region_id TEXT PRIMARY KEY,
+    city_id TEXT NOT NULL,
+    name TEXT NOT NULL,
+    terrain_class TEXT NOT NULL,
+    elevation_m REAL NOT NULL DEFAULT 0,
+    bbox TEXT NOT NULL DEFAULT '{}',
+    buildable INTEGER NOT NULL DEFAULT 1,
+    restriction TEXT
+);
+-- land_parcels / parcel_history: Unit 03. schema.sql's properties
+-- carry buildings, not the land under them; parcels are a gap.
+CREATE TABLE IF NOT EXISTS land_parcels (
+    parcel_id TEXT PRIMARY KEY,
+    city_id TEXT NOT NULL,
+    zone_id TEXT NOT NULL,
+    building_id TEXT,
+    x REAL NOT NULL, z REAL NOT NULL, w REAL NOT NULL, d REAL NOT NULL,
+    area_sqm REAL NOT NULL,
+    zoning_category TEXT,
+    owner_kind TEXT NOT NULL DEFAULT 'private',
+    owner_character_id TEXT,
+    market_value INTEGER NOT NULL DEFAULT 0,
+    development_status TEXT NOT NULL DEFAULT 'developed',
+    created_at_game_minutes INTEGER NOT NULL DEFAULT 0
+);
+CREATE TABLE IF NOT EXISTS parcel_history (
+    history_id TEXT PRIMARY KEY,
+    parcel_id TEXT NOT NULL,
+    event TEXT NOT NULL,
+    from_owner TEXT,
+    to_owner TEXT,
+    value_ncr INTEGER,
+    details TEXT NOT NULL DEFAULT '{}',
+    game_minutes INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_parcelhist_parcel
+    ON parcel_history(parcel_id);
+-- building_state: Unit 05's extension of the building identities
+-- that live in the buildings data files (floors/condition/value are
+-- sim-maintained state, keyed by the data's building id — the
+-- buildings themselves are NOT duplicated into a new table).
+CREATE TABLE IF NOT EXISTS building_state (
+    building_id TEXT PRIMARY KEY,
+    city_id TEXT NOT NULL,
+    floors INTEGER NOT NULL DEFAULT 1,
+    construction_year INTEGER,
+    condition REAL NOT NULL DEFAULT 85,
+    maintenance_status TEXT NOT NULL DEFAULT 'good',
+    economic_value INTEGER NOT NULL DEFAULT 0,
+    updated_at_game_minutes INTEGER NOT NULL DEFAULT 0
+);
+-- road_segments: Unit 06's sim-maintained state (condition) over
+-- the blockout data's segment identities. Nodes/graph topology are
+-- derived from geometry in roads.py, never stored.
+CREATE TABLE IF NOT EXISTS road_segments (
+    segment_id TEXT PRIMARY KEY,
+    city_id TEXT NOT NULL,
+    name TEXT,
+    road_class TEXT NOT NULL,
+    length_m REAL NOT NULL DEFAULT 0,
+    lanes INTEGER NOT NULL DEFAULT 1,
+    speed_limit_kmh REAL NOT NULL DEFAULT 20,
+    capacity_vph INTEGER NOT NULL DEFAULT 0,
+    condition REAL NOT NULL DEFAULT 92,
+    updated_at_game_minutes INTEGER NOT NULL DEFAULT 0
+);
+-- infrastructure_state: Unit 07, one row per (zone, network).
+CREATE TABLE IF NOT EXISTS infrastructure_state (
+    city_id TEXT NOT NULL,
+    zone_id TEXT NOT NULL,
+    network TEXT NOT NULL,
+    capacity_units REAL NOT NULL DEFAULT 0,
+    demand_units REAL NOT NULL DEFAULT 0,
+    load_ratio REAL NOT NULL DEFAULT 0,
+    status TEXT NOT NULL DEFAULT 'ok',
+    updated_at_game_minutes INTEGER NOT NULL DEFAULT 0,
+    PRIMARY KEY (zone_id, network)
+);
+-- municipal_services / municipal_budgets: Unit 09.
+CREATE TABLE IF NOT EXISTS municipal_services (
+    city_id TEXT NOT NULL,
+    service TEXT NOT NULL,
+    level REAL NOT NULL DEFAULT 0,
+    spend_ncr INTEGER NOT NULL DEFAULT 0,
+    month_index INTEGER NOT NULL DEFAULT 0,
+    updated_at_game_minutes INTEGER NOT NULL DEFAULT 0,
+    PRIMARY KEY (city_id, service)
+);
+CREATE TABLE IF NOT EXISTS municipal_budgets (
+    city_id TEXT NOT NULL,
+    month_index INTEGER NOT NULL,
+    revenue_tax_ncr INTEGER NOT NULL DEFAULT 0,
+    revenue_rent_ncr INTEGER NOT NULL DEFAULT 0,
+    revenue_other_ncr INTEGER NOT NULL DEFAULT 0,
+    property_tax_ncr INTEGER NOT NULL DEFAULT 0,
+    spend_services_ncr INTEGER NOT NULL DEFAULT 0,
+    spend_construction_ncr INTEGER NOT NULL DEFAULT 0,
+    city_balance_after INTEGER,
+    game_minutes INTEGER NOT NULL,
+    PRIMARY KEY (city_id, month_index)
+);
+-- construction_projects: Unit 11 (GDD-08's job record).
+CREATE TABLE IF NOT EXISTS construction_projects (
+    project_id TEXT PRIMARY KEY,
+    city_id TEXT NOT NULL,
+    parcel_id TEXT,
+    kind TEXT NOT NULL DEFAULT 'new_build',
+    target_building_id TEXT,
+    client_character_id TEXT,
+    engineer_character_id TEXT,
+    plan TEXT NOT NULL DEFAULT '{}',
+    stage TEXT NOT NULL DEFAULT 'planning',
+    stage_day INTEGER NOT NULL DEFAULT 0,
+    status TEXT NOT NULL DEFAULT 'active',
+    estimate_materials_ncr INTEGER NOT NULL DEFAULT 0,
+    fee_ncr INTEGER NOT NULL DEFAULT 0,
+    funding_ncr INTEGER NOT NULL DEFAULT 0,
+    spent_materials_ncr INTEGER NOT NULL DEFAULT 0,
+    paid_engineer_ncr INTEGER NOT NULL DEFAULT 0,
+    crew TEXT NOT NULL DEFAULT '[]',
+    inspections TEXT NOT NULL DEFAULT '{}',
+    defects TEXT NOT NULL DEFAULT '[]',
+    result_building_id TEXT,
+    created_day INTEGER NOT NULL DEFAULT 0,
+    deadline_day INTEGER,
+    completed_day INTEGER,
+    created_at_game_minutes INTEGER NOT NULL DEFAULT 0,
+    updated_at_game_minutes INTEGER NOT NULL DEFAULT 0
+);
+-- city_events: growth/development/municipal event log (Units 09/10).
+CREATE TABLE IF NOT EXISTS city_events (
+    event_id TEXT PRIMARY KEY,
+    city_id TEXT NOT NULL,
+    event_type TEXT NOT NULL,
+    details TEXT NOT NULL DEFAULT '{}',
+    game_minutes INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_cityevents_city
+    ON city_events(city_id, game_minutes);
+-- city_statistics: Unit 13's monthly analytics snapshots (the
+-- analytics themselves are computed live in analytics.py).
+CREATE TABLE IF NOT EXISTS city_statistics (
+    city_id TEXT NOT NULL,
+    month_index INTEGER NOT NULL,
+    metrics TEXT NOT NULL DEFAULT '{}',
+    game_minutes INTEGER NOT NULL,
+    PRIMARY KEY (city_id, month_index)
+);
+-- regional_connections / trade_flows / migration_records: Unit 14
+-- + Unit 08's migration audit trail.
+CREATE TABLE IF NOT EXISTS regional_connections (
+    connection_id TEXT PRIMARY KEY,
+    from_city_id TEXT NOT NULL,
+    to_city_id TEXT NOT NULL,
+    kind TEXT NOT NULL,
+    via TEXT,
+    status TEXT NOT NULL DEFAULT 'open',
+    last_month_commuters INTEGER NOT NULL DEFAULT 0,
+    last_month_migrants INTEGER NOT NULL DEFAULT 0,
+    updated_at_game_minutes INTEGER NOT NULL DEFAULT 0
+);
+CREATE TABLE IF NOT EXISTS trade_flows (
+    flow_id TEXT PRIMARY KEY,
+    month_index INTEGER NOT NULL,
+    from_city_id TEXT NOT NULL,
+    to_city_id TEXT NOT NULL,
+    goods TEXT NOT NULL,
+    amount_ncr INTEGER NOT NULL DEFAULT 0,
+    game_minutes INTEGER NOT NULL
+);
+CREATE TABLE IF NOT EXISTS migration_records (
+    migration_id TEXT PRIMARY KEY,
+    household_id TEXT NOT NULL,
+    from_city_id TEXT NOT NULL,
+    to_city_id TEXT NOT NULL,
+    reason TEXT NOT NULL DEFAULT '{}',
+    game_minutes INTEGER NOT NULL
+);
 """
 
 SYSTEM_ACCOUNTS = ("SYS-CITY", "SYS-EMPLOYERS", "SYS-MARKET")

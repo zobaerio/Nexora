@@ -69,10 +69,21 @@ def rent_of_property(store, data, property_row):
     if not property_row or property_row["building_ref"] is None \
             or property_row["unit_index"] is None:
         return None
-    for u in data.residential_stock():
-        if u["building_id"] == property_row["building_ref"] \
-                and u["unit_index"] == property_row["unit_index"]:
-            return u["rent"]
+    # Session 03: the rent index spans both cities' stock (District
+    # 1 genesis behaviour is unchanged — same entries, same rents).
+    unit = data.rent_index().get(
+        (property_row["building_ref"], property_row["unit_index"]))
+    if unit:
+        return unit["rent"]
+    # Session 03 Unit 11: a unit of a building constructed in-sim
+    # is priced by its tier's canonical rent (prices.json
+    # rent_monthly_by_tier) — the same table the data files' rents
+    # come from, so a built unit is movable-to like any other.
+    if property_row["building_ref"] and "_built_" in \
+            property_row["building_ref"]:
+        for t in data.prices["rent_monthly_by_tier"]:
+            if t["tier"] == property_row["tier"]:
+                return t["rent_ncr"]
     return None
 
 
