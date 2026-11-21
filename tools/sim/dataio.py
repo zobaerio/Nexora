@@ -90,6 +90,12 @@ class WorldData:
         # scenarios and response parameters, every rate labelled
         # SIM MODEL in the file itself.
         self.environment_config = _load_json("environment-config.json")
+        # Session 09: the agent coordination layer's configuration
+        # — registry capabilities (the in-simulation permission
+        # model), goal derivation, negotiation bounds, forecast
+        # and assessment parameters, memory caps; every rate is
+        # labelled SIM MODEL in the file itself.
+        self.agents_config = _load_json("agents-config.json")
 
     # -- canonical accessors -------------------------------------------------
     # Employment tiers run 1..5 (professions.json progression), but

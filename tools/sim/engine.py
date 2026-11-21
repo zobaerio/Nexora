@@ -73,6 +73,7 @@ from . import mobility as mobility_mod
 from . import social as social_mod
 from . import transport as transport_mod
 from . import environment as environment_mod
+from . import agents as agents_mod
 from . import identity as identity_mod
 from . import interaction as interaction_mod
 from . import lifecycle
@@ -140,6 +141,13 @@ class Simulation:
         # — hand-built worlds have no Session 08 layer and every
         # Session 08 pass no-ops.
         stats["environment"] = environment_mod.setup_environment(
+            self.store, self.data, 480)
+        # Session 09: the agent coordination layer seeds last —
+        # its registry reads every actor the earlier layers
+        # created (citizens, businesses, institutions, cities,
+        # the government). Hand-built worlds have no agent layer
+        # and every Session 09 pass no-ops.
+        stats["agents"] = agents_mod.setup_agents(
             self.store, self.data, 480)
         return stats
 
@@ -350,6 +358,12 @@ class Simulation:
         if environment_mod.is_setup(store):
             environment_mod.daily_pass(store, data, self.rng, day,
                                        day_end)
+        # Session 09: disaster coordination tracks the day's
+        # Session 08 response while a disaster is live (the pass
+        # itself checks and no-ops cheaply otherwise).
+        if agents_mod.is_setup(store):
+            agents_mod.daily_pass(store, data, self.rng, day,
+                                  day_end)
         if day % 7 == 6:
             rel.weekly_drift(store, day_end)
             self._weekly_social(day_end)
@@ -378,6 +392,7 @@ class Simulation:
             self._monthly_humandev(day)
             self._monthly_transport(day)
             self._monthly_environment(day)
+            self._monthly_agents(day)
         store.set_world(game_minutes=day_end, day_index=day + 1,
                         weather_preset=preset)
         store.commit()
@@ -578,6 +593,22 @@ class Simulation:
         month_index = (last_day + 1) // 30
         environment_mod.monthly_pass(store, data, self.rng,
                                      month_index, game_minutes)
+
+    # -- Session 09 agent coordination cadence -------------------
+    # Monthly, last of all: the coordination cycle (registry,
+    # multi-level memory, extended goals, scored forecasts,
+    # disaster coordination, city/national assessments) reads
+    # every other layer's settled month. No-ops when the agent
+    # layer was never set up.
+
+    def _monthly_agents(self, last_day):
+        store, data = self.store, self.data
+        if not agents_mod.is_setup(store):
+            return
+        game_minutes = (last_day + 1) * 1440
+        month_index = (last_day + 1) // 30
+        agents_mod.monthly_pass(store, data, self.rng, month_index,
+                                game_minutes)
 
     def run_days(self, n):
         for _ in range(n):
@@ -1099,6 +1130,10 @@ class Simulation:
             # Session 08 environment layer (empty when not set up).
             "environment": environment_mod.environment_summary(store)
             if environment_mod.is_setup(store) else {},
+            # Session 09 agent coordination layer (empty when not
+            # set up).
+            "agents": agents_mod.agents_summary(store)
+            if agents_mod.is_setup(store) else {},
         }
 
     def _humandev_summary(self):

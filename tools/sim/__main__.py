@@ -92,9 +92,21 @@ def main(argv=None):
                     help="environment: regional weather, water,"
                          " soil, crops, pollution, disasters,"
                          " climate trends (all simulated)")
+    ap.add_argument("--agents", action="store_true",
+                    help="agent coordination: registry, goals,"
+                         " negotiations, forecasts with scores,"
+                         " assessments, coordination tasks,"
+                         " multi-level memory, learning records")
     args = ap.parse_args(argv)
 
     sim = Simulation(args.db, seed=args.seed)
+    if args.agents:
+        from tools.sim import agentsview
+        out = agentsview.agents_view(sim.store, sim.data)
+        print(json.dumps(out, indent=1, sort_keys=True,
+                         default=str))
+        sim.close()
+        return 0
     if args.environment:
         from tools.sim import environmentview
         out = environmentview.environment_view(sim.store, sim.data)
