@@ -41,7 +41,15 @@ kind; prices.json has none). It is labelled wherever it surfaces.
 import json
 
 from . import analytics as analytics_mod
+from . import banking as banking_mod
+from . import business as business_mod
 from . import cities as cities_mod
+from . import crises as crises_mod
+from . import govfinance as govfinance_mod
+from . import indicators as indicators_mod
+from . import labour as labour_mod
+from . import market as market_mod
+from . import trade as trade_mod
 from . import community as community_mod
 from . import conflicts as conflicts_mod
 from . import construction as construction_mod
@@ -97,6 +105,12 @@ class Simulation:
         # (idempotent; hand-built test worlds that never call this
         # simply have no city layer and every city pass no-ops).
         cities_mod.setup_cities(self.store, self.data, self.rng)
+        # Session 04: the economy layer bootstraps the same way
+        # (commercial stock, genesis businesses, the bank, market
+        # prices) — hand-built worlds have no economy layer and
+        # every Session 04 pass no-ops for them.
+        stats["economy"] = business_mod.setup_economy(
+            self.store, self.data, self.rng)
         return stats
 
     def weather_for_day(self, day_index):
@@ -305,7 +319,9 @@ class Simulation:
         if (day + 1) % 30 == 0:
             self._settle_month(day)
             self._monthly_social(day)
+            self._monthly_economy(day)
             self._monthly_city(day)
+            self._monthly_economy_close(day)
         store.set_world(game_minutes=day_end, day_index=day + 1,
                         weather_preset=preset)
         store.commit()
@@ -364,9 +380,73 @@ class Simulation:
                                   game_minutes)
         regional_mod.monthly_flows(store, data, month_index,
                                    game_minutes)
+        # Session 04 Unit 13: the flows become physical (inventory
+        # moves between the cities) and fiscal (tariffs collect).
+        trade_mod.settle_trade(store, data, month_index,
+                               game_minutes)
         analytics_mod.record_snapshots(store, data, month_index,
                                        game_minutes)
         cities_mod.refresh_registry(store, data, game_minutes)
+
+    # -- Session 04 economy cadence ---------------------------------
+    # Monthly, in two halves around the city cadence: the economy
+    # half runs after the settlement (production, supply chains,
+    # consumption allocation, prices, commercial rent, the labour
+    # market, banking, business P&L, dividends, distress); the
+    # closing half runs after the city cadence, when municipal
+    # budgets and trade flows for the month exist (government
+    # finance, indicators, crisis detection). Every pass no-ops
+    # when the economy layer was never set up.
+
+    def _monthly_economy(self, last_day):
+        store, data = self.store, self.data
+        if not business_mod.is_setup(store):
+            return
+        game_minutes = (last_day + 1) * 1440
+        month_index = (last_day + 1) // 30
+        month_days = range(last_day - 29, last_day + 1)
+        storm_days = [self.weather_for_day(d) for d in
+                      month_days].count("storm")
+        effects = crises_mod.active_effects(store)
+        market_mod.production_pass(store, data, month_index,
+                                   game_minutes, storm_days=storm_days)
+        market_mod.supply_chain_pass(store, data, month_index,
+                                     game_minutes)
+        # Converters run once more on what the supply chain just
+        # delivered, so this month's inputs become this month's
+        # food and garments rather than next month's.
+        market_mod.production_pass(store, data, month_index,
+                                   game_minutes, storm_days=storm_days,
+                                   converters_only=True)
+        market_mod.retail_allocation(store, data, month_index,
+                                     game_minutes)
+        market_mod.update_prices(store, data, month_index,
+                                 game_minutes)
+        business_mod.pay_commercial_rent(store, data, month_index,
+                                         game_minutes)
+        labour_mod.monthly_pass(
+            store, data, self.rng, month_index, game_minutes,
+            hiring_freeze=effects["hiring_freeze"])
+        banking_mod.monthly_pass(store, data, month_index,
+                                 game_minutes)
+        business_mod.record_monthly_pnl(store, data, month_index,
+                                        game_minutes)
+        banking_mod.pay_dividends(store, data, month_index,
+                                  game_minutes)
+        business_mod.evaluate_distress(store, data, month_index,
+                                       game_minutes)
+
+    def _monthly_economy_close(self, last_day):
+        store, data = self.store, self.data
+        if not business_mod.is_setup(store):
+            return
+        game_minutes = (last_day + 1) * 1440
+        month_index = (last_day + 1) // 30
+        govfinance_mod.monthly_snapshot(store, data, month_index,
+                                        game_minutes)
+        indicators_mod.snapshot_month(store, data, month_index,
+                                      game_minutes)
+        crises_mod.detect(store, data, month_index, game_minutes)
 
     def run_days(self, n):
         for _ in range(n):
@@ -481,6 +561,83 @@ class Simulation:
                                 game_minutes, note=note)
         return amount - paid
 
+    def _pay_purchase(self, from_id, amount, game_minutes, note):
+        """Pay a household market purchase. With the Session 04
+        economy live, the configured sales tax is split out of the
+        amount (data/economy-config.json — a SIM MODEL rate): the
+        household pays exactly what it paid before the tax existed;
+        the tax share routes to SYS-CITY with reason 'sales_tax'
+        instead of to the market. Returns the unpaid remainder."""
+        if amount <= 0:
+            return 0
+        if not business_mod.is_setup(self.store):
+            return self._pay(from_id, "SYS-MARKET", amount, "purchase",
+                             game_minutes, note)
+        balance = self.store.balance(from_id)
+        paid_total = min(amount, balance)
+        if paid_total <= 0:
+            return amount
+        rate = self.data.economy_config["tax_rules"][
+            "sales_tax_percent"]
+        tax = round(paid_total * rate / (100 + rate))
+        if tax > 0:
+            self.store.transfer(from_id, "SYS-CITY", tax, "sales_tax",
+                                game_minutes,
+                                note="sales tax on purchases")
+        rest = paid_total - tax
+        if rest > 0:
+            self.store.transfer(from_id, "SYS-MARKET", rest, "purchase",
+                                game_minutes, note=note)
+        return amount - paid_total
+
+    def _pay_business_wages(self, month_index, game_minutes):
+        """Session 04 Unit 03: wages for employments carrying an
+        employer_business_id are paid by the business's own account
+        (reason 'wage', keyed per employment+month — idempotent),
+        not by the SYS-EMPLOYERS aggregate. A business pays what it
+        holds; the shortfall is recorded on the business as a
+        'wage_shortfall' event (the distress machinery reads the
+        consequences) and the employee is taxed in the settlement
+        on what they actually received. Returns
+        {employment_id: paid_gross}."""
+        store = self.store
+        paid = {}
+        if not business_mod.is_setup(store):
+            return paid
+        for emp in store.rows(
+                "SELECT * FROM employments WHERE"
+                " employer_business_id IS NOT NULL"
+                " AND ended_at_game_minutes IS NULL"
+                " ORDER BY employment_id"):
+            bid = emp["employer_business_id"]
+            biz = store.row("SELECT status FROM businesses WHERE"
+                            " business_id = ?", (bid,))
+            if biz is None or biz["status"] == "closed":
+                paid[emp["employment_id"]] = 0
+                continue
+            due = emp["wage_per_month"]
+            amount = min(due, store.business_balance(bid))
+            if amount > 0:
+                store.transfer(
+                    None, emp["character_id"], amount, "wage",
+                    game_minutes,
+                    note=f"{emp['profession_id']} monthly wage"
+                         " (business employer)",
+                    related_business_id=bid,
+                    transfer_key=f"bwage:{emp['employment_id']}:"
+                                 f"{month_index}",
+                    event_ref=f"month:{month_index}",
+                    from_business_id=bid)
+            if amount < due:
+                business_mod.log_event(
+                    store, bid, "wage_shortfall",
+                    {"employment_id": emp["employment_id"],
+                     "character_id": emp["character_id"],
+                     "due_ncr": due, "paid_ncr": amount,
+                     "month_index": month_index}, game_minutes)
+            paid[emp["employment_id"]] = amount
+        return paid
+
     def _settle_month(self, last_day):
         store, data = self.store, self.data
         econ = data.econ
@@ -493,6 +650,11 @@ class Simulation:
         brackets = data.prices["tax"]["income_monthly_brackets"]
         biz_rate = data.prices["tax"]["business_monthly_percent_of_profit"]
         rental_day = data.prices["taxi_fares"]["cab_rental_ncr_per_day"]
+        # Session 04 Unit 03: business-employed wages are paid by
+        # the businesses themselves, before the household loop
+        # taxes and spends what was actually received.
+        biz_wages = self._pay_business_wages((last_day + 1) // 30,
+                                             game_minutes)
 
         for h, members in self._households():
             hid = h["household_id"]
@@ -550,17 +712,31 @@ class Simulation:
                     entry_income = econ.business_pnl(
                         data.prices, pid, "entry")["profit"]
                 else:
-                    gross = emp["wage_per_month"]
-                    if pid == "taxi_driver":
-                        gross = round(gross * taxi_factor)
-                    tax = econ.monthly_tax(gross, brackets)
-                    if gross > 0:
-                        store.transfer("SYS-EMPLOYERS", cid, gross, "wage",
-                                       game_minutes,
-                                       note=f"{pid} monthly wage (gross)")
-                    if tax > 0:
-                        store.transfer(cid, "SYS-CITY", tax, "tax",
-                                       game_minutes, note="income tax")
+                    if emp["employer_business_id"] \
+                            and business_mod.is_setup(store):
+                        # Session 04: the business already paid
+                        # this wage (see _pay_business_wages); tax
+                        # falls on what was actually received.
+                        gross = biz_wages.get(emp["employment_id"], 0)
+                        tax = econ.monthly_tax(gross, brackets)
+                        if tax > 0:
+                            store.transfer(cid, "SYS-CITY", tax, "tax",
+                                           game_minutes,
+                                           note="income tax")
+                    else:
+                        gross = emp["wage_per_month"]
+                        if pid == "taxi_driver":
+                            gross = round(gross * taxi_factor)
+                        tax = econ.monthly_tax(gross, brackets)
+                        if gross > 0:
+                            store.transfer("SYS-EMPLOYERS", cid, gross,
+                                           "wage", game_minutes,
+                                           note=f"{pid} monthly wage"
+                                                " (gross)")
+                        if tax > 0:
+                            store.transfer(cid, "SYS-CITY", tax, "tax",
+                                           game_minutes,
+                                           note="income tax")
                     entry_income = data.wage(pid, "entry")
                 gross_by[cid] = gross
                 uplift_total += round(max(0, gross - entry_income)
@@ -603,13 +779,13 @@ class Simulation:
                 total_gross = sum(gross_by.values()) or 1
                 for cid, gross in gross_by.items():
                     share = round(total_living * gross / total_gross)
-                    unpaid += self._pay(cid, "SYS-MARKET", share,
-                                        "purchase", game_minutes,
-                                        note="monthly living costs")
+                    unpaid += self._pay_purchase(
+                        cid, share, game_minutes,
+                        note="monthly living costs")
             else:
-                unpaid += self._pay(head["character_id"], "SYS-MARKET",
-                                    total_living, "purchase", game_minutes,
-                                    note="monthly living costs")
+                unpaid += self._pay_purchase(
+                    head["character_id"], total_living, game_minutes,
+                    note="monthly living costs")
             if unpaid > 0:
                 memory_mod.log_life_event(
                     store, head["character_id"], "financial_distress",
@@ -723,6 +899,27 @@ class Simulation:
                 "SELECT COUNT(*) AS n FROM migration_records")["n"],
             "trade_flows_total": store.row(
                 "SELECT COUNT(*) AS n FROM trade_flows")["n"],
+            # Session 04 economy layer (zeros/empty when not set up).
+            "businesses_active": store.row(
+                "SELECT COUNT(*) AS n FROM businesses WHERE"
+                " closed_at_game_minutes IS NULL")["n"],
+            "businesses_closed": store.row(
+                "SELECT COUNT(*) AS n FROM businesses WHERE"
+                " closed_at_game_minutes IS NOT NULL")["n"],
+            "bank_reserves_ncr": store.balance("SYS-BANK"),
+            "loans_active": store.row(
+                "SELECT COUNT(*) AS n FROM loans WHERE status ="
+                " 'active'")["n"],
+            "vacancies_open": store.row(
+                "SELECT COUNT(*) AS n FROM vacancies WHERE status ="
+                " 'open'")["n"],
+            "price_index": round(market_mod.price_index(
+                store, self.data), 2) if business_mod.is_setup(store)
+            else None,
+            "active_crises": [c["crisis_type"] for c in
+                              crises_mod.active_crises(store)],
+            "latest_indicators": (indicators_mod.latest(
+                store, "national") or {}).get("metrics"),
         }
 
     def profile(self, character_id):

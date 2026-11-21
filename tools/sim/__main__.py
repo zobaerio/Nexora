@@ -44,9 +44,44 @@ def main(argv=None):
                          " coordinates")
     ap.add_argument("--analytics", metavar="CITY_ID",
                     help="live city analytics")
+    # Session 04 economy observation: real sim data only.
+    ap.add_argument("--economy", action="store_true",
+                    help="economy overview: foundation, indicators,"
+                         " bank, labour, prices, crises")
+    ap.add_argument("--business", metavar="BUSINESS_ID",
+                    help="business: P&L history, inventory,"
+                         " employees, shareholders")
+    ap.add_argument("--bank", action="store_true",
+                    help="bank: stats, loans, reconciliation")
+    ap.add_argument("--indicators", metavar="SCOPE",
+                    help="indicator series for a scope (national"
+                         " or a city id)")
+    ap.add_argument("--finances", metavar="CHARACTER_ID",
+                    help="a person's financial profile from the"
+                         " ledger")
     args = ap.parse_args(argv)
 
     sim = Simulation(args.db, seed=args.seed)
+    if args.economy or args.business or args.bank \
+            or args.indicators or args.finances:
+        from tools.sim import econview
+        if args.economy:
+            out = econview.economy_overview(sim.store, sim.data)
+        elif args.business:
+            out = econview.business_view(sim.store, sim.data,
+                                         args.business)
+        elif args.bank:
+            out = econview.bank_view(sim.store, sim.data)
+        elif args.indicators:
+            out = econview.indicators_view(sim.store, sim.data,
+                                           args.indicators)
+        else:
+            out = econview.person_finance_view(sim.store, sim.data,
+                                               args.finances)
+        print(json.dumps(out, indent=1, sort_keys=True,
+                         default=str))
+        sim.close()
+        return 0
     if args.city or args.city_map or args.analytics:
         from tools.sim import analytics as analytics_mod
         from tools.sim import cityview
