@@ -69,6 +69,12 @@ class WorldData:
         # and ideologies as data, election rules, policy/budget/
         # judiciary/integrity parameters, legal bounds.
         self.government_config = _load_json("government-config.json")
+        # Session 06: the education / healthcare / human-development
+        # layer's configuration — institution + facility identities
+        # grounded in the building data, curricula as data, and
+        # every health/disease/research rate labelled SIM MODEL.
+        self.education_health_config = _load_json(
+            "education-health-config.json")
 
     # -- canonical accessors -------------------------------------------------
     # Employment tiers run 1..5 (professions.json progression), but

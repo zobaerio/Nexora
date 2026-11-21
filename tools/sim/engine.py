@@ -65,6 +65,8 @@ from . import emotions as emotions_mod
 from . import events as events_mod
 from . import family_economy
 from . import government as gov_mod
+from . import health as health_mod
+from . import humandev as humandev_mod
 from . import generations as generations_mod
 from . import kinship as kinship_mod
 from . import mobility as mobility_mod
@@ -118,6 +120,13 @@ class Simulation:
         # government layer and every Session 05 pass no-ops.
         stats["government"] = gov_mod.setup_government(
             self.store, self.data, self.rng, 480)
+        # Session 06: the education / healthcare / human
+        # development layer seeds with the world (institutions
+        # and facilities from the real buildings, health profiles
+        # for the population) — hand-built worlds have no Session
+        # 06 layer and every Session 06 pass no-ops for them.
+        stats["humandev"] = humandev_mod.setup_humandev(
+            self.store, self.data, 480)
         return stats
 
     def weather_for_day(self, day_index):
@@ -305,6 +314,13 @@ class Simulation:
                 continue
             decisions_mod.decide(store, data, self.rng, fresh, day,
                                  day_end, used_names)
+        # Session 06: the health layer's daily cadence — onsets
+        # from the day's actual exposures, disease transmission,
+        # clinic queues, course resolution, rest bends for
+        # tomorrow. No-ops when the layer was never set up.
+        if humandev_mod.is_setup(store):
+            health_mod.daily_pass(store, data, self.rng, day, day_end,
+                                  preset)
         if day % 7 == 6:
             rel.weekly_drift(store, day_end)
             self._weekly_social(day_end)
@@ -330,6 +346,7 @@ class Simulation:
             self._monthly_city(day)
             self._monthly_economy_close(day)
             self._monthly_government(day)
+            self._monthly_humandev(day)
         store.set_world(game_minutes=day_end, day_index=day + 1,
                         weather_preset=preset)
         store.commit()
@@ -472,6 +489,21 @@ class Simulation:
         month_index = (last_day + 1) // 30
         gov_mod.monthly_pass(store, data, self.rng, month_index,
                              game_minutes)
+
+    # -- Session 06 human development cadence -------------------
+    # Monthly, last: institutions, academics, healthcare budgets,
+    # disease surveillance, health profiles, wellbeing, research
+    # and the human-development indicators all read the settled
+    # month. No-ops when the layer was never set up.
+
+    def _monthly_humandev(self, last_day):
+        store, data = self.store, self.data
+        if not humandev_mod.is_setup(store):
+            return
+        game_minutes = (last_day + 1) * 1440
+        month_index = (last_day + 1) // 30
+        humandev_mod.monthly_pass(store, data, self.rng, month_index,
+                                  game_minutes)
 
     def run_days(self, n):
         for _ in range(n):
@@ -982,6 +1014,41 @@ class Simulation:
             # Session 05 government layer (empty when not set up).
             "government": self._government_summary()
             if gov_mod.is_setup(store) else {},
+            # Session 06 human development layer (empty when not
+            # set up).
+            "humandev": self._humandev_summary()
+            if humandev_mod.is_setup(store) else {},
+        }
+
+    def _humandev_summary(self):
+        store = self.store
+        latest = store.row(
+            "SELECT indicators FROM human_development_indicators"
+            " WHERE scope = 'national' ORDER BY month_index DESC"
+            " LIMIT 1")
+        return {
+            "institutions": store.row(
+                "SELECT COUNT(*) AS n FROM"
+                " educational_institutions")["n"],
+            "facilities": store.row(
+                "SELECT COUNT(*) AS n FROM healthcare_facilities"
+            )["n"],
+            "conditions_open": store.row(
+                "SELECT COUNT(*) AS n FROM health_conditions"
+                " WHERE status IN ('active', 'recovering')")["n"],
+            "conditions_total": store.row(
+                "SELECT COUNT(*) AS n FROM health_conditions")["n"],
+            "patient_visits": store.row(
+                "SELECT COUNT(*) AS n FROM patient_visits")["n"],
+            "certifications": store.row(
+                "SELECT COUNT(*) AS n FROM certifications")["n"],
+            "vaccinations": store.row(
+                "SELECT COUNT(*) AS n FROM vaccination_records"
+            )["n"],
+            "research_records": store.row(
+                "SELECT COUNT(*) AS n FROM research_records")["n"],
+            "latest_indicators": json.loads(latest["indicators"])
+            if latest else None,
         }
 
     def _government_summary(self):

@@ -336,6 +336,97 @@ def main():
               <= g["laws"]["import_tariff_percent_bounds"][1],
               "diplomacy partner is the labelled model account")
 
+    # -- Session 06: education-health-config.json ------------------
+    # Institution + facility building ids must resolve to real
+    # buildings in one of the two city files (no fabricated
+    # institutions); curriculum skills must be canonical skill
+    # ids; medication ids unique with positive stock/cost; grade
+    # bands strictly descending; disease parameters in range;
+    # recovery windows ordered (treated shorter than untreated).
+    try:
+        data["education-health-config.json"] = load(
+            "education-health-config.json")
+        print("  ok: education-health-config.json parses")
+    except Exception as e:
+        check(False, "education-health-config.json parses", f"({e})")
+    if "education-health-config.json" in data:
+        eh = data["education-health-config.json"]
+        all_buildings = {b["id"] for b in buildings}
+        all_buildings |= {p["id"] for p in
+                          data["city2-shibnagar.json"]["properties"]}
+        inst = eh["education"]["institutions"]
+        check(all(i["building_id"] in all_buildings for i in inst),
+              "education institutions sit in real buildings",
+              f"ids={[i['building_id'] for i in inst]}")
+        check(len({i["institution_id"] for i in inst}) == len(inst),
+              "institution ids are unique")
+        types = eh["education"]["institution_types"]
+        check(all(i["type"] in types for i in inst)
+              and all(t["capacity_students"] > 0
+                      and t["monthly_budget_ncr"] > 0
+                      for t in types.values()),
+              "institution types have positive capacity + budget")
+        facs = eh["health"]["facilities"]
+        check(all(f["building_id"] in all_buildings for f in facs),
+              "healthcare facilities sit in real buildings")
+        check(len({f["facility_id"] for f in facs}) == len(facs),
+              "facility ids are unique")
+        prof_skills = set()
+        for p in professions:
+            prof_skills.update(p["primary_skills"])
+        # GDD-11's own vocabulary beyond primary_skills: the
+        # school foundation skill and the classroom discipline
+        # skill GDD-11 §3 names explicitly.
+        prof_skills.update({"subject_knowledge", "discipline"})
+        cur = eh["education"]["curricula"]
+        subjects = list(cur["school"]["subjects"])
+        for prog in cur["programmes"].values():
+            subjects.extend(prog)
+        bad_skills = [s["id"] for s in subjects
+                      if s["skill"] not in prof_skills]
+        check(not bad_skills,
+              "curriculum skills are canonical skill ids",
+              f"bad={bad_skills}")
+        check(all(s["prerequisites"] is not None
+                  and all(pre in {x['id'] for x in subjects}
+                          or pre in {x['id'] for x in
+                                     cur['school']['subjects']}
+                          for pre in s["prerequisites"])
+                  for s in subjects),
+              "curriculum prerequisites resolve to subjects")
+        bands = eh["education"]["examinations"]["grade_bands"]
+        mins = [b["min_score"] for b in bands]
+        check(mins == sorted(mins, reverse=True)
+              and len(set(mins)) == len(mins) and mins[-1] == 0,
+              "grade bands are strictly descending to 0")
+        w = eh["education"]["examinations"]["weights"]
+        check(abs(sum(w.values()) - 1.0) < 1e-9,
+              "examination weights sum to 1", f"sum={sum(w.values())}")
+        meds = eh["health"]["medications"]["items"]
+        check(len({m["id"] for m in meds}) == len(meds)
+              and all(m["target_stock"] > 0
+                      and m["procurement_ncr_per_unit"] > 0
+                      for m in meds),
+              "medication ids unique; stock + unit cost positive")
+        known_bands = {"unwell", "injured", "serious", "vaccination",
+                       "chronic", "birth_care"}
+        check(all(set(m["used_for_bands"]) <= known_bands
+                  for m in meds),
+              "medication uses reference known care bands")
+        rec = eh["health"]["recovery_days"]
+        check(all(rec[b]["treated"][1] <= rec[b]["untreated"][1]
+                  and rec[b]["treated"][0] >= 1
+                  for b in ("unwell", "injured", "serious")),
+              "treated recovery windows never exceed untreated")
+        dis = eh["disease"]["diseases"]
+        check(all(0 < d["transmission_per_contact_day"] <= 1
+                  and 0 <= d["vaccine_effectiveness"] <= 1
+                  and d["recovery_days"][0] >= 1
+                  and d["immunity_days"] > 0 for d in dis),
+              "disease parameters are in range")
+        check(isinstance(eh["disease"]["scenarios"], list),
+              "disease scenarios are a list (empty by default)")
+
     return finish()
 
 

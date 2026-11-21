@@ -49,6 +49,20 @@ Session 01):
   event_ref (the owner's traceability order: every unit of money
   carries its idempotency key and the simulation event that
   caused it) and businesses.category / status.
+- Session 06 additions (bottom of SCHEMA): educational_institutions,
+  institution_departments, teacher_assignments, learning_records,
+  assignments, examinations, examination_results, certifications,
+  healthcare_facilities, health_profiles, health_conditions,
+  patient_visits, treatment_records, hospital_admissions,
+  medical_inventory, pharmacy_records, healthcare_budgets,
+  disease_records, vaccination_records, wellbeing_records,
+  research_projects, research_records,
+  human_development_indicators — the education / healthcare /
+  human-development layer. Enrolment stays education_records
+  (Session 02), skills stay character_skills, careers stay
+  employments; curricula/calendars live in the new config file.
+  Each gap vs schema.sql is recorded in docs/SESSION-06-REPORT.md.
+  One more column migration: world_state.humandev_setup.
 - Session 05 additions (bottom of SCHEMA): countries, treasuries,
   institutions, offices, parties, party_memberships,
   citizen_opinion, opinion_snapshots, elections, ballots,
@@ -1116,6 +1130,285 @@ CREATE TABLE IF NOT EXISTS government_events (
 );
 CREATE INDEX IF NOT EXISTS idx_govevents_type
     ON government_events(event_type, game_minutes);
+-- SESSION 06 tables (additive only; see SESSION-06-REPORT.md) ------------
+-- The education / healthcare / human-development layer. The spec's
+-- table list is mapped onto what exists (education_records IS the
+-- enrolment table; character_skills the skills table; employments
+-- the career history) — only genuinely new structures are created:
+-- educational_institutions, teacher_assignments, learning_records,
+-- assignments, examinations, examination_results, certifications,
+-- healthcare_facilities, health_profiles, health_conditions,
+-- patient_visits, treatment_records, hospital_admissions,
+-- medical_inventory, pharmacy_records, healthcare_budgets,
+-- disease_records, vaccination_records, wellbeing_records,
+-- research_projects, research_records, human_development_indicators.
+-- Curricula and academic calendars live in the configuration file
+-- (data/education-health-config.json), the project's pattern for
+-- frameworks (cf. parties/laws in government-config.json). schema.sql
+-- has enrolment (education_records, Session 02) but none of these;
+-- each is recorded as a gap in docs/SESSION-06-REPORT.md.
+CREATE TABLE IF NOT EXISTS educational_institutions (
+    institution_id TEXT PRIMARY KEY,
+    building_id TEXT NOT NULL,
+    city_id TEXT NOT NULL,
+    institution_type TEXT NOT NULL,
+    name TEXT NOT NULL,
+    level TEXT NOT NULL DEFAULT 'school',
+    capacity_students INTEGER NOT NULL DEFAULT 0,
+    monthly_budget_ncr INTEGER NOT NULL DEFAULT 0,
+    budget_spent_month_ncr INTEGER NOT NULL DEFAULT 0,
+    performance_score REAL,
+    research_capability REAL NOT NULL DEFAULT 0,
+    active INTEGER NOT NULL DEFAULT 1,
+    created_at_game_minutes INTEGER NOT NULL DEFAULT 0
+);
+CREATE TABLE IF NOT EXISTS institution_departments (
+    institution_id TEXT NOT NULL,
+    department TEXT NOT NULL,
+    PRIMARY KEY (institution_id, department)
+);
+CREATE TABLE IF NOT EXISTS teacher_assignments (
+    assignment_id TEXT PRIMARY KEY,
+    character_id TEXT NOT NULL,
+    institution_id TEXT NOT NULL,
+    month_index INTEGER NOT NULL,
+    subject TEXT NOT NULL DEFAULT 'general_studies',
+    evaluation_score REAL,
+    created_at_game_minutes INTEGER NOT NULL DEFAULT 0,
+    UNIQUE (character_id, month_index)
+);
+CREATE INDEX IF NOT EXISTS idx_tassign_institution
+    ON teacher_assignments(institution_id, month_index);
+CREATE TABLE IF NOT EXISTS learning_records (
+    record_id TEXT PRIMARY KEY,
+    character_id TEXT NOT NULL,
+    institution_id TEXT NOT NULL,
+    subject_id TEXT NOT NULL,
+    proficiency REAL NOT NULL DEFAULT 0,
+    months_studied INTEGER NOT NULL DEFAULT 0,
+    updated_month INTEGER NOT NULL DEFAULT 0,
+    UNIQUE (character_id, subject_id)
+);
+CREATE TABLE IF NOT EXISTS assignments (
+    assignment_id TEXT PRIMARY KEY,
+    character_id TEXT NOT NULL,
+    institution_id TEXT NOT NULL,
+    subject_id TEXT NOT NULL,
+    month_index INTEGER NOT NULL,
+    assigned_count INTEGER NOT NULL DEFAULT 0,
+    completed_count INTEGER NOT NULL DEFAULT 0,
+    UNIQUE (character_id, subject_id, month_index)
+);
+CREATE TABLE IF NOT EXISTS examinations (
+    exam_id TEXT PRIMARY KEY,
+    institution_id TEXT NOT NULL,
+    level TEXT NOT NULL,
+    month_index INTEGER NOT NULL,
+    game_minutes INTEGER NOT NULL,
+    candidates INTEGER NOT NULL DEFAULT 0,
+    mean_score REAL,
+    UNIQUE (institution_id, month_index)
+);
+CREATE TABLE IF NOT EXISTS examination_results (
+    result_id TEXT PRIMARY KEY,
+    exam_id TEXT NOT NULL,
+    character_id TEXT NOT NULL,
+    subject_id TEXT NOT NULL,
+    score REAL NOT NULL,
+    grade TEXT NOT NULL,
+    attendance_rate REAL NOT NULL,
+    proficiency REAL NOT NULL,
+    teacher_score REAL NOT NULL,
+    institution_score REAL NOT NULL,
+    jitter REAL NOT NULL DEFAULT 0,
+    UNIQUE (exam_id, character_id, subject_id)
+);
+CREATE INDEX IF NOT EXISTS idx_examres_student
+    ON examination_results(character_id);
+CREATE TABLE IF NOT EXISTS certifications (
+    certification_id TEXT PRIMARY KEY,
+    character_id TEXT NOT NULL,
+    institution_id TEXT NOT NULL,
+    kind TEXT NOT NULL,
+    programme TEXT,
+    mean_score REAL,
+    issued_month INTEGER NOT NULL,
+    game_minutes INTEGER NOT NULL,
+    UNIQUE (character_id, kind, programme)
+);
+CREATE TABLE IF NOT EXISTS healthcare_facilities (
+    facility_id TEXT PRIMARY KEY,
+    building_id TEXT NOT NULL,
+    city_id TEXT NOT NULL,
+    facility_type TEXT NOT NULL,
+    name TEXT NOT NULL,
+    equipment_level REAL NOT NULL DEFAULT 0,
+    monthly_budget_ncr INTEGER NOT NULL DEFAULT 0,
+    active INTEGER NOT NULL DEFAULT 1,
+    created_at_game_minutes INTEGER NOT NULL DEFAULT 0
+);
+CREATE TABLE IF NOT EXISTS health_profiles (
+    character_id TEXT PRIMARY KEY,
+    health_score REAL NOT NULL DEFAULT 80,
+    fitness REAL NOT NULL DEFAULT 50,
+    chronic INTEGER NOT NULL DEFAULT 0,
+    chronic_label TEXT,
+    disability INTEGER NOT NULL DEFAULT 0,
+    conditions_total INTEGER NOT NULL DEFAULT 0,
+    last_condition_at_game_minutes INTEGER,
+    updated_month INTEGER NOT NULL DEFAULT 0
+);
+CREATE TABLE IF NOT EXISTS health_conditions (
+    condition_id TEXT PRIMARY KEY,
+    character_id TEXT NOT NULL,
+    band TEXT NOT NULL,
+    cause TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'active',
+    treated INTEGER NOT NULL DEFAULT 0,
+    complicated INTEGER NOT NULL DEFAULT 0,
+    facility_id TEXT,
+    visit_id TEXT,
+    started_day INTEGER NOT NULL,
+    recovery_end_day INTEGER,
+    closed_day INTEGER,
+    outcome TEXT,
+    details TEXT NOT NULL DEFAULT '{}'
+);
+CREATE INDEX IF NOT EXISTS idx_conditions_character
+    ON health_conditions(character_id, status);
+CREATE TABLE IF NOT EXISTS patient_visits (
+    visit_id TEXT PRIMARY KEY,
+    character_id TEXT NOT NULL,
+    facility_id TEXT NOT NULL,
+    visit_type TEXT NOT NULL,
+    stage TEXT NOT NULL DEFAULT 'registered',
+    condition_id TEXT,
+    doctor_character_id TEXT,
+    registered_day INTEGER NOT NULL,
+    assessed_day INTEGER,
+    treated_day INTEGER,
+    closed_day INTEGER,
+    diagnosis_ok INTEGER,
+    medication_item_id TEXT,
+    follow_up_of TEXT,
+    details TEXT NOT NULL DEFAULT '{}'
+);
+CREATE INDEX IF NOT EXISTS idx_visits_facility_stage
+    ON patient_visits(facility_id, stage);
+CREATE TABLE IF NOT EXISTS treatment_records (
+    treatment_id TEXT PRIMARY KEY,
+    visit_id TEXT NOT NULL,
+    condition_id TEXT,
+    character_id TEXT NOT NULL,
+    facility_id TEXT NOT NULL,
+    doctor_character_id TEXT,
+    action TEXT NOT NULL,
+    medication_item_id TEXT,
+    day_index INTEGER NOT NULL,
+    game_minutes INTEGER NOT NULL,
+    details TEXT NOT NULL DEFAULT '{}'
+);
+CREATE TABLE IF NOT EXISTS hospital_admissions (
+    admission_id TEXT PRIMARY KEY,
+    visit_id TEXT NOT NULL,
+    character_id TEXT NOT NULL,
+    facility_id TEXT NOT NULL,
+    referred_off_district INTEGER NOT NULL DEFAULT 0,
+    transfer_days INTEGER NOT NULL DEFAULT 0,
+    admitted_day INTEGER NOT NULL,
+    discharged_day INTEGER
+);
+CREATE TABLE IF NOT EXISTS medical_inventory (
+    facility_id TEXT NOT NULL,
+    item_id TEXT NOT NULL,
+    quantity INTEGER NOT NULL DEFAULT 0,
+    PRIMARY KEY (facility_id, item_id)
+);
+CREATE TABLE IF NOT EXISTS pharmacy_records (
+    record_id TEXT PRIMARY KEY,
+    facility_id TEXT NOT NULL,
+    item_id TEXT NOT NULL,
+    change INTEGER NOT NULL,
+    reason TEXT NOT NULL,
+    visit_id TEXT,
+    month_index INTEGER,
+    game_minutes INTEGER NOT NULL
+);
+CREATE TABLE IF NOT EXISTS healthcare_budgets (
+    budget_id TEXT PRIMARY KEY,
+    facility_id TEXT NOT NULL,
+    month_index INTEGER NOT NULL,
+    allocated_ncr INTEGER NOT NULL DEFAULT 0,
+    procurement_ncr INTEGER NOT NULL DEFAULT 0,
+    campaign_ncr INTEGER NOT NULL DEFAULT 0,
+    patients_seen INTEGER NOT NULL DEFAULT 0,
+    ledger_ids TEXT NOT NULL DEFAULT '[]',
+    UNIQUE (facility_id, month_index)
+);
+CREATE TABLE IF NOT EXISTS disease_records (
+    record_id TEXT PRIMARY KEY,
+    disease_id TEXT NOT NULL,
+    character_id TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'infectious',
+    source TEXT NOT NULL,
+    infected_day INTEGER NOT NULL,
+    recovered_day INTEGER,
+    immune_until_day INTEGER,
+    city_id TEXT,
+    UNIQUE (character_id, disease_id, infected_day)
+);
+CREATE INDEX IF NOT EXISTS idx_disease_status
+    ON disease_records(disease_id, status);
+CREATE TABLE IF NOT EXISTS vaccination_records (
+    record_id TEXT PRIMARY KEY,
+    character_id TEXT NOT NULL,
+    disease_id TEXT NOT NULL,
+    facility_id TEXT NOT NULL,
+    day_index INTEGER NOT NULL,
+    game_minutes INTEGER NOT NULL,
+    UNIQUE (character_id, disease_id, day_index)
+);
+CREATE TABLE IF NOT EXISTS wellbeing_records (
+    record_id TEXT PRIMARY KEY,
+    character_id TEXT NOT NULL,
+    month_index INTEGER NOT NULL,
+    stress REAL NOT NULL,
+    social_support REAL NOT NULL,
+    loneliness REAL NOT NULL,
+    work_life REAL NOT NULL,
+    wellbeing_score REAL NOT NULL,
+    UNIQUE (character_id, month_index)
+);
+CREATE TABLE IF NOT EXISTS research_projects (
+    project_id TEXT PRIMARY KEY,
+    institution_id TEXT NOT NULL,
+    lead_character_id TEXT,
+    field TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'active',
+    budget_ncr INTEGER NOT NULL DEFAULT 0,
+    started_month INTEGER NOT NULL,
+    ends_month INTEGER NOT NULL,
+    completed_month INTEGER,
+    game_minutes INTEGER NOT NULL
+);
+CREATE TABLE IF NOT EXISTS research_records (
+    record_id TEXT PRIMARY KEY,
+    project_id TEXT NOT NULL,
+    institution_id TEXT NOT NULL,
+    field TEXT NOT NULL,
+    kind TEXT NOT NULL DEFAULT 'publication',
+    month_index INTEGER NOT NULL,
+    game_minutes INTEGER NOT NULL,
+    details TEXT NOT NULL DEFAULT '{}'
+);
+CREATE TABLE IF NOT EXISTS human_development_indicators (
+    snapshot_id TEXT PRIMARY KEY,
+    scope TEXT NOT NULL,
+    month_index INTEGER NOT NULL,
+    game_minutes INTEGER NOT NULL,
+    indicators TEXT NOT NULL DEFAULT '{}',
+    UNIQUE (scope, month_index)
+);
 """
 
 # Additive column migrations for tables that predate a session.
@@ -1129,8 +1422,10 @@ MIGRATIONS = (
     ("businesses", "status", "TEXT NOT NULL DEFAULT 'active'"),
     ("world_state", "economy_setup", "INTEGER NOT NULL DEFAULT 0"),
     ("world_state", "government_setup", "INTEGER NOT NULL DEFAULT 0"),
+    ("world_state", "humandev_setup", "INTEGER NOT NULL DEFAULT 0"),
     ("vacancies", "employer_account_id", "TEXT"),
     ("vacancies", "employer_institution_id", "TEXT"),
+    ("examination_results", "jitter", "REAL NOT NULL DEFAULT 0"),
 )
 
 SYSTEM_ACCOUNTS = ("SYS-CITY", "SYS-EMPLOYERS", "SYS-MARKET", "SYS-BANK")
