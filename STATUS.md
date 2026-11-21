@@ -10,8 +10,8 @@
 | K — Character Movement C++ | ✅ Merged + blob-verified on main (NexoraCharacter.cpp `0cc0ae4e`, TECH-MOVEMENT.md `9373b40c`) | #5 |
 | L — Game Data Tables | ✅ Merged + blob-verified on main (missions `77f65eb3`, buildings `98f612dc`, prices `bd9ccfec`) | #5 |
 | M — Save System Scaffold | ✅ Merged + blob-verified on main (NexoraSaveGame.h `958b7e42`, .cpp `b739de72`) | #5 |
-| N — UI & Panels Design | Queued | — |
-| O — NPC Behaviour Design | Queued | — |
+| N — UI & Panels Design | ✅ Complete — final Queue 2 batch (merge verification follows) | pending |
+| O — NPC Behaviour Design | ✅ Complete — final Queue 2 batch (merge verification follows) | pending |
 
 | Unit | State | PR |
 |---|---|---|
