@@ -1,7 +1,17 @@
 # NEXORA — Development Status
 
-**Continuous development:** Queue 4 (U–X) COMPLETE + merged 2026-11-21 (PR #9, main `153a1433`). Queues 1–4 = Units A–X all on GitHub main. Note: PR #4 was a duplicate of PR #3 created by a late scheduled run; closed 2026-11-21, no content difference.
+**Continuous development:** RUNNING — Queue 5 "Life Systems" (Y–AC) ordered by the owner 2026-11-21 08:01 ("Continue Your Work"). Queues 1–4 = Units A–X all merged on GitHub main (Queue 4 via PR #9, main `153a1433`). Note: PR #4 was a duplicate of PR #3 created by a late scheduled run; closed 2026-11-21, no content difference.
 **Repo:** https://github.com/zobaerio/Nexora · main after PR #9: `153a1433`
+
+## Queue 5 — "Life Systems" (ordered 2026-11-21 08:01 — "Continue Your Work")
+
+| Unit | State | PR |
+|---|---|---|
+| Y — Character Creator & Clothing | ✅ Complete (GDD-09 + clothing.json, 31 items; prices.json v1.2 clothing table; sim output byte-identical) — batch push pending | — |
+| Z — Housing & Home Life | ✅ Complete (GDD-10; all cited property ids resolve, 140-unit stock) — batch push pending | — |
+| AA — Drivable Vehicle C++ Scaffold | ✅ Complete (NexoraVehiclePawn + TECH-VEHICLES.md; braces balanced, Chaos seam marked) — batch push pending | — |
+| AB — Education & School Life | Queued (scheduled runs) | — |
+| AC — Health & Hospital | Queued (scheduled runs) | — |
 
 ## Queue 4 (ordered 2026-11-21 — economy findings from Unit T)
 

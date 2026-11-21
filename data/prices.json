@@ -50,6 +50,228 @@
       }
     }
   },
+  "clothing": {
+    "items": [
+      {
+        "band": "lower",
+        "id": "genji_vest",
+        "name": "Vest (genji)",
+        "price_ncr": 150,
+        "slot": "top"
+      },
+      {
+        "band": "lower",
+        "id": "sandals",
+        "name": "Sandals",
+        "price_ncr": 250,
+        "slot": "footwear"
+      },
+      {
+        "band": "lower",
+        "id": "lungi_cotton",
+        "name": "Lungi (cotton)",
+        "price_ncr": 300,
+        "slot": "bottom"
+      },
+      {
+        "band": "lower",
+        "id": "umbrella",
+        "name": "Umbrella",
+        "price_ncr": 350,
+        "slot": "accessory"
+      },
+      {
+        "band": "lower",
+        "id": "shirt_basic",
+        "name": "Shirt (basic)",
+        "price_ncr": 450,
+        "slot": "top"
+      },
+      {
+        "band": "lower",
+        "id": "trousers_basic",
+        "name": "Trousers (basic)",
+        "price_ncr": 650,
+        "slot": "bottom"
+      },
+      {
+        "band": "lower",
+        "id": "panjabi_simple",
+        "name": "Panjabi (simple)",
+        "price_ncr": 800,
+        "slot": "full_body"
+      },
+      {
+        "band": "lower",
+        "id": "salwar_kameez_basic",
+        "name": "Salwar kameez (basic)",
+        "price_ncr": 1100,
+        "slot": "full_body"
+      },
+      {
+        "band": "lower",
+        "id": "saree_cotton",
+        "name": "Saree (cotton)",
+        "price_ncr": 1200,
+        "slot": "full_body"
+      },
+      {
+        "band": "mid",
+        "id": "shirt_formal",
+        "name": "Shirt (formal)",
+        "price_ncr": 950,
+        "slot": "top"
+      },
+      {
+        "band": "mid",
+        "id": "raincoat",
+        "name": "Raincoat",
+        "price_ncr": 900,
+        "slot": "outerwear"
+      },
+      {
+        "band": "mid",
+        "id": "trousers_formal",
+        "name": "Trousers (formal)",
+        "price_ncr": 1200,
+        "slot": "bottom"
+      },
+      {
+        "band": "mid",
+        "id": "jacket_light",
+        "name": "Jacket (light)",
+        "price_ncr": 1600,
+        "slot": "outerwear"
+      },
+      {
+        "band": "mid",
+        "id": "shoes_leather",
+        "name": "Shoes (leather)",
+        "price_ncr": 1800,
+        "slot": "footwear"
+      },
+      {
+        "band": "mid",
+        "id": "panjabi_festive",
+        "name": "Panjabi (festive)",
+        "price_ncr": 2000,
+        "slot": "full_body"
+      },
+      {
+        "band": "mid",
+        "id": "saree_silk_blend",
+        "name": "Saree (silk blend)",
+        "price_ncr": 3500,
+        "slot": "full_body"
+      },
+      {
+        "band": "upper",
+        "id": "shoes_premium",
+        "name": "Shoes (premium)",
+        "price_ncr": 3800,
+        "slot": "footwear"
+      },
+      {
+        "band": "upper",
+        "id": "blazer",
+        "name": "Blazer",
+        "price_ncr": 4200,
+        "slot": "outerwear"
+      },
+      {
+        "band": "upper",
+        "id": "suit_set",
+        "name": "Suit (two-piece)",
+        "price_ncr": 6500,
+        "slot": "outfit_set"
+      },
+      {
+        "band": "upper",
+        "id": "saree_silk",
+        "name": "Saree (silk)",
+        "price_ncr": 7000,
+        "slot": "full_body"
+      },
+      {
+        "band": "lower",
+        "id": "work_gloves",
+        "name": "Work gloves",
+        "price_ncr": 200,
+        "slot": "accessory"
+      },
+      {
+        "band": "lower",
+        "id": "hivis_vest",
+        "name": "Hi-vis vest",
+        "price_ncr": 600,
+        "slot": "workwear"
+      },
+      {
+        "band": "mid",
+        "id": "safety_helmet",
+        "name": "Safety helmet",
+        "price_ncr": 750,
+        "slot": "headwear"
+      },
+      {
+        "band": "mid",
+        "id": "safety_boots",
+        "name": "Safety boots",
+        "price_ncr": 1800,
+        "slot": "footwear"
+      },
+      {
+        "band": "mid",
+        "id": "ppe_set_construction",
+        "name": "Construction PPE set (helmet, vest, boots, gloves)",
+        "price_ncr": 3350,
+        "slot": "uniform_set"
+      },
+      {
+        "band": "lower",
+        "id": "uniform_school",
+        "name": "School uniform set",
+        "price_ncr": 800,
+        "slot": "uniform_set"
+      },
+      {
+        "band": "lower",
+        "id": "uniform_driver_depot",
+        "name": "Depot driver uniform (shirt, trousers, cap)",
+        "price_ncr": 900,
+        "slot": "uniform_set"
+      },
+      {
+        "band": "mid",
+        "id": "uniform_chef",
+        "name": "Chef whites + apron",
+        "price_ncr": 1400,
+        "slot": "uniform_set"
+      },
+      {
+        "band": "mid",
+        "id": "uniform_medical",
+        "name": "Medical scrubs + white coat",
+        "price_ncr": 1600,
+        "slot": "uniform_set"
+      },
+      {
+        "band": "mid",
+        "id": "uniform_police",
+        "name": "Police uniform set",
+        "price_ncr": 2800,
+        "slot": "uniform_set"
+      },
+      {
+        "band": "upper",
+        "id": "uniform_pilot",
+        "name": "Airline pilot uniform set",
+        "price_ncr": 3200,
+        "slot": "uniform_set"
+      }
+    ],
+    "notes": "Itemised clothing prices (Queue 5 / Unit Y). Until now prices.json carried only the monthly clothing_personal budget lines in living_costs_monthly; this table prices the actual garments catalogued in data/clothing.json, whose entries point here via price_ref — if the two ever disagree, this table wins and clothing.json is fixed. Prices are set so a band's normal replacement cycle stays inside its clothing_personal monthly budget (lower 600 / mid 1,500 / upper 5,000 NCr). ppe_set_construction is priced as the sum of its parts (helmet 750 + vest 600 + boots 1,800 + gloves 200). Uniform sets are employer-issued at hiring (GDD-09 §5); the price here is the replacement cost. All integer NCr (GDD-01 §8)."
+  },
   "construction_materials": [
     {
       "id": "cement_bag_50kg",
@@ -278,7 +500,7 @@
       "rental_ncr_per_day": 200
     }
   ],
-  "version": "1.1",
+  "version": "1.2",
   "wages_monthly": [
     {
       "entry": 9000,
