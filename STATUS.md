@@ -1,25 +1,25 @@
 # NEXORA — Development Status
 
-**Continuous development:** RUNNING (owner order 2026-11-20 23:48 Dhaka — until the owner says stop)
-**Repo:** https://github.com/zobaerio/Nexora · main after PR #2: `675bb183`
+**Continuous development:** ✅ QUEUE COMPLETE — Units A–J all merged to GitHub (owner order 2026-11-20 23:48 fulfilled 2026-11-21; scheduled runs stopped)
+**Repo:** https://github.com/zobaerio/Nexora · main after PR #3: `7c5071c7`
 
 | Unit | State | PR |
 |---|---|---|
 | Foundation (plan + Godot testbed) | ✅ Merged | #1 |
 | A — Phase 1 Build Sheet | ✅ Merged (main 675bb183, blob-verified) | #2 |
-| B — Life Sim & Data Model | ✅ Content complete + locally committed (`6e736d2`) — push BLOCKED (see below); safe in local commit `11c83bc` | pending (push blocked) |
-| C — City District 1 + Data | ✅ Content complete + locally committed (`6e736d2`) — same block as Unit B | pending (push blocked) |
-| D — UE Project Scaffolding | ✅ Complete (run 2026-11-21 01:45) — uproject + Config + C++ module skeleton, all headers labelled UNCOMPILED SCAFFOLD; JSON parses, braces balanced | pending (push blocked) |
-| E — Game Clock + Weather C++ | ✅ Complete (same run) — NexoraGameClock + NexoraWeatherManager + TECH-CLOCK-WEATHER.md | pending (push blocked) |
-| F — Economy & Professions GDD | ✅ Complete (same run) — GDD-03, numbers consistent with professions.json bands | pending (push blocked) |
-| G — Missions & Progression GDD | ✅ Complete (same run) — GDD-04, Levels 1–8; intermediate level names proposed from the phase structure (owner confirms/renames) | pending (push blocked) |
-| H — Phase 2 MetaHuman Sheet | ✅ Complete (same run) — PHASE2-METAHUMAN-SHEET.md | pending (push blocked) |
-| I — QA & Verification Pack | ✅ Complete (same run) — QA-PACK.md + ASSET-LICENCE-REGISTER.md; Godot tests re-run 2026-11-21 01:45: PLAYER_TEST_PASS 8/8 | pending (push blocked) |
-| J — Roadmap v1.1 | ✅ Complete (same run) — NEXORA-MIGRATION-PLAN.md Part J added, v1.0 preserved. Note: J said "its own PR" — folded into the single batch PR per the owner's later card-minimisation order (see WORK-QUEUE.md batching note) | pending (push blocked) |
+| B — Life Sim & Data Model | ✅ Merged + blob-verified on main | #3 |
+| C — City District 1 + Data | ✅ Merged + blob-verified on main | #3 |
+| D — UE Project Scaffolding | ✅ Merged — uproject + Config + C++ module skeleton, all headers labelled UNCOMPILED SCAFFOLD | #3 |
+| E — Game Clock + Weather C++ | ✅ Merged — NexoraGameClock + NexoraWeatherManager (blob-verified) + TECH-CLOCK-WEATHER.md | #3 |
+| F — Economy & Professions GDD | ✅ Merged — GDD-03, numbers consistent with professions.json bands | #3 |
+| G — Missions & Progression GDD | ✅ Merged + blob-verified — GDD-04, Levels 1–8; intermediate level names proposed from the phase structure (owner confirms/renames) | #3 |
+| H — Phase 2 MetaHuman Sheet | ✅ Merged — PHASE2-METAHUMAN-SHEET.md | #3 |
+| I — QA & Verification Pack | ✅ Merged — QA-PACK.md + ASSET-LICENCE-REGISTER.md; Godot tests re-run 2026-11-21 01:45: PLAYER_TEST_PASS 8/8 | #3 |
+| J — Roadmap v1.1 | ✅ Merged + blob-verified — NEXORA-MIGRATION-PLAN.md Part J added, v1.0 preserved. Folded into the single batch PR per the owner's card-minimisation order | #3 |
 
 ## Queue status
 
-**THE QUEUE IS COMPLETE (Units A–J all done locally).** All content is verified and committed locally, but the single batch push to GitHub is **BLOCKED — see "Push block (2026-11-21 03:45 run)" below**. Nothing is lost: all work is in local commits `11c83bc` + `a2ed474`. When the push + PR + merge succeed in a later run, this file gets the PR number and merge commit, and later runs report only the completed state (per the task body). No new units may be invented without the owner.
+**THE QUEUE IS COMPLETE (Units A–J all done and MERGED 2026-11-21).** PR #3 squash-merged to main `7c5071c7` after the owner said "Push koro"; key files blob-verified on main against the local tree (schema.sql `70ce82ae`, Nexora.uproject `ea66f418`, migration plan `a90282af`, GDD-04 `7259097d`, NexoraWeatherManager.cpp `0927d0f6`, planets.json `b88be365`). The push-block history below is kept as the record of the overnight attempts. No new units may be invented without the owner. Next honest milestone: Phase 1 on the owner's PC (UE 5.8.x install + 400 m test scene, per docs/PHASE1-BUILD-SHEET.md).
 
 ## Push block (2026-11-21 01:45 run) — recovery instructions for the next run
 
