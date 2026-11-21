@@ -1,7 +1,7 @@
 # NEXORA — Development Status
 
-**Continuous development:** RUNNING — Queue 1 (A–J) complete + merged; Queue 2 (K–O) ordered by the owner 2026-11-21 07:08 ("Continue"). Note: PR #4 was a duplicate of PR #3 created by a late scheduled run; closed 2026-11-21, no content difference.
-**Repo:** https://github.com/zobaerio/Nexora · main after PR #5: `ece37381`
+**Continuous development:** ✅ QUEUES 1 + 2 COMPLETE — Units A–O all merged to GitHub (Queue 2 finished 2026-11-21 on the owner's second "Continue"; scheduled runs stand down — no units remain). Note: PR #4 was a duplicate of PR #3 created by a late scheduled run; closed 2026-11-21, no content difference.
+**Repo:** https://github.com/zobaerio/Nexora · main after PR #6: `2154c7f9`
 
 ## Queue 2 (ordered 2026-11-21)
 
@@ -10,8 +10,15 @@
 | K — Character Movement C++ | ✅ Merged + blob-verified on main (NexoraCharacter.cpp `0cc0ae4e`, TECH-MOVEMENT.md `9373b40c`) | #5 |
 | L — Game Data Tables | ✅ Merged + blob-verified on main (missions `77f65eb3`, buildings `98f612dc`, prices `bd9ccfec`) | #5 |
 | M — Save System Scaffold | ✅ Merged + blob-verified on main (NexoraSaveGame.h `958b7e42`, .cpp `b739de72`) | #5 |
-| N — UI & Panels Design | ✅ Complete — final Queue 2 batch (merge verification follows) | pending |
-| O — NPC Behaviour Design | ✅ Complete — final Queue 2 batch (merge verification follows) | pending |
+| N — UI & Panels Design | ✅ Merged + blob-verified on main (GDD-05 `54d46061`) | #6 |
+| O — NPC Behaviour Design | ✅ Merged + blob-verified on main (GDD-06 `40bbe85b`) | #6 |
+
+## Queue 2 completion summary (2026-11-21)
+
+- **Queue 2 (K–O) is COMPLETE and fully merged:** PR #5 (K–M, main `ece37381`) + PR #6 (N+O, main `2154c7f9`). Every unit's key files were read back on `refs/heads/main` and blob-matched to the locally validated tree.
+- **What Queue 2 added:** character movement C++ at Godot-testbed values (uncompiled scaffold), cross-validated game data tables (prices/buildings/missions), a save-system scaffold mapped to the schema, the UI & panels design (HUD, profile card, Environment Control Panel, UMG contract), and the NPC behaviour design (schedule state machines for all 11 professions, crowd tiers/promotion, memory hooks, Mass honesty notes).
+- **What is proven:** Godot testbed 8/8. All UE-side material remains design + uncompiled scaffolding until the owner's PC builds it.
+- **Next honest milestone (unchanged):** Phase 1 on the owner's PC — install UE 5.8.x, open `ue-project/Nexora.uproject`, build the 400 m test scene (docs/PHASE1-BUILD-SHEET.md). Owner still owes Step 0: PC specs (GPU/RAM/SSD). No further units exist until the owner orders a Queue 3.
 
 | Unit | State | PR |
 |---|---|---|
