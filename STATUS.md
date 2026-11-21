@@ -1,15 +1,15 @@
 # NEXORA — Development Status
 
 **Continuous development:** RUNNING — Queue 5 "Life Systems" (Y–AC) ordered by the owner 2026-11-21 08:01 ("Continue Your Work"). Queues 1–4 = Units A–X all merged on GitHub main (Queue 4 via PR #9, main `153a1433`). Note: PR #4 was a duplicate of PR #3 created by a late scheduled run; closed 2026-11-21, no content difference.
-**Repo:** https://github.com/zobaerio/Nexora · main after PR #9: `153a1433`
+**Repo:** https://github.com/zobaerio/Nexora · main after PR #10: `5736af3e`
 
 ## Queue 5 — "Life Systems" (ordered 2026-11-21 08:01 — "Continue Your Work")
 
 | Unit | State | PR |
 |---|---|---|
-| Y — Character Creator & Clothing | ✅ Complete (GDD-09 + clothing.json, 31 items; prices.json v1.2 clothing table; sim output byte-identical) — batch push pending | — |
-| Z — Housing & Home Life | ✅ Complete (GDD-10; all cited property ids resolve, 140-unit stock) — batch push pending | — |
-| AA — Drivable Vehicle C++ Scaffold | ✅ Complete (NexoraVehiclePawn + TECH-VEHICLES.md; braces balanced, Chaos seam marked) — batch push pending | — |
+| Y — Character Creator & Clothing | ✅ Merged + blob-verified on main (clothing.json `4841f1e7`, GDD-09 `44d1fba5`, prices.json `67b90cdc`) — 31-item catalogue, 11/11 profession uniforms, sim output byte-identical | #10 |
+| Z — Housing & Home Life | ✅ Merged + blob-verified on main (GDD-10 `edbca43d`) — tenancy flow on the real 140-unit stock, GDD-03 ladder applied, furniture tiers off the rent table | #10 |
+| AA — Drivable Vehicle C++ Scaffold | ✅ Merged + blob-verified on main (NexoraVehiclePawn.cpp `ff8b18d4`) — fare meter + enter/exit contract; Chaos binding isolated to one marked seam | #10 |
 | AB — Education & School Life | Queued (scheduled runs) | — |
 | AC — Health & Hospital | Queued (scheduled runs) | — |
 
