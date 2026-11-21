@@ -81,8 +81,10 @@ Design/data/scaffold layer, same scope limits, honesty rules and GitHub batching
 - [x] **Unit Y — Character Creator & Clothing** (`docs/GDD-09-CHARACTER-CREATOR.md` + `data/clothing.json` + clothing price table in `data/prices.json`): creator flow on MetaHuman (what the player picks vs what MetaHuman generates), outfit slots, clothing catalogue with prices resolving to prices.json clothing entries (a clothing price table is added to prices.json — none existed, only monthly budget lines), profession uniform mapping for all 11 professions.
 - [x] **Unit Z — Housing & Home Life** (`docs/GDD-10-HOUSING-AND-HOME-LIFE.md`): living in the properties from buildings-district1.json — move-in/move-out, rent payment hookup to the ledger (GDD-03 §3.2 owns the missed-rent ladder), home needs loop (sleep/eat/social/security from GDD-01 §4), furniture tiers tied to prices, visitors/household hookup to GDD-01 §5 households.
 - [x] **Unit AA — Drivable Vehicle C++ Scaffold** (`ue-project/Source/Nexora/Vehicles/NexoraVehiclePawn.h/.cpp` + `docs/TECH-VEHICLES.md`): Chaos-vehicle-oriented pawn scaffold + enter/exit interaction contract with NexoraCharacter, camera states, and the taxi fare meter hookup points from GDD-07; UNCOMPILED SCAFFOLD headers; braces balanced.
-- [ ] **Unit AB — Education & School Life** (`docs/GDD-11-EDUCATION.md`): child/student life-stage loops (school day from npc-schedules templates), teacher profession hookup (GDD-06), skills progression into character_skills (schema), university in District 1's education zone.
-- [ ] **Unit AC — Health & Hospital** (`docs/GDD-12-HEALTH.md`): doctor profession loop, illness/injury model (causes from weather/traffic/construction systems already designed), hospital interiors from GDD-02, treatment costs resolving to prices.json.
+- [x] **Unit AB — Education & School Life** (`docs/GDD-11-EDUCATION.md`): child/student life-stage loops (school day from npc-schedules templates), teacher profession hookup (GDD-06), skills progression into character_skills (schema), university in District 1's education zone.
+- [x] **Unit AC — Health & Hospital** (`docs/GDD-12-HEALTH.md`): doctor profession loop, illness/injury model (causes from weather/traffic/construction systems already designed), hospital interiors from GDD-02, treatment costs resolving to prices.json.
+
+**Queue 5 result:** Units Y–AC completed and merged 2026-11-21 (PR #10 for Y+Z+AA; AB+AC in the finisher batch — see STATUS.md).
 
 ## Status
 
