@@ -1,0 +1,1248 @@
+{
+  "coordinate_system": "Local metres. Origin (0,0) is 60 m north of the Clock Tower junction. +x = east, +z = south (ground plane; engine Y is up). District extent \u2248 1,020 m x 990 m.",
+  "junctions": [
+    {
+      "at": [
+        0,
+        -60
+      ],
+      "id": "j_clock_tower",
+      "landmark": "The Clock Tower",
+      "signalled": true
+    },
+    {
+      "at": [
+        0,
+        300
+      ],
+      "id": "j_civic_ring_s",
+      "signalled": true
+    },
+    {
+      "at": [
+        350,
+        -60
+      ],
+      "id": "j_river_ring_e",
+      "signalled": true
+    },
+    {
+      "at": [
+        350,
+        -300
+      ],
+      "id": "j_ring_ne",
+      "signalled": false
+    },
+    {
+      "at": [
+        350,
+        300
+      ],
+      "id": "j_ring_se",
+      "signalled": false
+    },
+    {
+      "at": [
+        -350,
+        300
+      ],
+      "id": "j_ring_sw",
+      "signalled": false
+    },
+    {
+      "at": [
+        -350,
+        -300
+      ],
+      "id": "j_ring_nw",
+      "signalled": false
+    },
+    {
+      "at": [
+        0,
+        -300
+      ],
+      "id": "j_civic_ring_n",
+      "signalled": false
+    },
+    {
+      "at": [
+        -350,
+        -60
+      ],
+      "id": "j_river_ring_w",
+      "signalled": false
+    }
+  ],
+  "landmarks": [
+    {
+      "at": [
+        0,
+        -60
+      ],
+      "id": "lm_clock_tower",
+      "name": "The Clock Tower",
+      "source": "GDD-02 \u00a74.1"
+    },
+    {
+      "at": [
+        500,
+        430
+      ],
+      "id": "lm_bridge_approach",
+      "name": "Rupsha Bridge approach",
+      "source": "GDD-02 \u00a74.2"
+    },
+    {
+      "at": [
+        -120,
+        415
+      ],
+      "building_id": "b_d1_riverfront_launch_terminal",
+      "id": "lm_launch_terminal",
+      "name": "Launch Terminal",
+      "source": "GDD-02 \u00a74.3"
+    },
+    {
+      "at": [
+        60,
+        255
+      ],
+      "id": "lm_park_pond",
+      "name": "Central Park pond & banyan tree",
+      "source": "GDD-02 \u00a74.4"
+    },
+    {
+      "at": [
+        60,
+        40
+      ],
+      "building_id": "b_d1_market_hall_units",
+      "id": "lm_market_hall",
+      "name": "Boro Bazar market hall",
+      "source": "GDD-02 \u00a74.5"
+    },
+    {
+      "at": [
+        430,
+        360
+      ],
+      "building_id": "b_d1_uptown_rooftop_restaurant",
+      "id": "lm_rooftop_tower",
+      "name": "Uptown rooftop restaurant tower",
+      "source": "GDD-02 \u00a74.6"
+    },
+    {
+      "at": [
+        430,
+        120
+      ],
+      "building_id": "b_d1_transport_station",
+      "id": "lm_station",
+      "name": "Railway station clock frontage",
+      "source": "GDD-02 \u00a74.7"
+    },
+    {
+      "at": [
+        -260,
+        180
+      ],
+      "id": "lm_water_tank",
+      "name": "The old water tank",
+      "source": "GDD-02 \u00a74.8"
+    }
+  ],
+  "phase1_test_scene": {
+    "bbox_m": {
+      "x0": -200,
+      "x1": 200,
+      "z0": -60,
+      "z1": 340
+    },
+    "building_ids": [
+      "b_d1_midtown_starter_block",
+      "b_d1_midtown_showpiece",
+      "b_d1_oldtown_tier2",
+      "b_d1_oldtown_workshops",
+      "b_d1_market_hall_units",
+      "b_d1_market_tea_stalls",
+      "b_d1_market_godowns",
+      "b_d1_market_restaurant",
+      "b_d1_park_land",
+      "b_d1_park_food_carts"
+    ],
+    "name": "Phase 1 400 m test scene subset",
+    "notes": "The PHASE1-BUILD-SHEET scene: one arterial stretch, the market spine head, the park and the riverbank/ghat inside a single 400 m x 400 m box. Build this first; the rest of the district blocks out after the Phase 1 exit criteria pass.",
+    "segment_ids": [
+      "seg_civic_ave_n",
+      "seg_civic_ave_s",
+      "seg_river_road_w",
+      "seg_river_road_e",
+      "seg_market_spine",
+      "seg_midtown_local",
+      "seg_oldtown_local",
+      "seg_goli_1",
+      "seg_goli_2",
+      "seg_goli_3"
+    ]
+  },
+  "plots": [
+    {
+      "anchor": {
+        "facing": "south",
+        "x": 120.0,
+        "z": 130.0
+      },
+      "building_id": "b_d1_midtown_starter_block",
+      "notes": "v1 grid placement inside the zone box; art direction on PC may shift within the zone (TECH-DISTRICT1-BLOCKOUT \u00a72).",
+      "plot_rect_m": {
+        "d": 60,
+        "w": 60,
+        "x": 90.0,
+        "z": 70.0
+      },
+      "zone_id": "d1_midtown"
+    },
+    {
+      "anchor": {
+        "facing": "south",
+        "x": 203.3,
+        "z": 130.0
+      },
+      "building_id": "b_d1_midtown_starter_flat",
+      "notes": "v1 grid placement inside the zone box; art direction on PC may shift within the zone (TECH-DISTRICT1-BLOCKOUT \u00a72).",
+      "plot_rect_m": {
+        "d": 60,
+        "w": 60,
+        "x": 173.3,
+        "z": 70.0
+      },
+      "zone_id": "d1_midtown"
+    },
+    {
+      "anchor": {
+        "facing": "south",
+        "x": 286.7,
+        "z": 130.0
+      },
+      "building_id": "b_d1_midtown_block_b",
+      "notes": "v1 grid placement inside the zone box; art direction on PC may shift within the zone (TECH-DISTRICT1-BLOCKOUT \u00a72).",
+      "plot_rect_m": {
+        "d": 60,
+        "w": 60,
+        "x": 256.7,
+        "z": 70.0
+      },
+      "zone_id": "d1_midtown"
+    },
+    {
+      "anchor": {
+        "facing": "south",
+        "x": 120.0,
+        "z": 240.0
+      },
+      "building_id": "b_d1_midtown_showpiece",
+      "notes": "v1 grid placement inside the zone box; art direction on PC may shift within the zone (TECH-DISTRICT1-BLOCKOUT \u00a72).",
+      "plot_rect_m": {
+        "d": 60,
+        "w": 60,
+        "x": 90.0,
+        "z": 180.0
+      },
+      "zone_id": "d1_midtown"
+    },
+    {
+      "anchor": {
+        "facing": "south",
+        "x": 203.3,
+        "z": 240.0
+      },
+      "building_id": "b_d1_midtown_tier2_block",
+      "notes": "v1 grid placement inside the zone box; art direction on PC may shift within the zone (TECH-DISTRICT1-BLOCKOUT \u00a72).",
+      "plot_rect_m": {
+        "d": 60,
+        "w": 60,
+        "x": 173.3,
+        "z": 180.0
+      },
+      "zone_id": "d1_midtown"
+    },
+    {
+      "anchor": {
+        "facing": "south",
+        "x": -310.0,
+        "z": 130.0
+      },
+      "building_id": "b_d1_oldtown_walkups",
+      "notes": "v1 grid placement inside the zone box; art direction on PC may shift within the zone (TECH-DISTRICT1-BLOCKOUT \u00a72).",
+      "plot_rect_m": {
+        "d": 60,
+        "w": 60,
+        "x": -340.0,
+        "z": 70.0
+      },
+      "zone_id": "d1_oldtown"
+    },
+    {
+      "anchor": {
+        "facing": "south",
+        "x": -185.0,
+        "z": 130.0
+      },
+      "building_id": "b_d1_oldtown_tier2",
+      "notes": "v1 grid placement inside the zone box; art direction on PC may shift within the zone (TECH-DISTRICT1-BLOCKOUT \u00a72).",
+      "plot_rect_m": {
+        "d": 60,
+        "w": 60,
+        "x": -215.0,
+        "z": 70.0
+      },
+      "zone_id": "d1_oldtown"
+    },
+    {
+      "anchor": {
+        "facing": "south",
+        "x": -310.0,
+        "z": 240.0
+      },
+      "building_id": "b_d1_oldtown_rowhouses",
+      "notes": "v1 grid placement inside the zone box; art direction on PC may shift within the zone (TECH-DISTRICT1-BLOCKOUT \u00a72).",
+      "plot_rect_m": {
+        "d": 60,
+        "w": 60,
+        "x": -340.0,
+        "z": 180.0
+      },
+      "zone_id": "d1_oldtown"
+    },
+    {
+      "anchor": {
+        "facing": "south",
+        "x": -185.0,
+        "z": 240.0
+      },
+      "building_id": "b_d1_oldtown_workshops",
+      "notes": "v1 grid placement inside the zone box; art direction on PC may shift within the zone (TECH-DISTRICT1-BLOCKOUT \u00a72).",
+      "plot_rect_m": {
+        "d": 60,
+        "w": 60,
+        "x": -215.0,
+        "z": 180.0
+      },
+      "zone_id": "d1_oldtown"
+    },
+    {
+      "anchor": {
+        "facing": "south",
+        "x": -310.0,
+        "z": 377.0
+      },
+      "building_id": "b_d1_riverfront_houses",
+      "notes": "v1 grid placement inside the zone box; art direction on PC may shift within the zone (TECH-DISTRICT1-BLOCKOUT \u00a72).",
+      "plot_rect_m": {
+        "d": 32.0,
+        "w": 60,
+        "x": -340.0,
+        "z": 345.0
+      },
+      "zone_id": "d1_riverfront"
+    },
+    {
+      "anchor": {
+        "facing": "south",
+        "x": -32.5,
+        "z": 377.0
+      },
+      "building_id": "b_d1_riverfront_launch_terminal",
+      "notes": "v1 grid placement inside the zone box; art direction on PC may shift within the zone (TECH-DISTRICT1-BLOCKOUT \u00a72).",
+      "plot_rect_m": {
+        "d": 32.0,
+        "w": 60,
+        "x": -62.5,
+        "z": 345.0
+      },
+      "zone_id": "d1_riverfront"
+    },
+    {
+      "anchor": {
+        "facing": "south",
+        "x": -310.0,
+        "z": 417.0
+      },
+      "building_id": "b_d1_riverfront_fish_stalls",
+      "notes": "v1 grid placement inside the zone box; art direction on PC may shift within the zone (TECH-DISTRICT1-BLOCKOUT \u00a72).",
+      "plot_rect_m": {
+        "d": 32.0,
+        "w": 60,
+        "x": -340.0,
+        "z": 385.0
+      },
+      "zone_id": "d1_riverfront"
+    },
+    {
+      "anchor": {
+        "facing": "south",
+        "x": -32.5,
+        "z": 417.0
+      },
+      "building_id": "b_d1_riverfront_tea_stall",
+      "notes": "v1 grid placement inside the zone box; art direction on PC may shift within the zone (TECH-DISTRICT1-BLOCKOUT \u00a72).",
+      "plot_rect_m": {
+        "d": 32.0,
+        "w": 60,
+        "x": -62.5,
+        "z": 385.0
+      },
+      "zone_id": "d1_riverfront"
+    },
+    {
+      "anchor": {
+        "facing": "south",
+        "x": 55.0,
+        "z": 20.0
+      },
+      "building_id": "b_d1_market_hall_units",
+      "notes": "v1 grid placement inside the zone box; art direction on PC may shift within the zone (TECH-DISTRICT1-BLOCKOUT \u00a72).",
+      "plot_rect_m": {
+        "d": 60,
+        "w": 60,
+        "x": 25.0,
+        "z": -40.0
+      },
+      "zone_id": "d1_market"
+    },
+    {
+      "anchor": {
+        "facing": "south",
+        "x": 150.0,
+        "z": 20.0
+      },
+      "building_id": "b_d1_market_tea_stalls",
+      "notes": "v1 grid placement inside the zone box; art direction on PC may shift within the zone (TECH-DISTRICT1-BLOCKOUT \u00a72).",
+      "plot_rect_m": {
+        "d": 60,
+        "w": 60,
+        "x": 120.0,
+        "z": -40.0
+      },
+      "zone_id": "d1_market"
+    },
+    {
+      "anchor": {
+        "facing": "south",
+        "x": 55.0,
+        "z": 125.0
+      },
+      "building_id": "b_d1_market_godowns",
+      "notes": "v1 grid placement inside the zone box; art direction on PC may shift within the zone (TECH-DISTRICT1-BLOCKOUT \u00a72).",
+      "plot_rect_m": {
+        "d": 60,
+        "w": 60,
+        "x": 25.0,
+        "z": 65.0
+      },
+      "zone_id": "d1_market"
+    },
+    {
+      "anchor": {
+        "facing": "south",
+        "x": 150.0,
+        "z": 125.0
+      },
+      "building_id": "b_d1_market_restaurant",
+      "notes": "v1 grid placement inside the zone box; art direction on PC may shift within the zone (TECH-DISTRICT1-BLOCKOUT \u00a72).",
+      "plot_rect_m": {
+        "d": 60,
+        "w": 60,
+        "x": 120.0,
+        "z": 65.0
+      },
+      "zone_id": "d1_market"
+    },
+    {
+      "anchor": {
+        "facing": "south",
+        "x": -310.0,
+        "z": -230.0
+      },
+      "building_id": "b_d1_civic_school",
+      "notes": "v1 grid placement inside the zone box; art direction on PC may shift within the zone (TECH-DISTRICT1-BLOCKOUT \u00a72).",
+      "plot_rect_m": {
+        "d": 60,
+        "w": 60,
+        "x": -340.0,
+        "z": -290.0
+      },
+      "zone_id": "d1_civic"
+    },
+    {
+      "anchor": {
+        "facing": "south",
+        "x": -226.7,
+        "z": -230.0
+      },
+      "building_id": "b_d1_civic_clinic",
+      "notes": "v1 grid placement inside the zone box; art direction on PC may shift within the zone (TECH-DISTRICT1-BLOCKOUT \u00a72).",
+      "plot_rect_m": {
+        "d": 60,
+        "w": 60,
+        "x": -256.7,
+        "z": -290.0
+      },
+      "zone_id": "d1_civic"
+    },
+    {
+      "anchor": {
+        "facing": "south",
+        "x": -143.3,
+        "z": -230.0
+      },
+      "building_id": "b_d1_civic_bank",
+      "notes": "v1 grid placement inside the zone box; art direction on PC may shift within the zone (TECH-DISTRICT1-BLOCKOUT \u00a72).",
+      "plot_rect_m": {
+        "d": 60,
+        "w": 60,
+        "x": -173.3,
+        "z": -290.0
+      },
+      "zone_id": "d1_civic"
+    },
+    {
+      "anchor": {
+        "facing": "south",
+        "x": -310.0,
+        "z": -130.0
+      },
+      "building_id": "b_d1_civic_police",
+      "notes": "v1 grid placement inside the zone box; art direction on PC may shift within the zone (TECH-DISTRICT1-BLOCKOUT \u00a72).",
+      "plot_rect_m": {
+        "d": 60,
+        "w": 60,
+        "x": -340.0,
+        "z": -190.0
+      },
+      "zone_id": "d1_civic"
+    },
+    {
+      "anchor": {
+        "facing": "south",
+        "x": -226.7,
+        "z": -130.0
+      },
+      "building_id": "b_d1_civic_city_office",
+      "notes": "v1 grid placement inside the zone box; art direction on PC may shift within the zone (TECH-DISTRICT1-BLOCKOUT \u00a72).",
+      "plot_rect_m": {
+        "d": 60,
+        "w": 60,
+        "x": -256.7,
+        "z": -190.0
+      },
+      "zone_id": "d1_civic"
+    },
+    {
+      "anchor": {
+        "facing": "south",
+        "x": 120.0,
+        "z": -230.0
+      },
+      "building_id": "b_d1_education_college",
+      "notes": "v1 grid placement inside the zone box; art direction on PC may shift within the zone (TECH-DISTRICT1-BLOCKOUT \u00a72).",
+      "plot_rect_m": {
+        "d": 60,
+        "w": 60,
+        "x": 90.0,
+        "z": -290.0
+      },
+      "zone_id": "d1_education"
+    },
+    {
+      "anchor": {
+        "facing": "south",
+        "x": 245.0,
+        "z": -230.0
+      },
+      "building_id": "b_d1_education_library",
+      "notes": "v1 grid placement inside the zone box; art direction on PC may shift within the zone (TECH-DISTRICT1-BLOCKOUT \u00a72).",
+      "plot_rect_m": {
+        "d": 60,
+        "w": 60,
+        "x": 215.0,
+        "z": -290.0
+      },
+      "zone_id": "d1_education"
+    },
+    {
+      "anchor": {
+        "facing": "south",
+        "x": 120.0,
+        "z": -130.0
+      },
+      "building_id": "b_d1_education_hostels",
+      "notes": "v1 grid placement inside the zone box; art direction on PC may shift within the zone (TECH-DISTRICT1-BLOCKOUT \u00a72).",
+      "plot_rect_m": {
+        "d": 60,
+        "w": 60,
+        "x": 90.0,
+        "z": -190.0
+      },
+      "zone_id": "d1_education"
+    },
+    {
+      "anchor": {
+        "facing": "south",
+        "x": 245.0,
+        "z": -130.0
+      },
+      "building_id": "b_d1_education_shops",
+      "notes": "v1 grid placement inside the zone box; art direction on PC may shift within the zone (TECH-DISTRICT1-BLOCKOUT \u00a72).",
+      "plot_rect_m": {
+        "d": 60,
+        "w": 60,
+        "x": 215.0,
+        "z": -190.0
+      },
+      "zone_id": "d1_education"
+    },
+    {
+      "anchor": {
+        "facing": "south",
+        "x": -464.0,
+        "z": 130.0
+      },
+      "building_id": "b_d1_industry_factories",
+      "notes": "v1 grid placement inside the zone box; art direction on PC may shift within the zone (TECH-DISTRICT1-BLOCKOUT \u00a72).",
+      "plot_rect_m": {
+        "d": 60,
+        "w": 52.0,
+        "x": -490.0,
+        "z": 70.0
+      },
+      "zone_id": "d1_industry"
+    },
+    {
+      "anchor": {
+        "facing": "south",
+        "x": -399.0,
+        "z": 130.0
+      },
+      "building_id": "b_d1_industry_depot",
+      "notes": "v1 grid placement inside the zone box; art direction on PC may shift within the zone (TECH-DISTRICT1-BLOCKOUT \u00a72).",
+      "plot_rect_m": {
+        "d": 60,
+        "w": 52.0,
+        "x": -425.0,
+        "z": 70.0
+      },
+      "zone_id": "d1_industry"
+    },
+    {
+      "anchor": {
+        "facing": "south",
+        "x": -464.0,
+        "z": 240.0
+      },
+      "building_id": "b_d1_industry_construction_yard",
+      "notes": "v1 grid placement inside the zone box; art direction on PC may shift within the zone (TECH-DISTRICT1-BLOCKOUT \u00a72).",
+      "plot_rect_m": {
+        "d": 60,
+        "w": 52.0,
+        "x": -490.0,
+        "z": 180.0
+      },
+      "zone_id": "d1_industry"
+    },
+    {
+      "anchor": {
+        "facing": "south",
+        "x": -399.0,
+        "z": 240.0
+      },
+      "building_id": "b_d1_industry_staged_plot",
+      "notes": "v1 grid placement inside the zone box; art direction on PC may shift within the zone (TECH-DISTRICT1-BLOCKOUT \u00a72).",
+      "plot_rect_m": {
+        "d": 60,
+        "w": 52.0,
+        "x": -425.0,
+        "z": 180.0
+      },
+      "zone_id": "d1_industry"
+    },
+    {
+      "anchor": {
+        "facing": "south",
+        "x": -50.0,
+        "z": 245.0
+      },
+      "building_id": "b_d1_park_land",
+      "notes": "v1 grid placement inside the zone box; art direction on PC may shift within the zone (TECH-DISTRICT1-BLOCKOUT \u00a72).",
+      "plot_rect_m": {
+        "d": 60,
+        "w": 60,
+        "x": -80.0,
+        "z": 185.0
+      },
+      "zone_id": "d1_park"
+    },
+    {
+      "anchor": {
+        "facing": "south",
+        "x": 97.5,
+        "z": 245.0
+      },
+      "building_id": "b_d1_park_food_carts",
+      "notes": "v1 grid placement inside the zone box; art direction on PC may shift within the zone (TECH-DISTRICT1-BLOCKOUT \u00a72).",
+      "plot_rect_m": {
+        "d": 60,
+        "w": 60,
+        "x": 67.5,
+        "z": 185.0
+      },
+      "zone_id": "d1_park"
+    },
+    {
+      "anchor": {
+        "facing": "south",
+        "x": 386.0,
+        "z": 20.0
+      },
+      "building_id": "b_d1_transport_bus_terminal",
+      "notes": "v1 grid placement inside the zone box; art direction on PC may shift within the zone (TECH-DISTRICT1-BLOCKOUT \u00a72).",
+      "plot_rect_m": {
+        "d": 60,
+        "w": 52.0,
+        "x": 360.0,
+        "z": -40.0
+      },
+      "zone_id": "d1_transport"
+    },
+    {
+      "anchor": {
+        "facing": "south",
+        "x": 451.0,
+        "z": 20.0
+      },
+      "building_id": "b_d1_transport_station",
+      "notes": "v1 grid placement inside the zone box; art direction on PC may shift within the zone (TECH-DISTRICT1-BLOCKOUT \u00a72).",
+      "plot_rect_m": {
+        "d": 60,
+        "w": 52.0,
+        "x": 425.0,
+        "z": -40.0
+      },
+      "zone_id": "d1_transport"
+    },
+    {
+      "anchor": {
+        "facing": "south",
+        "x": 386.0,
+        "z": 185.0
+      },
+      "building_id": "b_d1_transport_stands",
+      "notes": "v1 grid placement inside the zone box; art direction on PC may shift within the zone (TECH-DISTRICT1-BLOCKOUT \u00a72).",
+      "plot_rect_m": {
+        "d": 60,
+        "w": 52.0,
+        "x": 360.0,
+        "z": 125.0
+      },
+      "zone_id": "d1_transport"
+    },
+    {
+      "anchor": {
+        "facing": "south",
+        "x": 260.0,
+        "z": 366.3
+      },
+      "building_id": "b_d1_uptown_luxury_apts",
+      "notes": "v1 grid placement inside the zone box; art direction on PC may shift within the zone (TECH-DISTRICT1-BLOCKOUT \u00a72).",
+      "plot_rect_m": {
+        "d": 21.3,
+        "w": 60,
+        "x": 230.0,
+        "z": 345.0
+      },
+      "zone_id": "d1_uptown"
+    },
+    {
+      "anchor": {
+        "facing": "south",
+        "x": 346.7,
+        "z": 366.3
+      },
+      "building_id": "b_d1_uptown_showpiece_flat",
+      "notes": "v1 grid placement inside the zone box; art direction on PC may shift within the zone (TECH-DISTRICT1-BLOCKOUT \u00a72).",
+      "plot_rect_m": {
+        "d": 21.3,
+        "w": 60,
+        "x": 316.7,
+        "z": 345.0
+      },
+      "zone_id": "d1_uptown"
+    },
+    {
+      "anchor": {
+        "facing": "south",
+        "x": 433.3,
+        "z": 366.3
+      },
+      "building_id": "b_d1_uptown_rooftop_flat",
+      "notes": "v1 grid placement inside the zone box; art direction on PC may shift within the zone (TECH-DISTRICT1-BLOCKOUT \u00a72).",
+      "plot_rect_m": {
+        "d": 21.3,
+        "w": 60,
+        "x": 403.3,
+        "z": 345.0
+      },
+      "zone_id": "d1_uptown"
+    },
+    {
+      "anchor": {
+        "facing": "south",
+        "x": 260.0,
+        "z": 393.0
+      },
+      "building_id": "b_d1_uptown_tier4_houses",
+      "notes": "v1 grid placement inside the zone box; art direction on PC may shift within the zone (TECH-DISTRICT1-BLOCKOUT \u00a72).",
+      "plot_rect_m": {
+        "d": 21.3,
+        "w": 60,
+        "x": 230.0,
+        "z": 371.7
+      },
+      "zone_id": "d1_uptown"
+    },
+    {
+      "anchor": {
+        "facing": "south",
+        "x": 346.7,
+        "z": 393.0
+      },
+      "building_id": "b_d1_uptown_offices",
+      "notes": "v1 grid placement inside the zone box; art direction on PC may shift within the zone (TECH-DISTRICT1-BLOCKOUT \u00a72).",
+      "plot_rect_m": {
+        "d": 21.3,
+        "w": 60,
+        "x": 316.7,
+        "z": 371.7
+      },
+      "zone_id": "d1_uptown"
+    },
+    {
+      "anchor": {
+        "facing": "south",
+        "x": 433.3,
+        "z": 393.0
+      },
+      "building_id": "b_d1_uptown_premium_shops",
+      "notes": "v1 grid placement inside the zone box; art direction on PC may shift within the zone (TECH-DISTRICT1-BLOCKOUT \u00a72).",
+      "plot_rect_m": {
+        "d": 21.3,
+        "w": 60,
+        "x": 403.3,
+        "z": 371.7
+      },
+      "zone_id": "d1_uptown"
+    },
+    {
+      "anchor": {
+        "facing": "south",
+        "x": 260.0,
+        "z": 419.6
+      },
+      "building_id": "b_d1_uptown_rooftop_restaurant",
+      "notes": "v1 grid placement inside the zone box; art direction on PC may shift within the zone (TECH-DISTRICT1-BLOCKOUT \u00a72).",
+      "plot_rect_m": {
+        "d": 21.3,
+        "w": 60,
+        "x": 230.0,
+        "z": 398.3
+      },
+      "zone_id": "d1_uptown"
+    }
+  ],
+  "river": {
+    "band": {
+      "x0": -520,
+      "x1": 520,
+      "z0": 432,
+      "z1": 520
+    },
+    "bridge": {
+      "segment_ref": "seg_bridge_approach",
+      "status": "approach built; crossing is a Phase 8 travel gate (GDD-02 \u00a74)"
+    },
+    "flow": "west to east",
+    "ghat": {
+      "at": [
+        0,
+        432
+      ],
+      "name": "Rupsha Ghat \u2014 steps to the water (b_d1_riverfront_launch_terminal anchor)"
+    },
+    "name": "Rupsha River",
+    "notes": "Riverfront anchors close under storm (GDD-06 \u00a77). Launch/ferry routes are Phase 8; v1 river is edge, view and weather surface."
+  },
+  "road_segments": [
+    {
+      "class": "arterial",
+      "from": [
+        0,
+        -500
+      ],
+      "id": "seg_civic_ave_n",
+      "name": "Civic Ave (north)",
+      "to": [
+        0,
+        -60
+      ],
+      "width_m": 16
+    },
+    {
+      "class": "arterial",
+      "from": [
+        0,
+        -60
+      ],
+      "id": "seg_civic_ave_s",
+      "name": "Civic Ave (south)",
+      "to": [
+        0,
+        420
+      ],
+      "width_m": 16
+    },
+    {
+      "class": "arterial",
+      "from": [
+        -500,
+        -60
+      ],
+      "id": "seg_river_road_w",
+      "name": "River Road (west)",
+      "to": [
+        0,
+        -60
+      ],
+      "width_m": 16
+    },
+    {
+      "class": "arterial",
+      "from": [
+        0,
+        -60
+      ],
+      "id": "seg_river_road_e",
+      "name": "River Road (east)",
+      "to": [
+        500,
+        -60
+      ],
+      "width_m": 16
+    },
+    {
+      "class": "collector",
+      "from": [
+        -350,
+        -300
+      ],
+      "id": "seg_ring_n",
+      "name": "Collector Ring (north)",
+      "to": [
+        350,
+        -300
+      ],
+      "width_m": 10
+    },
+    {
+      "class": "collector",
+      "from": [
+        350,
+        -300
+      ],
+      "id": "seg_ring_e",
+      "name": "Collector Ring (east)",
+      "to": [
+        350,
+        300
+      ],
+      "width_m": 10
+    },
+    {
+      "class": "collector",
+      "from": [
+        -350,
+        300
+      ],
+      "id": "seg_ring_s",
+      "name": "Collector Ring (south)",
+      "to": [
+        350,
+        300
+      ],
+      "width_m": 10
+    },
+    {
+      "class": "collector",
+      "from": [
+        -350,
+        -300
+      ],
+      "id": "seg_ring_w",
+      "name": "Collector Ring (west)",
+      "to": [
+        -350,
+        300
+      ],
+      "width_m": 10
+    },
+    {
+      "class": "local",
+      "from": [
+        60,
+        -60
+      ],
+      "id": "seg_market_spine",
+      "name": "Market Spine",
+      "pedestrian_priority": "07:00-22:00 bollards up; delivery vehicles only before 07:00 (GDD-02 \u00a73)",
+      "to": [
+        60,
+        180
+      ],
+      "width_m": 8
+    },
+    {
+      "class": "local",
+      "from": [
+        200,
+        60
+      ],
+      "id": "seg_midtown_local",
+      "name": "Midtown Local",
+      "to": [
+        200,
+        300
+      ],
+      "width_m": 8
+    },
+    {
+      "class": "local",
+      "from": [
+        -200,
+        60
+      ],
+      "id": "seg_oldtown_local",
+      "name": "Old Town Local",
+      "to": [
+        -200,
+        300
+      ],
+      "width_m": 8
+    },
+    {
+      "class": "local",
+      "from": [
+        200,
+        -300
+      ],
+      "id": "seg_education_local",
+      "name": "College Para Local",
+      "to": [
+        200,
+        -80
+      ],
+      "width_m": 8
+    },
+    {
+      "class": "local",
+      "from": [
+        -200,
+        -300
+      ],
+      "id": "seg_civic_local",
+      "name": "Civic Local",
+      "to": [
+        -200,
+        -80
+      ],
+      "width_m": 8
+    },
+    {
+      "class": "local",
+      "from": [
+        -420,
+        -60
+      ],
+      "id": "seg_industry_local",
+      "name": "Industry Local",
+      "to": [
+        -420,
+        300
+      ],
+      "width_m": 8
+    },
+    {
+      "class": "local",
+      "from": [
+        420,
+        -60
+      ],
+      "id": "seg_transport_local",
+      "name": "Station Local",
+      "to": [
+        420,
+        300
+      ],
+      "width_m": 8
+    },
+    {
+      "class": "local",
+      "from": [
+        350,
+        330
+      ],
+      "id": "seg_uptown_local",
+      "name": "Uptown Local",
+      "to": [
+        460,
+        390
+      ],
+      "width_m": 8
+    },
+    {
+      "class": "lane",
+      "from": [
+        -290,
+        120
+      ],
+      "id": "seg_goli_1",
+      "name": "Old Town Goli 1",
+      "to": [
+        -110,
+        120
+      ],
+      "width_m": 3.5
+    },
+    {
+      "class": "lane",
+      "from": [
+        -290,
+        200
+      ],
+      "id": "seg_goli_2",
+      "name": "Old Town Goli 2",
+      "to": [
+        -110,
+        200
+      ],
+      "width_m": 3.5
+    },
+    {
+      "class": "lane",
+      "from": [
+        -290,
+        260
+      ],
+      "id": "seg_goli_3",
+      "name": "Old Town Goli 3",
+      "to": [
+        -160,
+        260
+      ],
+      "width_m": 4
+    },
+    {
+      "class": "promenade",
+      "from": [
+        -400,
+        405
+      ],
+      "id": "seg_promenade",
+      "name": "Riverside Promenade",
+      "to": [
+        400,
+        405
+      ],
+      "width_m": 6
+    },
+    {
+      "class": "arterial",
+      "from": [
+        460,
+        340
+      ],
+      "id": "seg_bridge_approach",
+      "name": "Rupsha Bridge Approach",
+      "notes": "Bridge itself is a Phase 8 travel gate; approach + toll plaza built in District 1 (GDD-02 \u00a74).",
+      "to": [
+        520,
+        465
+      ],
+      "width_m": 12
+    }
+  ],
+  "source_doc": "docs/TECH-DISTRICT1-BLOCKOUT.md (Unit R). Zones, road hierarchy and landmarks from docs/GDD-02-RUPSHA-CITY-DISTRICT1.md; building ids are data/buildings-district1.json verbatim (1:1, validator-checked).",
+  "version": "1.0",
+  "zone_boxes_m": {
+    "d1_civic": {
+      "x0": -340,
+      "x1": -90,
+      "z0": -290,
+      "z1": -90
+    },
+    "d1_education": {
+      "x0": 90,
+      "x1": 340,
+      "z0": -290,
+      "z1": -90
+    },
+    "d1_industry": {
+      "x0": -490,
+      "x1": -360,
+      "z0": 70,
+      "z1": 290
+    },
+    "d1_market": {
+      "x0": 25,
+      "x1": 215,
+      "z0": -40,
+      "z1": 170
+    },
+    "d1_midtown": {
+      "x0": 90,
+      "x1": 340,
+      "z0": 70,
+      "z1": 290
+    },
+    "d1_oldtown": {
+      "x0": -340,
+      "x1": -90,
+      "z0": 70,
+      "z1": 290
+    },
+    "d1_park": {
+      "x0": -80,
+      "x1": 215,
+      "z0": 185,
+      "z1": 325
+    },
+    "d1_riverfront": {
+      "x0": -340,
+      "x1": 215,
+      "z0": 345,
+      "z1": 425
+    },
+    "d1_transport": {
+      "x0": 360,
+      "x1": 490,
+      "z0": -40,
+      "z1": 290
+    },
+    "d1_uptown": {
+      "x0": 230,
+      "x1": 490,
+      "z0": 345,
+      "z1": 425
+    }
+  }
+}
