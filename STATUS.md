@@ -118,3 +118,11 @@ Notes:
 - UE5 work in this VM is docs + uncompiled code scaffolding only; first real UE build is Phase 1 on the owner's PC.
 - Godot testbed: 8/8 tests pass, Windows exe built locally (not in git — 105 MB).
 - Previous block (2026-11-21 ~00:24): `create_branch feat/unit-b-c` approval card timed out after two earlier attempts were cut by service restarts. Work was safe in local commit `6e736d2`; recovery was attempted in this run (see "Push block" section above) and is now recorded for the next run.
+
+## Session 01 — Autonomous Human Intelligence & Life Simulation Engine (2026-11-21)
+
+- **COMPLETE.** All 10 units implemented as a deterministic Python simulation core at `tools/sim/` (stdlib only, SQLite mirroring `data/schema.sql` — the PostgreSQL file untouched), population/world data only from the merged files. This is also the audit's Unit AD (Headless Simulation Core v1); `docs/AUDIT-AND-CHECKLIST.md` rides this batch to GitHub.
+- **Proof:** 53 automated tests (`tools/sim/tests/`) — per-unit + acceptance + no-regression — all passing (`Ran 53 tests … OK`). Determinism (same seed → identical summary) and save/restore identity (15d + restart + 15d ≡ 30d uninterrupted) are tested, not claimed. Economy reconciliation: a lone entry-tier teacher nets economy_sim v2's figure within 2 NCr. No-regression: economy_sim output md5 `16740182867525bd659735deeb05150a` (baseline-identical), Godot `PLAYER_TEST_PASS` 8/8, `tools/validate_data.py` green.
+- **Performance (measured):** 100 agents × 30 days ≈ 2.5 s (audit bar < 60 s); 242 agents × 90 days = 17.8 s. 90-day run: 250 alive (9 births, 1 death with inheritance), 0 ledger mismatches.
+- **Full detail:** `docs/SESSION-01-REPORT.md` (units, files, DB gaps vs schema.sql, canonical-source choices, limitations — pension figure is a labelled sim assumption; move-house decision absent because properties carry no rent column for vacant units).
+- **GATE RULE (owner, 2026-11-21 08:32):** a later Session never starts until the current Session is genuinely implemented AND tested. Session 01 meets that bar — **the Session 02 gate is now OPEN**; Session 02 (Family, Society & Social Civilization Engine, 12 units, spec on record) starts only on the owner's order.
