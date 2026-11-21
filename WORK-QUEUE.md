@@ -86,6 +86,28 @@ Design/data/scaffold layer, same scope limits, honesty rules and GitHub batching
 
 **Queue 5 result:** Units Y–AC completed and merged 2026-11-21 (PR #10 for Y+Z+AA; AB+AC in the finisher batch — see STATUS.md).
 
+---
+
+# Session 01 — Autonomous Human Intelligence & Life Simulation Engine (owner order "BEGIN SESSION 01", 2026-11-21 08:30)
+
+**STANDING GATE RULE (owner, 2026-11-21 08:32):** a later Session's implementation NEVER starts until the current Session's every unit is genuinely implemented AND tested with acceptance criteria passing. **Session 02 (Family, Society & Social Civilization Engine, 12 units) is QUEUED/LOCKED behind Session 01** — its spec is on record with the owner; no Session 02 work may begin until Session 01 completes under this rule.
+
+**Strict completion rule (owner):** no unit counts as done without functioning logic, persistent data, and verified simulation behaviour proven by automated tests. **Implementation form:** a real, runnable, deterministic Python simulation core at `tools/sim/` (stdlib only), SQLite persistence mirroring `data/schema.sql` (the PostgreSQL file remains the Phase 9 server schema and is NOT rewritten), population/world data only from the merged files. This session is also the audit's **Unit AD — Headless Simulation Core v1**; its 9 completion criteria are adopted into the acceptance suite. The UE layer is untouched by this session — the sim is the headless core the UE/save design maps onto.
+
+- [x] **Unit 01 — Human Identity Engine** (`tools/sim/identity.py`): persistent unique identities (Human ID, names, derived age, birthplace, nationality, family background, goals), profile card read from live rows.
+- [x] **Unit 02 — Personality Engine** (`tools/sim/personality.py`): 12-attribute profiles, GDD-01's 5 canonical traits derived by fixed mapping, profession affinities, clamped drift, compatibility.
+- [x] **Unit 03 — Human Memory Engine** (`tools/sim/memory.py`): episodic memory (Full tier, cap 200, weakest forgotten first), semantic memory on relationship edges, world life-event log.
+- [x] **Unit 04 — Daily Life Engine** (`tools/sim/scheduler.py`): GDD-06 template instantiation, fixed per-NPC jitter, Friday/Saturday weekend rules transcribed from the data's notes, needs bending, weather interrupts, rest days; full-day coverage invariant.
+- [x] **Unit 05 — Human Needs Engine** (`tools/sim/needs.py`): 10 needs as satisfactions driven by activity, meals, and daily economic facts.
+- [x] **Unit 06 — Emotional Simulation Engine** (`tools/sim/emotions.py`): 9 emotions, event-driven deltas only, personality baselines + sensitivity scaling.
+- [x] **Unit 07 — Family & Relationship Engine** (`tools/sim/relationships.py`): persistent directional edges, semantic flags, marriage + household merge, childbirth, weekly drift.
+- [x] **Unit 08 — Human Decision-Making Engine** (`tools/sim/decisions.py`): utility decisions from personality+needs+emotions+memory+resources+goals; every decision logged and changes real state (employment, promotion, business founding, home purchase, marriage, children, socialising, rest).
+- [x] **Unit 09 — Life Cycle Engine** (`tools/sim/lifecycle.py`): derived life stages, transitions, retirement at 65, death with the full GDD-01 §6.4 inheritance cascade.
+- [x] **Unit 10 — Human Interaction Engine** (`tools/sim/interaction.py`): co-located encounters by zone/anchor/time — bonding, friendship formation, partnership formation, conflicts, household family time.
+- [x] **Engine + population + acceptance** (`tools/sim/engine.py`, `population.py`, `persistence.py`, `__main__.py`; tests in `tools/sim/tests/`): District 1 starter population from merged data only; tick = block boundaries + daily rollover; monthly settlement reconciling with economy_sim v2; 53 automated tests (per-unit + acceptance + no-regression) all passing; report at `docs/SESSION-01-REPORT.md`.
+
+**Session 01 result:** COMPLETE 2026-11-21 — all 10 units implemented and test-proven; the Session 02 gate is now OPEN under the owner's standing rule (Session 02 itself starts only on the owner's order).
+
 ## Status
 
 See `STATUS.md` (updated every unit).
