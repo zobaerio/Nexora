@@ -72,6 +72,7 @@ from . import kinship as kinship_mod
 from . import mobility as mobility_mod
 from . import social as social_mod
 from . import transport as transport_mod
+from . import environment as environment_mod
 from . import identity as identity_mod
 from . import interaction as interaction_mod
 from . import lifecycle
@@ -133,6 +134,12 @@ class Simulation:
         # population's taxi drivers) — hand-built worlds have no
         # Session 07 layer and every Session 07 pass no-ops.
         stats["transport"] = transport_mod.setup_transport(
+            self.store, self.data, 480)
+        # Session 08: the environment layer seeds after the city
+        # layer exists (water state, soil, vegetation, wildlife)
+        # — hand-built worlds have no Session 08 layer and every
+        # Session 08 pass no-ops.
+        stats["environment"] = environment_mod.setup_environment(
             self.store, self.data, 480)
         return stats
 
@@ -336,6 +343,13 @@ class Simulation:
         if transport_mod.is_setup(store):
             transport_mod.daily_pass(store, data, self.rng, day,
                                      day_end, preset)
+        # Session 08: the environmental day — regional weather,
+        # hydrology, flood episodes, configured disaster
+        # scenarios, recovery. Runs last so today's flood road
+        # closures govern tomorrow's routing.
+        if environment_mod.is_setup(store):
+            environment_mod.daily_pass(store, data, self.rng, day,
+                                       day_end)
         if day % 7 == 6:
             rel.weekly_drift(store, day_end)
             self._weekly_social(day_end)
@@ -363,6 +377,7 @@ class Simulation:
             self._monthly_government(day)
             self._monthly_humandev(day)
             self._monthly_transport(day)
+            self._monthly_environment(day)
         store.set_world(game_minutes=day_end, day_index=day + 1,
                         weather_preset=preset)
         store.commit()
@@ -549,6 +564,20 @@ class Simulation:
         month_index = (last_day + 1) // 30
         transport_mod.monthly_pass(store, data, self.rng, month_index,
                                    game_minutes)
+
+    # -- Session 08 environment cadence -------------------------
+    # Monthly, last: agriculture cycles, pollution indices,
+    # vegetation/wildlife drift and the climate trend snapshots
+    # all read the settled month (transport statistics included).
+
+    def _monthly_environment(self, last_day):
+        store, data = self.store, self.data
+        if not environment_mod.is_setup(store):
+            return
+        game_minutes = (last_day + 1) * 1440
+        month_index = (last_day + 1) // 30
+        environment_mod.monthly_pass(store, data, self.rng,
+                                     month_index, game_minutes)
 
     def run_days(self, n):
         for _ in range(n):
@@ -1067,6 +1096,9 @@ class Simulation:
             # set up).
             "transport": transport_mod.transport_summary(store)
             if transport_mod.is_setup(store) else {},
+            # Session 08 environment layer (empty when not set up).
+            "environment": environment_mod.environment_summary(store)
+            if environment_mod.is_setup(store) else {},
         }
 
     def _humandev_summary(self):

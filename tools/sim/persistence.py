@@ -1537,6 +1537,138 @@ CREATE TABLE IF NOT EXISTS transport_statistics (
     statistics TEXT NOT NULL DEFAULT '{}',
     UNIQUE (scope, month_index)
 );
+-- Session 08 environment layer: regional weather, hydrology,
+-- soil/crops, vegetation/wildlife indices, pollution, trends and
+-- disaster records. schema.sql has no environmental model; gap.
+CREATE TABLE IF NOT EXISTS env_weather (
+    region_id TEXT NOT NULL,
+    day_index INTEGER NOT NULL,
+    preset_id TEXT NOT NULL,
+    season_id TEXT NOT NULL,
+    temp_day_c REAL NOT NULL DEFAULT 0,
+    temp_night_c REAL NOT NULL DEFAULT 0,
+    humidity_pct REAL NOT NULL DEFAULT 0,
+    pressure_hpa REAL NOT NULL DEFAULT 1013,
+    wind_kmh REAL NOT NULL DEFAULT 0,
+    wind_dir_deg REAL NOT NULL DEFAULT 0,
+    cloud_pct REAL NOT NULL DEFAULT 0,
+    precip_mm REAL NOT NULL DEFAULT 0,
+    visibility_km REAL NOT NULL DEFAULT 20,
+    sunrise_min INTEGER NOT NULL DEFAULT 360,
+    sunset_min INTEGER NOT NULL DEFAULT 1080,
+    PRIMARY KEY (region_id, day_index)
+);
+CREATE TABLE IF NOT EXISTS env_water_state (
+    city_id TEXT PRIMARY KEY,
+    river_level_m REAL NOT NULL DEFAULT 1.2,
+    surface_storage_mm REAL NOT NULL DEFAULT 0,
+    groundwater_index REAL NOT NULL DEFAULT 0.7,
+    flood_active INTEGER NOT NULL DEFAULT 0,
+    updated_day INTEGER NOT NULL DEFAULT 0
+);
+CREATE TABLE IF NOT EXISTS env_events (
+    event_id TEXT PRIMARY KEY,
+    city_id TEXT NOT NULL,
+    kind TEXT NOT NULL,
+    day_index INTEGER NOT NULL,
+    details TEXT NOT NULL DEFAULT '{}',
+    game_minutes INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_envevents_city
+    ON env_events(city_id, day_index);
+CREATE TABLE IF NOT EXISTS env_soil (
+    parcel_id TEXT PRIMARY KEY,
+    moisture REAL NOT NULL DEFAULT 0.5,
+    fertility REAL NOT NULL DEFAULT 0.7,
+    updated_day INTEGER NOT NULL DEFAULT 0
+);
+CREATE TABLE IF NOT EXISTS env_crops (
+    crop_record_id TEXT PRIMARY KEY,
+    parcel_id TEXT NOT NULL,
+    city_id TEXT NOT NULL,
+    crop_id TEXT NOT NULL,
+    planted_month INTEGER NOT NULL DEFAULT 0,
+    planted_day INTEGER NOT NULL DEFAULT 0,
+    growth_score REAL NOT NULL DEFAULT 0,
+    status TEXT NOT NULL DEFAULT 'growing',
+    harvest_units REAL NOT NULL DEFAULT 0,
+    updated_day INTEGER NOT NULL DEFAULT 0
+);
+CREATE INDEX IF NOT EXISTS idx_envcrops_parcel
+    ON env_crops(parcel_id, status);
+CREATE TABLE IF NOT EXISTS env_vegetation (
+    region_key TEXT PRIMARY KEY,
+    city_id TEXT NOT NULL,
+    name TEXT,
+    habitat_class TEXT NOT NULL,
+    cover_index REAL NOT NULL DEFAULT 0.5,
+    updated_day INTEGER NOT NULL DEFAULT 0
+);
+CREATE TABLE IF NOT EXISTS env_wildlife (
+    region_key TEXT PRIMARY KEY,
+    city_id TEXT NOT NULL,
+    habitat_class TEXT NOT NULL,
+    population_index REAL NOT NULL DEFAULT 0.5,
+    updated_day INTEGER NOT NULL DEFAULT 0
+);
+CREATE TABLE IF NOT EXISTS env_pollution (
+    city_id TEXT NOT NULL,
+    month_index INTEGER NOT NULL,
+    air_index REAL NOT NULL DEFAULT 0,
+    water_index REAL NOT NULL DEFAULT 0,
+    sources TEXT NOT NULL DEFAULT '{}',
+    game_minutes INTEGER NOT NULL,
+    PRIMARY KEY (city_id, month_index)
+);
+CREATE TABLE IF NOT EXISTS env_snapshots (
+    city_id TEXT NOT NULL,
+    month_index INTEGER NOT NULL,
+    metrics TEXT NOT NULL DEFAULT '{}',
+    game_minutes INTEGER NOT NULL,
+    PRIMARY KEY (city_id, month_index)
+);
+CREATE TABLE IF NOT EXISTS disaster_events (
+    disaster_id TEXT PRIMARY KEY,
+    scenario_id TEXT,
+    disaster_type TEXT NOT NULL,
+    city_id TEXT NOT NULL,
+    intensity REAL NOT NULL DEFAULT 0,
+    status TEXT NOT NULL DEFAULT 'active',
+    started_day INTEGER NOT NULL,
+    ends_day INTEGER,
+    affected_population INTEGER NOT NULL DEFAULT 0,
+    damage_estimate_ncr INTEGER NOT NULL DEFAULT 0,
+    relief_paid_ncr INTEGER NOT NULL DEFAULT 0,
+    repair_spent_ncr INTEGER NOT NULL DEFAULT 0,
+    details TEXT NOT NULL DEFAULT '{}',
+    created_at_game_minutes INTEGER NOT NULL DEFAULT 0,
+    recovered_at_game_minutes INTEGER
+);
+CREATE TABLE IF NOT EXISTS disaster_impacts (
+    impact_id TEXT PRIMARY KEY,
+    disaster_id TEXT NOT NULL,
+    kind TEXT NOT NULL,
+    ref_id TEXT NOT NULL,
+    city_id TEXT NOT NULL,
+    zone_id TEXT,
+    damage REAL NOT NULL DEFAULT 0,
+    repaired REAL NOT NULL DEFAULT 0,
+    details TEXT NOT NULL DEFAULT '{}',
+    game_minutes INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_disimpacts_disaster
+    ON disaster_impacts(disaster_id, kind);
+CREATE TABLE IF NOT EXISTS disaster_responses (
+    response_id TEXT PRIMARY KEY,
+    disaster_id TEXT NOT NULL,
+    action TEXT NOT NULL,
+    ref_id TEXT,
+    amount_ncr INTEGER NOT NULL DEFAULT 0,
+    details TEXT NOT NULL DEFAULT '{}',
+    game_minutes INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_disresponses_disaster
+    ON disaster_responses(disaster_id);
 """
 
 # Additive column migrations for tables that predate a session.
@@ -1556,6 +1688,7 @@ MIGRATIONS = (
     ("examination_results", "jitter", "REAL NOT NULL DEFAULT 0"),
     ("world_state", "transport_setup", "INTEGER NOT NULL DEFAULT 0"),
     ("road_segments", "closed", "INTEGER NOT NULL DEFAULT 0"),
+    ("world_state", "environment_setup", "INTEGER NOT NULL DEFAULT 0"),
 )
 
 SYSTEM_ACCOUNTS = ("SYS-CITY", "SYS-EMPLOYERS", "SYS-MARKET", "SYS-BANK")

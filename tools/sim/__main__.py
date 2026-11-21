@@ -87,9 +87,21 @@ def main(argv=None):
     ap.add_argument("--transport", action="store_true",
                     help="transport: vehicles, trips, congestion,"
                          " transit, freight, statistics")
+    # Session 08 environment observation: real sim data only.
+    ap.add_argument("--environment", action="store_true",
+                    help="environment: regional weather, water,"
+                         " soil, crops, pollution, disasters,"
+                         " climate trends (all simulated)")
     args = ap.parse_args(argv)
 
     sim = Simulation(args.db, seed=args.seed)
+    if args.environment:
+        from tools.sim import environmentview
+        out = environmentview.environment_view(sim.store, sim.data)
+        print(json.dumps(out, indent=1, sort_keys=True,
+                         default=str))
+        sim.close()
+        return 0
     if args.transport:
         from tools.sim import transportview
         out = transportview.transport_view(sim.store, sim.data)

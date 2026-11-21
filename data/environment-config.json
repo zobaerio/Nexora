@@ -1,0 +1,264 @@
+{
+ "active_climate_scenario": "baseline",
+ "agriculture": {
+  "basis": "SIM MODEL crop cycles on the real agricultural parcels (land_parcels with zoning_category 'agricultural'). Planting follows the season calendar below; growth is scored monthly from the parcel's soil moisture + fertility and the city's recorded rainfall; harvest adds agricultural_produce lots to the city's agriculture business inventory through Session 04's adjust_inventory (movement kind 'harvest'), so the produce enters the real market and farm economics flow through the existing ledger/market machinery — no crop price is invented here (agricultural_produce's price is Session 04's own). A crop whose growth score falls under the failure threshold (drought, flood saturation, poor soil) fails by record and yields nothing.",
+  "crops": [
+   {
+    "growth_months": 3,
+    "id": "aman_paddy",
+    "min_moisture": 0.45,
+    "name": "Aman paddy",
+    "plant_season": "monsoon",
+    "yield_units_per_parcel": 40
+   },
+   {
+    "growth_months": 2,
+    "id": "winter_vegetables",
+    "min_moisture": 0.25,
+    "name": "Winter vegetables",
+    "plant_season": "late_autumn",
+    "yield_units_per_parcel": 25
+   },
+   {
+    "growth_months": 3,
+    "id": "boro_paddy",
+    "min_moisture": 0.35,
+    "name": "Boro paddy",
+    "plant_season": "winter",
+    "yield_units_per_parcel": 35
+   }
+  ],
+  "growth_failure_threshold": 0.35,
+  "growth_ideal_moisture": 0.6
+ },
+ "armed_scenarios": [],
+ "climate_scenarios": {
+  "baseline": {
+   "rain_factor": 1.0,
+   "temp_delta_c": 0.0
+  },
+  "basis": "Configurable long-term deltas, applied transparently and recorded on every monthly snapshot: the active scenario name travels with the data, so a warmed world's numbers are never presented as the baseline world's.",
+  "warming_drier": {
+   "rain_factor": 0.85,
+   "temp_delta_c": 2.0
+  },
+  "warming_wetter": {
+   "rain_factor": 1.15,
+   "temp_delta_c": 1.5
+  }
+ },
+ "daylight": {
+  "base_sunrise_min": 360,
+  "base_sunset_min": 1080,
+  "basis": "SIM MODEL documented approximation for a near-equatorial delta latitude: sunrise 06:00 / sunset 18:00 shifted by the season's daylight_amplitude_min (earlier sunrise and later sunset by that many minutes in summer, the reverse in winter). An approximation for routines and lighting, not an astronomical calculation."
+ },
+ "disaster_response": {
+  "basis": "SIM MODEL response over ACTUAL resources only. Relief: a per-displaced-household payment from the city's municipal treasury account (Session 05) — or SYS-CITY when no government layer exists — through the ledger with transfer_key + event_ref = the disaster id, capped by the treasury's real balance and the monthly relief cap. Shelter: a real civic-owned building in a non-exposed zone of the same city (recorded; if none exists, shelter is recorded as unavailable — never invented). Evacuation: one recorded trip per displaced household head through the trips table (walk mode to the shelter zone, purpose 'evacuation', disaster id in details) — the Session 07 journey record. Medical: displaced residents are flagged in the response record for the Session 06 clinic queue via their existing health profiles (no parallel medical system). Repair: during recovery, treasury funds move to SYS-MARKET (reason 'disaster_repair', event_ref = disaster id) and exposed buildings regain condition at repair_condition_per_1000_ncr until their recorded damage is repaired; the disaster closes as 'recovered' only when damage is repaired and relief is paid.",
+  "monthly_relief_cap_ncr": 400000,
+  "relief_ncr_per_household": 3000,
+  "repair_condition_per_1000_ncr": 2.0,
+  "repair_daily_budget_ncr": 20000
+ },
+ "flood_model": {
+  "basis": "SIM MODEL. A flood episode starts in a city when its river level reaches flood_level_m (hydrology) or a flood/cyclone scenario forces it. Exposure is geographic, from Session 03 terrain: parcels whose centre sits in a floodplain or wetland region, plus zones intersecting those regions. During an episode: road segments whose endpoints lie in exposed zones are closed (road_segments.closed — Session 07 routing detours), exposed buildings lose condition per day, businesses in exposed buildings record a flood disruption event, households resident in exposed zones are displaced by record (shelter in a real civic building in a safe zone), and residents of exposed zones take a measured needs impact (healthcare/safety) through needs.adjust. The episode ends when the river falls below flood_level_m - hysteresis; recovery then repairs condition from the treasury (see disaster_response).",
+  "building_condition_loss_per_day": 4.0,
+  "hysteresis_m": 0.5,
+  "min_building_condition": 25.0
+ },
+ "governance": {
+  "basis": "Session 05's law book is the only governance channel: laws are proposed/debated/enacted through justice.py (Session 08 adds the 'emission_limit' kind and its constitutional bounds in government-config.json). environment.py reads the law book the same way justice.py's own hooks do — an enacted emission_limit law measurably changes pollution trajectories and vegetation recovery; with no law enacted, behaviour is exactly the unregulated model.",
+  "law_field": "reduction_percent",
+  "law_kind": "emission_limit"
+ },
+ "notes": "SIMULATED conditions only. Nothing in this layer is a real-world weather observation or a scientific forecast. Disasters occur ONLY when a scenario listed under 'scenarios' is explicitly triggered (by a test, a scenario run, or a future operator action); the standard world config arms none of them ('armed_scenarios': []). Hydrological flooding is different: it is a mechanism, not a scenario — accumulated rainfall over drainage capacity raises river levels and can flood exposed ground in any world, exactly as the water model states.",
+ "pollution_model": {
+  "air_health_need_delta": -2.0,
+  "air_health_threshold": 45.0,
+  "basis": "SIM MODEL indices (0..100) per city per month, every point traceable to a recorded source: AIR = vehicle emissions (Session 07 transport_statistics emissions_kg for the month, scaled) + industry (active manufacturing/agriculture businesses x industry_weight). WATER = wastewater/drainage overload share (Session 03 infrastructure_state) + flood episodes in the month x flood_weight. An enacted emission_limit law (Session 05 law book, kind 'emission_limit', field 'reduction_percent') reduces the industry component by that percent from its effective month — the governance hook, test-proven. Consequences are measured: a city whose air index exceeds air_health_threshold applies a small healthcare-need impact to its residents that month (needs.adjust, recorded), and water quality is reported in the observatory.",
+  "flood_water_weight": 12.0,
+  "industry_weight": 2.0,
+  "vehicle_emissions_kg_per_index_point": 900.0,
+  "wastewater_overload_weight": 30.0
+ },
+ "regions": {
+  "rupsha_city": {
+   "rain_factor": 1.0,
+   "temp_offset_c": 0.0,
+   "wind_factor": 1.0
+  },
+  "shibnagar_town": {
+   "rain_factor": 1.1,
+   "temp_offset_c": -1.0,
+   "wind_factor": 0.9
+  }
+ },
+ "scenarios": [
+  {
+   "basis": "SIM MODEL scenario: extreme wind + rain surge — forces storm presets, raises river level by surge_m, damages exposed buildings, closes exposed roads.",
+   "city_id": "rupsha_city",
+   "duration_days": 3,
+   "id": "cyclone_rupsha",
+   "intensity": 0.8,
+   "type": "cyclone"
+  },
+  {
+   "basis": "SIM MODEL scenario: an upstream surge raises the river directly into flood.",
+   "city_id": "rupsha_city",
+   "duration_days": 5,
+   "id": "flood_surge_rupsha",
+   "intensity": 0.7,
+   "type": "flood_surge"
+  },
+  {
+   "basis": "SIM MODEL scenario: rainfall scaled by (1 - intensity x 0.8) in the affected city for the duration; rivers and groundwater fall; crops stress.",
+   "city_id": "rupsha_city",
+   "duration_days": 60,
+   "id": "drought_season",
+   "intensity": 0.6,
+   "type": "drought"
+  },
+  {
+   "basis": "SIM MODEL scenario: as drought_season, for Shibnagar Town.",
+   "city_id": "shibnagar_town",
+   "duration_days": 60,
+   "id": "drought_shibnagar",
+   "intensity": 0.6,
+   "type": "drought"
+  },
+  {
+   "basis": "SIM MODEL scenario: temperatures offset by +intensity x 6 C; residents take a measured healthcare/rest needs impact; water draw rises.",
+   "city_id": "rupsha_city",
+   "duration_days": 10,
+   "id": "heatwave_rupsha",
+   "intensity": 0.7,
+   "type": "heatwave"
+  },
+  {
+   "basis": "SIM MODEL scenario: storm presets with building damage on exposed (floodplain/wetland-adjacent) structures.",
+   "city_id": "shibnagar_town",
+   "duration_days": 2,
+   "id": "severe_storm_shibnagar",
+   "intensity": 0.6,
+   "type": "severe_storm"
+  }
+ ],
+ "seasons": [
+  {
+   "day_of_year_end": 364,
+   "day_of_year_start": 335,
+   "daylight_amplitude_min": -55,
+   "id": "winter",
+   "name": "Sheet (winter)",
+   "rain_factor": 0.15,
+   "temp_offset_c": -6.0
+  },
+  {
+   "day_of_year_end": 31,
+   "day_of_year_start": 0,
+   "daylight_amplitude_min": -55,
+   "id": "winter",
+   "name": "Sheet (winter)",
+   "rain_factor": 0.15,
+   "temp_offset_c": -6.0
+  },
+  {
+   "day_of_year_end": 75,
+   "day_of_year_start": 32,
+   "daylight_amplitude_min": -10,
+   "id": "spring",
+   "name": "Boshonto (spring)",
+   "rain_factor": 0.45,
+   "temp_offset_c": -1.0
+  },
+  {
+   "day_of_year_end": 135,
+   "day_of_year_start": 76,
+   "daylight_amplitude_min": 35,
+   "id": "summer",
+   "name": "Grishmo (summer)",
+   "rain_factor": 0.8,
+   "temp_offset_c": 3.0
+  },
+  {
+   "day_of_year_end": 227,
+   "day_of_year_start": 136,
+   "daylight_amplitude_min": 25,
+   "id": "monsoon",
+   "name": "Borsha (monsoon)",
+   "rain_factor": 2.2,
+   "temp_offset_c": 0.5
+  },
+  {
+   "day_of_year_end": 273,
+   "day_of_year_start": 228,
+   "daylight_amplitude_min": -5,
+   "id": "autumn",
+   "name": "Shorot (autumn)",
+   "rain_factor": 0.9,
+   "temp_offset_c": 0.0
+  },
+  {
+   "day_of_year_end": 334,
+   "day_of_year_start": 274,
+   "daylight_amplitude_min": -40,
+   "id": "late_autumn",
+   "name": "Hemonto (late autumn)",
+   "rain_factor": 0.3,
+   "temp_offset_c": -3.0
+  }
+ ],
+ "soil_model": {
+  "basis": "SIM MODEL. Per agricultural parcel: moisture (0..1) rises with rainfall and falls with evaporation/drainage; fertility (0..1) falls while a crop grows and recovers during fallow. Erosion: sustained saturation during flood episodes degrades fertility slightly. Simplified and labelled — not soil science.",
+  "fertility_crop_drain_per_month": 0.05,
+  "fertility_fallow_recovery_per_month": 0.04,
+  "fertility_flood_erosion": 0.03,
+  "moisture_daily_loss": 0.03,
+  "moisture_rain_gain": 0.012
+ },
+ "source": "Session 08 — Weather, Climate, Environment & Ecosystem Intelligence Engine. Every rate in this file is a SIM MODEL parameter: no environmental rate table exists in the merged design data, so each is labelled here and in docs/SESSION-08-REPORT.md. Canonical facts are never copied into this file: weather preset shapes come from data/weather-presets.json, terrain from Session 03's terrain regions, crop output good (agricultural_produce) and its price machinery from Session 04's economy-goods.json / market.py, vehicle emissions from Session 07's transport_statistics.",
+ "vegetation_model": {
+  "basis": "SIM MODEL. One vegetation record per Session 03 terrain region of class forest/wetland/farmland plus each city's park land: a cover index (0..1) seeded from the region class. Monthly: cover grows toward its class ceiling when rainfall is adequate, declines under drought and under deforestation pressure (recorded construction completions in the city that month), and recovers faster when an emission_limit/conservation law is enacted (see governance).",
+  "ceiling_by_class": {
+   "farmland": 0.7,
+   "forest": 0.9,
+   "park": 0.8,
+   "wetland": 0.85
+  },
+  "conservation_bonus_per_month": 0.015,
+  "deforestation_per_construction": 0.01,
+  "drought_decline_per_month": 0.03,
+  "growth_per_month": 0.02
+ },
+ "version": "1.0",
+ "water_model": {
+  "basis": "SIM MODEL. One catchment per city over Session 03's terrain: river level (m, relative), surface storage (pond/reservoir/wetland, mm-equivalent), groundwater (index 0..1). Daily: inflow_mm = precip_mm x runoff_share (the share of rain that reaches watercourses, higher on floodplain/wet catchments); river level rises by inflow / river_rise_divisor and recedes toward the base level at river_recession_rate per day; drainage capacity comes from Session 03's drainage network (sum of capacity_units over the city's zones x drainage_mm_per_capacity_unit, capped per day) and removes water before it floods; groundwater recharges slowly from infiltration and is drawn by a per-resident daily demand.",
+  "drainage_mm_per_capacity_unit": 0.011,
+  "flood_level_m": 3.4,
+  "groundwater_draw_per_resident": 8e-05,
+  "groundwater_recharge_rate": 0.05,
+  "infiltration_share": 0.18,
+  "river_base_level_m": 1.2,
+  "river_rise_divisor": 22.0,
+  "runoff_share": 0.55,
+  "surface_evaporation_mm_per_day": 2.2,
+  "surface_storage_capacity_mm": 260.0,
+  "water_availability_target_per_resident": 1.0,
+  "river_recession_rate": 0.15
+ },
+ "weather_model": {
+  "base_pressure_hpa": 1013.0,
+  "basis": "SIM MODEL. Rupsha City's daily preset IS the engine's existing daily_weather draw (unchanged — every earlier session's behaviour is preserved). Other regions evolve by a seeded Markov-style reweighting of the same preset weights: the season's rain_factor scales the rain/storm weights, the region's rain_factor scales them again, and the previous day's wet/dry state carries persistence (wet persistence multiplies wet weights). Field values derive from the preset's own data (temperatures, cloud cover, wind, fog density) plus the season/region offsets and a seeded jitter; precipitation mm = preset rate x mm_per_rate x season rain_factor x region rain_factor x jitter.",
+  "dry_persistence": 1.25,
+  "mm_per_precip_rate": 45.0,
+  "precip_jitter_high": 1.3,
+  "precip_jitter_low": 0.7,
+  "rain_pressure_drop_hpa": 7.0,
+  "storm_pressure_drop_hpa": 18.0,
+  "temp_jitter_c": 1.5,
+  "wet_persistence": 1.6
+ },
+ "wildlife_model": {
+  "basis": "ABSTRACTED INDICES ONLY — not biological claims. One index per habitat region (wetland/forest/river terrain): population_index (0..1) drifting monthly toward the region's habitat quality (vegetation cover x water availability), bounded per month. It exists so Session 10 can aggregate biodiversity; it models no species.",
+  "drift_per_month": 0.05
+ }
+}
