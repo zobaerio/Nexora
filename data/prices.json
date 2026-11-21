@@ -1,4 +1,55 @@
 {
+  "business_model": {
+    "business_owner": {
+      "notes": "A firm/factory-scale business behind the §2 draw. Revenue is the business's monthly turnover; profit must land on the canonical band (the draw is capped by actual profit, §5). Entry revenue is rounded to the nearest 100, so entry/mid profit lands within 20 NCr of the band — the simulator prints the reconciliation.",
+      "stock_percent_of_revenue": 40,
+      "tiers": {
+        "entry": {
+          "other_costs_ncr": 2000,
+          "premises_rent_ncr": 4000,
+          "revenue_ncr": 101700,
+          "staff_ncr": 15000
+        },
+        "mid": {
+          "other_costs_ncr": 6000,
+          "premises_rent_ncr": 12000,
+          "revenue_ncr": 313300,
+          "staff_ncr": 60000
+        },
+        "senior": {
+          "other_costs_ncr": 15000,
+          "premises_rent_ncr": 30000,
+          "revenue_ncr": 825000,
+          "staff_ncr": 150000
+        }
+      }
+    },
+    "notes": "Full business P&L behind the two business professions (Queue 4 / Unit X, sim Finding 6). The §2 bands are PROFIT — revenue minus stock, premises, staff and other costs (GDD-03 §2 'Profit, not wage'; data/professions.json income_note) — and revenues here are set so the P&L reproduces those bands. The owner is taxed 8% of profit (business tax, §4.2), not personal income tax, and lives on profit minus tax. v1 of the simulator skipped this entirely and printed the bands as pre-cost upper bounds.",
+    "shop_owner": {
+      "notes": "Entry premises (800) is the pitch-scale rent — the park food-cart pitch in buildings-district1.json rents at 800/month, and the entry tier is a tea stall (professions.json progression tier 1). Staff: none at entry (owner-run), one assistant at mid, two at senior.",
+      "stock_percent_of_revenue": 50,
+      "tiers": {
+        "entry": {
+          "other_costs_ncr": 300,
+          "premises_rent_ncr": 800,
+          "revenue_ncr": 26200,
+          "staff_ncr": 0
+        },
+        "mid": {
+          "other_costs_ncr": 800,
+          "premises_rent_ncr": 3000,
+          "revenue_ncr": 77600,
+          "staff_ncr": 9000
+        },
+        "senior": {
+          "other_costs_ncr": 2000,
+          "premises_rent_ncr": 8000,
+          "revenue_ncr": 170000,
+          "staff_ncr": 20000
+        }
+      }
+    }
+  },
   "construction_materials": [
     {
       "id": "cement_bag_50kg",
@@ -50,16 +101,33 @@
     "mid": 350,
     "upper": 900
   },
+  "lifestyle_uplift": {
+    "applies_to": "Each tier above entry: the household's living costs rise by this percent of the raise (tier wage minus entry wage). Models lifestyle creep — better food and eating out, household help and services, family support, better transport — without band cliffs.",
+    "notes": "Queue 4 / Unit V (sim Finding 2): v1 living costs were flat bands while senior wages run 3–7x entry, so senior tiers saved 71–84% and the property ladder's top-end pacing broke. The uplift is the single tuning knob: raise it to compress senior savings further, lower it to loosen. Implemented by tools/economy_sim.py v2; GDD-03 §11 owns the reasoning.",
+    "percent_of_raise_consumed": 35
+  },
   "living_costs_monthly": {
     "clothing_personal": {
       "lower": 600,
       "mid": 1500,
       "upper": 5000
     },
+    "eating_out_monthly": {
+      "lower": 300,
+      "mid": 1050,
+      "notes": "Regular eating out as a monthly line (Queue 4 / Unit V): roughly 2 lower-tier, 3 mid-tier or 4 upper-tier meals at eating_out_per_meal prices. In v1 the per-meal prices existed but no household ever spent them.",
+      "upper": 3600
+    },
     "food_home_cooking": {
       "lower": 2500,
       "mid": 4500,
       "upper": 9000
+    },
+    "household_services_monthly": {
+      "lower": 0,
+      "mid": 800,
+      "notes": "Household help, laundry, subscriptions and family support (Queue 4 / Unit V). Zero at the lower band by design — those households do this work themselves; it is one of the first things a rising wage buys.",
+      "upper": 2500
     },
     "transport_own_car_fuel_upkeep": {
       "lower": null,
@@ -162,7 +230,7 @@
   },
   "taxi_fares": {
     "base_ncr": 60,
-    "cab_rental_ncr_per_day": 800,
+    "cab_rental_ncr_per_day": 200,
     "notes": "GDD-03 §8. Surge is the one float in the file by design: fares are computed then rounded to integer NCr before any ledger row is written.",
     "per_km_ncr": 25,
     "surge_conditions": [
@@ -205,12 +273,12 @@
     {
       "id": "taxi_licensed",
       "name": "Taxi (licensed cab)",
-      "notes": "Needed for the taxi loop at scale; rentable first at 800 NCr/day.",
+      "notes": "Needed for the taxi loop at scale; rentable first at 200 NCr/day (Queue 4 / Unit U: cut from 800 — at 800/day the entry rental path lost ~13,700/month and the designed rent-before-you-buy on-ramp was unusable; 200/day ≈ the 650,000 price recovered over ~10 rental-years, a sustainable depot margin).",
       "price_ncr": 650000,
-      "rental_ncr_per_day": 800
+      "rental_ncr_per_day": 200
     }
   ],
-  "version": "1.0",
+  "version": "1.1",
   "wages_monthly": [
     {
       "entry": 9000,

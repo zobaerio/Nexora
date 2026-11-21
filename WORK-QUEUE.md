@@ -59,6 +59,19 @@ Same scope limits, honesty rules and GitHub batching rule as Queues 1–2. UE C+
 - [x] **Unit S — Multiplayer Architecture Design** (`docs/TECH-MULTIPLAYER.md`): Phase 9 prep, design only — listen-server vs dedicated-server decision with reasoning, what replicates (player characters, Full-tier NPCs) vs what never replicates (Ambient crowd = local simulation), server authority mapping onto schema.sql (ledger, properties, tenancies), session/friend model from account_friendships, honest scale limits (UE replication is not MMO) and the test plan for the owner's PC/LAN.
 - [x] **Unit T — Economy Balance Simulator** (`tools/economy_sim.py` + `docs/ECONOMY-SIM-REPORT.md`): a runnable Python simulation over the merged data (professions.json wages, prices.json, buildings rents) — 30 game-days per profession: income, rent, food, transport, savings trajectory; flags any profession that cannot survive on its wage band or that accumulates implausibly fast; the report records the actual run output and any balance problems found (problems are reported, not silently fixed — data changes need their own follow-up unit).
 
+**Queue 3 result:** Units P–T completed and merged 2026-11-21 (PRs #7, #8; main `bc195468`, STATUS finalised `0a957f37`).
+
+---
+
+# Queue 4 — ordered by the owner ("Next", 2026-11-21 07:48)
+
+Fix the four economy findings from Unit T's simulator report (`docs/ECONOMY-SIM-REPORT.md`). Data changes in U–W are authorised by this queue; each must be justified by its finding and proven by the Unit X re-run. Same scope limits, honesty rules and GitHub batching rule as Queues 1–3.
+
+- [x] **Unit U — Taxi Rental Fix (Finding 1)** (`data/prices.json` + GDD-03 §3.3/§8 + GDD-07 §2 + `data/vehicles.json` note): entry taxi renting loses ~13,700/mo (rent 800/day vs 14,000 gross) — the designed rent-before-you-buy on-ramp is broken. Lower the daily cab rental so renting ends modestly positive, clearly worse than owning but survivable; update every document that states the old number.
+- [x] **Unit V — Senior Cost Scaling (Finding 2)** (`data/prices.json` + GDD-03): senior tiers save 71–84% because living costs are flat while wages scale. Introduce tier-scaled living costs (eating-out/services lines + a lifestyle-uplift mechanism owned by the data) so senior savings land roughly in the 35–55% band; document the reasoning.
+- [x] **Unit W — Per-Profession Starting Balances (Finding 3)** (`data/professions.json` + GDD-03): monthly-paid professions dip negative in month 1 from a zero start (pilot −34,800). Add `starting_balance_ncr` per profession (civil engineer keeps the canonical 25,000), sized from the simulator's month-1 dip so no profession goes negative on its normal path.
+- [x] **Unit X — Simulator v2 + Full Re-run** (`tools/economy_sim.py` + `docs/ECONOMY-SIM-REPORT-V2.md`): model business-owner/shop-owner rows with real operating costs (full P&L + 8% business tax — v1 treated their bands as pre-cost upper bounds, Finding 6), apply U–W, re-run everything deterministically, and publish the v2 report with verbatim output + a before/after verdict per finding (fixed / improved / still open, honestly).
+
 ## Status
 
 See `STATUS.md` (updated every unit).

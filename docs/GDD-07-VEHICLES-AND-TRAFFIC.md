@@ -20,7 +20,7 @@ Nine entries in `data/vehicles.json`, one per class the district's road hierarch
 | `motorbike` | The district workhorse | Buy 120,000 · drive | Arterial, collector, local |
 | `car_small` | Mid-tier ownership goal | Buy 450,000 · drive | Arterial, collector, local |
 | `car_premium` | Upper-tier marker | Buy 1,200,000 · drive | Arterial, collector, local |
-| `taxi` | Licensed fare-loop cab | Buy 650,000 or rent 800/day · drive | Arterial, collector, local |
+| `taxi` | Licensed fare-loop cab | Buy 650,000 or rent 200/day · drive | Arterial, collector, local |
 | `bus` | Fixed-route traffic, terminal ↔ district edge | Ride as scenery (v1) | Arterial, collector |
 | `truck` | Freight: market deliveries pre-07:00, site deliveries (GDD-08) | Not in v1 | Arterial, collector |
 
@@ -29,7 +29,7 @@ Speeds, capacities and fuel figures in the data are **v1 traffic-model values** 
 ## 2. Ownership
 
 - A bought vehicle is an asset row for its owner character (the `inventory_items` family in `schema.sql`, item type `vehicle`, payload = vehicles.json id + condition §4). It is bought with a ledger row (reason `purchase`) from a dealer location — v1: the transport depot office in `d1_industry` (GDD-02 §5) sells/rents taxis; a used-vehicle corner at `d1_transport` handles the rest. Both are design placements on existing GDD-02 interiors, not new buildings.
-- The taxi is rentable before it is buyable (800 NCr/day from `prices.json` `taxi_fares`) — the designed on-ramp for the Taxi Driver loop, matching GDD-03 §8.
+- The taxi is rentable before it is buyable (200 NCr/day from `prices.json` `taxi_fares`) — the designed on-ramp for the Taxi Driver loop, matching GDD-03 §8.
 - A vehicle has exactly one home parking anchor (§6). It does not despawn when the player walks away; it persists where parked, and its position is runtime state in the save (the Unit M rule: position is not society truth, the ownership row is).
 
 ## 3. Traffic Flow Model
