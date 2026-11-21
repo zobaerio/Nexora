@@ -1,7 +1,7 @@
 # NEXORA — Development Status
 
 **Continuous development:** RUNNING — Queue 5 "Life Systems" (Y–AC) COMPLETE 2026-11-21 (owner's "Next", 08:23). Queues 1–5 = Units A–AC all merged on GitHub main. Note: PR #4 was a duplicate of PR #3 created by a late scheduled run; closed 2026-11-21, no content difference.
-**Repo:** https://github.com/zobaerio/Nexora · main after PR #10: `5736af3e` (AB+AC batch — see Queue 5 completion summary)
+**Repo:** https://github.com/zobaerio/Nexora · main after PR #11: `ffc3b4a8`
 
 ## Queue 5 — "Life Systems" (ordered 2026-11-21 08:01 — "Continue Your Work")
 
@@ -15,7 +15,7 @@
 
 ## Queue 5 completion summary (2026-11-21)
 
-- **Queue 5 "Life Systems" (Y–AC) is COMPLETE and fully merged:** PR #10 (Y+Z+AA, main `5736af3e`) + PR #11 (AB+AC, main — see finalisation note). Every unit's key files were read back on `refs/heads/main` and blob-matched to the locally validated tree.
+- **Queue 5 "Life Systems" (Y–AC) is COMPLETE and fully merged:** PR #10 (Y+Z+AA, main `5736af3e`) + PR #11 (AB+AC, main `ffc3b4a8`). Every unit's key files were read back on `refs/heads/main` and blob-matched to the locally validated tree (GDD-11 `450a8f39`, GDD-12 `b50a85c9`).
 - **What Queue 5 added:** the character creator + 31-item clothing catalogue priced inside the existing clothing budgets (sim output byte-identical); housing & home life on the real 140-unit stock with GDD-03's missed-rent ladder; the drivable vehicle pawn scaffold with the GDD-07 fare meter (Chaos binding isolated to one marked seam, Phase 5); education & school life — attendance loops on the life-stage templates, `character_skills` progression whose education caps (20/24) sit provably below every tier-2 profession threshold (min 30, cross-validated by script), credential gates tabulated verbatim from `professions.json`; and health — a condition layer whose closed cause list draws only on already-designed systems (weather flags, commute risk flags, GDD-08's skipped-inspection safety rule, GDD-01 age events), run through the district clinic (civic, free at point of use; no hospital exists in District 1 and none was invented, no medicine price exists and none was invented).
 - **Economy untouched by AB+AC:** neither unit changed `prices.json` (both verified: education is civic-funded via the existing tax line; clinic care is civic and wage-paid), so the simulator's tuned behaviour stands as proven in Queue 4.
 - **Recorded corrections/open items:** GDD-06 §4.4's school zone reads `d1_education`; the canonical data puts the school in `d1_civic` — GDD-11 §1 records the correction and follows the data. Priced tutoring/part-time student work (GDD-11 §7) and a pharmacy + priced medicine (GDD-12 §6) are recorded as future economy/data units, not silently zero-priced systems.
