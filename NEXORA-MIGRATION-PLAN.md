@@ -1,7 +1,8 @@
 # NEXORA — Photorealistic Living Universe
 ## Technical Migration Plan & Development Roadmap
 
-**Date:** 2026-11-20 · **Version:** 1.0 (initial / প্রাথমিক) · **Status:** Planning complete — UE5 build not yet started
+**Date:** 2026-11-20 · **Version:** 1.1 (revised 2026-11-21, Unit J) · **Status:** Design complete through Unit J — UE5 build not yet started
+**Revision note:** v1.0 is preserved below, unchanged. v1.1 adds the revision section at the end (Part J) with everything learned from Units A–I. Nothing in v1.0 was rewritten — estimates are revised by annotation, not by editing history.
 **Owner:** MD Zobaer Hasan (@zobaerio) · **First city:** Rupsha City, NEXORA Central
 
 > **Bangla summary:** বর্তমান Godot prototype-টা movement/camera system-এর test — দেখতে cartoon, কারণ ওতে কোনো texture, animation, rig বা realistic light নেই (প্রমাণসহ Part A). Photorealistic NEXORA বানাতে হলে **Unreal Engine 5.8**-এ migrate করতে হবে — MetaHuman, Nanite, Lumen, Megascans এই জগতেই আছে. এই document-এ পুরো migration plan, প্রতিটা subsystem-এর technology + সীমাবদ্ধতা, আর Phase 1–10 roadmap দেওয়া আছে. **UE5-এর কাজটা হবে তোমার PC-তে** — এই VM-এ UE5 চলে না, তাই কোনো UE feature "হয়ে গেছে" বলে দাবি করা হয়নি. কালকের প্রথম কাজ: তোমার PC-র spec check করে Phase 1 শুরু.
@@ -236,3 +237,36 @@ Blueprint visual scripting → UE C++ for systems → MetaHuman pipeline → Mas
 5. ☐ Phase 1 build begins — Muse supplies the scene checklist and performance capture sheet
 
 *End of plan v1.0 — 2026-11-20. This document will be revised after Phase 1's performance capture, with measured numbers replacing estimates wherever they appear.*
+
+---
+
+# PART J — Revision v1.1 (2026-11-21, Unit J)
+
+**What happened since v1.0:** Units A–J of the continuous-development queue are complete and merged. The project went from "one plan + one Godot testbed" to a designed system: a Phase 1 build sheet, a life-sim data model with a 19-table PostgreSQL schema, a District 1 design with real profession/schedule/weather/planet data, UE 5.8 project scaffolding with C++ for the controller and the clock/weather systems, concrete economy numbers, a Level 1–8 mission structure, a Phase 2 MetaHuman build sheet, and a QA pack with a licence register. **Nothing in this revision claims a UE feature works** — all UE code is still uncompiled scaffolding; the first build is still Phase 1 on the owner's PC.
+
+## J.1 Estimate revisions (what changed, and what did not)
+
+| Area | v1.0 estimate | v1.1 revision | Reason |
+|---|---|---|---|
+| Phase 1 setup | "Create C++ project, enable all plugins" (Part E step 3) | **Revised:** open the existing `ue-project/Nexora.uproject` (Unit D); enable plugins **per phase** — Mass/State Tree/Chaos Vehicles are *not* enabled at creation (build sheet Step 6 phase rule) | Enabling everything early accumulates broken dependencies; the scaffolding already exists, so creation is now a 10-minute open, not a setup task. |
+| Phase 3 acceptance tests | "UE versions of the Godot tests pass by hand" | **Made concrete:** walk 300 u/s, run 600 u/s, jump 600 u/s velocity; camera boom 400 u with wall-collision shortening (Godot reference: walk 5.00, run 8.77, jump apex 1.59, cam 3.04 — QA-PACK §1) | The testbed numbers are now the written spec (Unit D), not a memory. |
+| Phase 4 clock/weather | "Custom Weather Manager" (complexity 3) | **Design complete, implementation estimate unchanged:** day-phase table fixed (TECH-CLOCK-WEATHER §1), 9 weather presets in data, state machine + bindings documented, Environment Control Panel interface defined | Design risk is down; build risk is unchanged until the first compile on the owner's PC. Complexity stays 3. |
+| Phase 5 economy | "Economy v1: wages, prices, rent" | **Numbers fixed:** full v1 price/wage/rent tables in GDD-03; first Civil Engineer job tuned (budget 120,000, materials ≈ 85,000, fee ≈ 8,500–12,750, 12 days) so the loop and the wage band agree by construction | Tuning is no longer guesswork at implementation time; playtesting still owns the final numbers. |
+| Phase 6 society | "30 days accelerated sim, no collapse" | **Made measurable:** economy health is now six queries with pass bands (GDD-03 §9); NPC tiers defined (Full/Scheduled/Ambient) with simulation depth per tier (GDD-01 §2) | "No collapse" was a vibe; it is now a test. |
+| Phase 7 life stages | Gated on child/elder assets (hardest problem) | **Unchanged — the gate stands.** No new information reduced this risk; the MetaHuman sheet (Unit H) records it as open for Phase 7 | The honest gate is still the honest gate. Do not let the rest of the design's completeness hide it. |
+| Phase 9 backend | "Designed from Phase 6 onward" | **Brought forward:** the schema already exists (`data/schema.sql`, 19 tables, pglast-validated) and the ledger/server-authority rules are written (GDD-01 §8–§9). Phase 9 is now an implementation of an existing design, not a design task | Reduces the "multiplayer requires a rewrite" risk the plan flagged. |
+| Part G costs | Ranges, no changes | **Unchanged.** One addition: Git LFS storage cost is now a *known* line — the repo will grow binary-heavy from Phase 1, and the free LFS tier is small (build sheet Step 4) | No new spending; the storage line is now explicit instead of implied. |
+| Part C #11 (careers) | 3 playable professions first | **Confirmed, with loops written:** Civil Engineer flagship loop (6 steps), Shop Owner loop, Taxi Driver loop — all in GDD-03 §6–§8 with numbers | The "small game of its own" per profession is now a written design, not a hope. |
+| Part C #17 (dialogue) | LLM optional, later | **Unchanged.** Rule/State-Tree dialogue first; the mission/goal data (GDD-04) is written so authored lines can drive it without any API | No new information. |
+
+## J.2 New process learning (applies to all remaining work)
+
+- **GitHub approval cards are per-write by platform design and cannot be disabled.** The owner is frustrated by them, so work is batched: one branch, one push, one PR, one merge per run (4 cards max). A timed-out card never loses work — everything is committed locally first and included in the next run's batch. (This is why Unit J's "own PR" instruction was folded into the batch PR instead: the owner's later card-minimisation order governs.)
+- **UE work in this VM stays docs + uncompiled scaffolding.** The schedule for Phases 1–4 depends on the owner's PC time, not on Muse's output speed. Any date estimate for a UE phase that does not name the owner's build session is fiction.
+- **Design-complete ≠ built.** Units A–J finished the *design* of Phases 1–7 and the data for Phases 8–10. The next honest milestone is still Phase 1's first packaged build on the owner's PC — that is the first moment any of this design is proven, and it is the only thing that should be called progress from here until it happens.
+
+## J.3 What v1.2 will revise
+
+After the Phase 1 performance capture (Part I, owner's PC): measured fps/frame-time replaces the Part F hardware table's guesses, the Lumen/Nanite settings are locked to measured numbers, and the Phase 1 exit criteria get the real GPU model attached. Until then, v1.1 is the current plan.
+
+*End of plan v1.1 — 2026-11-21. Units A–J complete; the queue is empty. Next: Phase 1 on the owner's PC (Part I checklist).*

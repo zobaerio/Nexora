@@ -1,0 +1,798 @@
+{
+  "notes": "Daily schedule templates per profession for District 1 (GDD-02 anchors). Times are game-clock HH:MM. Blocks: sleep, home, commute, work, break, leisure, errand, study. leisure_anchor values: tea_stall | park | market | riverfront | home | college_para. The simulation (GDD-01 §4) bends these with needs and events; templates are the default day, not a script. Weekday templates shown; weekend_variant notes the change.",
+  "schedules": [
+    {
+      "leisure_anchor_default": "riverfront",
+      "profession_id": "construction_worker",
+      "template": [
+        {
+          "activity": "sleep",
+          "from": "22:30",
+          "location": "home",
+          "to": "05:30"
+        },
+        {
+          "activity": "home",
+          "from": "05:30",
+          "location": "home",
+          "to": "06:15"
+        },
+        {
+          "activity": "commute",
+          "from": "06:15",
+          "location": "transit",
+          "to": "06:45"
+        },
+        {
+          "activity": "work",
+          "from": "06:45",
+          "location": "workplace",
+          "to": "12:30"
+        },
+        {
+          "activity": "break",
+          "from": "12:30",
+          "location": "tea_stall",
+          "to": "13:15"
+        },
+        {
+          "activity": "work",
+          "from": "13:15",
+          "location": "workplace",
+          "to": "17:30"
+        },
+        {
+          "activity": "errand",
+          "from": "17:30",
+          "location": "market",
+          "to": "18:15"
+        },
+        {
+          "activity": "leisure",
+          "from": "18:15",
+          "location": "riverfront",
+          "to": "19:30"
+        },
+        {
+          "activity": "home",
+          "from": "19:30",
+          "location": "home",
+          "to": "22:30"
+        }
+      ],
+      "weekend_variant": "Friday: work ends 12:30 (half day). Rest of day leisure/home."
+    },
+    {
+      "leisure_anchor_default": "tea_stall",
+      "profession_id": "civil_engineer",
+      "template": [
+        {
+          "activity": "sleep",
+          "from": "23:00",
+          "location": "home",
+          "to": "06:30"
+        },
+        {
+          "activity": "home",
+          "from": "06:30",
+          "location": "home",
+          "to": "07:30"
+        },
+        {
+          "activity": "commute",
+          "from": "07:30",
+          "location": "transit",
+          "to": "08:00"
+        },
+        {
+          "activity": "work",
+          "from": "08:00",
+          "location": "workplace",
+          "note": "Site supervision blocks",
+          "to": "13:00"
+        },
+        {
+          "activity": "break",
+          "from": "13:00",
+          "location": "tea_stall",
+          "to": "14:00"
+        },
+        {
+          "activity": "work",
+          "from": "14:00",
+          "location": "workplace",
+          "note": "Office: plans, estimates, materials orders",
+          "to": "17:30"
+        },
+        {
+          "activity": "leisure",
+          "from": "17:30",
+          "location": "tea_stall",
+          "to": "19:00"
+        },
+        {
+          "activity": "home",
+          "from": "19:00",
+          "location": "home",
+          "to": "23:00"
+        }
+      ],
+      "weekend_variant": "Friday off (site visits only if a staged build is mid-pour). Study block 10:00-12:00 for skill growth."
+    },
+    {
+      "leisure_anchor_default": "park",
+      "profession_id": "doctor",
+      "template": [
+        {
+          "activity": "sleep",
+          "from": "23:30",
+          "location": "home",
+          "to": "06:00"
+        },
+        {
+          "activity": "home",
+          "from": "06:00",
+          "location": "home",
+          "to": "07:00"
+        },
+        {
+          "activity": "leisure",
+          "from": "07:00",
+          "location": "park",
+          "note": "Morning walk",
+          "to": "07:45"
+        },
+        {
+          "activity": "commute",
+          "from": "07:45",
+          "location": "transit",
+          "to": "08:15"
+        },
+        {
+          "activity": "work",
+          "from": "08:15",
+          "location": "workplace",
+          "note": "Clinic morning session",
+          "to": "13:00"
+        },
+        {
+          "activity": "break",
+          "from": "13:00",
+          "location": "home",
+          "to": "14:30"
+        },
+        {
+          "activity": "work",
+          "from": "14:30",
+          "location": "workplace",
+          "note": "Clinic evening session",
+          "to": "20:00"
+        },
+        {
+          "activity": "home",
+          "from": "20:00",
+          "location": "home",
+          "to": "23:30"
+        }
+      ],
+      "weekend_variant": "Rotating: 1 weekend in 3 on emergency call (workplace on demand). Others off."
+    },
+    {
+      "leisure_anchor_default": "home",
+      "profession_id": "teacher",
+      "template": [
+        {
+          "activity": "sleep",
+          "from": "22:30",
+          "location": "home",
+          "to": "05:45"
+        },
+        {
+          "activity": "home",
+          "from": "05:45",
+          "location": "home",
+          "to": "06:45"
+        },
+        {
+          "activity": "commute",
+          "from": "06:45",
+          "location": "transit",
+          "to": "07:15"
+        },
+        {
+          "activity": "work",
+          "from": "07:15",
+          "location": "workplace",
+          "note": "School day (matches child/teen schedules)",
+          "to": "13:30"
+        },
+        {
+          "activity": "home",
+          "from": "13:30",
+          "location": "home",
+          "to": "16:30"
+        },
+        {
+          "activity": "study",
+          "from": "16:30",
+          "location": "home",
+          "note": "Marking, lesson prep; some teachers tutor in college_para",
+          "to": "18:30"
+        },
+        {
+          "activity": "leisure",
+          "from": "18:30",
+          "location": "market",
+          "to": "19:30"
+        },
+        {
+          "activity": "home",
+          "from": "19:30",
+          "location": "home",
+          "to": "22:30"
+        }
+      ],
+      "weekend_variant": "Friday off. Saturday morning errand block at market."
+    },
+    {
+      "leisure_anchor_default": "tea_stall",
+      "profession_id": "police_officer",
+      "shift_note": "Two rotating shifts; template shows day shift. Night shift mirrors with work 20:00-06:00 and sleep 07:00-14:00.",
+      "template": [
+        {
+          "activity": "sleep",
+          "from": "23:00",
+          "location": "home",
+          "to": "06:00"
+        },
+        {
+          "activity": "home",
+          "from": "06:00",
+          "location": "home",
+          "to": "07:00"
+        },
+        {
+          "activity": "commute",
+          "from": "07:00",
+          "location": "transit",
+          "to": "07:30"
+        },
+        {
+          "activity": "work",
+          "from": "07:30",
+          "location": "workplace",
+          "note": "Parade/briefing, then patrol routes incl. market hours",
+          "to": "15:30"
+        },
+        {
+          "activity": "break",
+          "from": "15:30",
+          "location": "tea_stall",
+          "to": "16:00"
+        },
+        {
+          "activity": "work",
+          "from": "16:00",
+          "location": "workplace",
+          "note": "Station desk + reports",
+          "to": "18:00"
+        },
+        {
+          "activity": "leisure",
+          "from": "18:00",
+          "location": "tea_stall",
+          "to": "19:30"
+        },
+        {
+          "activity": "home",
+          "from": "19:30",
+          "location": "home",
+          "to": "23:00"
+        }
+      ],
+      "weekend_variant": "Shifts rotate through weekends; days off follow the rotation, not the calendar."
+    },
+    {
+      "leisure_anchor_default": "riverfront",
+      "profession_id": "taxi_driver",
+      "template": [
+        {
+          "activity": "sleep",
+          "from": "00:30",
+          "location": "home",
+          "to": "07:00"
+        },
+        {
+          "activity": "home",
+          "from": "07:00",
+          "location": "home",
+          "to": "08:00"
+        },
+        {
+          "activity": "commute",
+          "from": "08:00",
+          "location": "transit",
+          "note": "To depot, collect vehicle",
+          "to": "08:30"
+        },
+        {
+          "activity": "work",
+          "from": "08:30",
+          "location": "mobile",
+          "note": "Fares; demand peaks 08:30-11:00",
+          "to": "13:00"
+        },
+        {
+          "activity": "break",
+          "from": "13:00",
+          "location": "tea_stall",
+          "to": "14:00"
+        },
+        {
+          "activity": "work",
+          "from": "14:00",
+          "location": "mobile",
+          "note": "Fares; evening peak 17:00-21:00 is the money block",
+          "to": "21:00"
+        },
+        {
+          "activity": "commute",
+          "from": "21:00",
+          "location": "transit",
+          "note": "Return vehicle to depot (owner-drivers go home directly)",
+          "to": "21:30"
+        },
+        {
+          "activity": "home",
+          "from": "21:30",
+          "location": "home",
+          "to": "00:30"
+        }
+      ],
+      "weekend_variant": "Friday is the highest-demand day: work extends to 23:00, break moves later."
+    },
+    {
+      "leisure_anchor_default": "market",
+      "profession_id": "chef",
+      "template": [
+        {
+          "activity": "sleep",
+          "from": "00:00",
+          "location": "home",
+          "to": "07:30"
+        },
+        {
+          "activity": "home",
+          "from": "07:30",
+          "location": "home",
+          "to": "08:30"
+        },
+        {
+          "activity": "errand",
+          "from": "08:30",
+          "location": "market",
+          "note": "Buy fresh ingredients (wholesale prices, GDD-01 ledger)",
+          "to": "09:30"
+        },
+        {
+          "activity": "commute",
+          "from": "09:30",
+          "location": "transit",
+          "to": "09:45"
+        },
+        {
+          "activity": "work",
+          "from": "09:45",
+          "location": "workplace",
+          "note": "Prep + lunch service",
+          "to": "15:00"
+        },
+        {
+          "activity": "break",
+          "from": "15:00",
+          "location": "home",
+          "to": "17:30"
+        },
+        {
+          "activity": "work",
+          "from": "17:30",
+          "location": "workplace",
+          "note": "Dinner service",
+          "to": "23:00"
+        },
+        {
+          "activity": "home",
+          "from": "23:00",
+          "location": "home",
+          "to": "00:00"
+        }
+      ],
+      "weekend_variant": "Friday/Saturday dinner service extends to 23:30; one weekday off in rotation."
+    },
+    {
+      "leisure_anchor_default": "college_para",
+      "profession_id": "software_developer",
+      "template": [
+        {
+          "activity": "sleep",
+          "from": "00:30",
+          "location": "home",
+          "to": "08:00"
+        },
+        {
+          "activity": "home",
+          "from": "08:00",
+          "location": "home",
+          "to": "09:00"
+        },
+        {
+          "activity": "commute",
+          "from": "09:00",
+          "location": "transit",
+          "note": "2 days/week this block is work-from-home instead",
+          "to": "09:30"
+        },
+        {
+          "activity": "work",
+          "from": "09:30",
+          "location": "workplace",
+          "to": "13:30"
+        },
+        {
+          "activity": "break",
+          "from": "13:30",
+          "location": "market",
+          "to": "14:15"
+        },
+        {
+          "activity": "work",
+          "from": "14:15",
+          "location": "workplace",
+          "to": "18:30"
+        },
+        {
+          "activity": "leisure",
+          "from": "18:30",
+          "location": "college_para",
+          "note": "Cafes, bookshops; study block some evenings",
+          "to": "20:30"
+        },
+        {
+          "activity": "home",
+          "from": "20:30",
+          "location": "home",
+          "to": "00:30"
+        }
+      ],
+      "weekend_variant": "Friday off; deadline events can convert Friday leisure into a work block (with overtime ledger pay)."
+    },
+    {
+      "leisure_anchor_default": "market",
+      "profession_id": "shop_owner",
+      "template": [
+        {
+          "activity": "sleep",
+          "from": "23:30",
+          "location": "home",
+          "to": "06:30"
+        },
+        {
+          "activity": "home",
+          "from": "06:30",
+          "location": "home",
+          "to": "07:30"
+        },
+        {
+          "activity": "errand",
+          "from": "07:30",
+          "location": "market",
+          "note": "Wholesale run / stock collection on market days",
+          "to": "08:30"
+        },
+        {
+          "activity": "commute",
+          "from": "08:30",
+          "location": "transit",
+          "to": "08:45"
+        },
+        {
+          "activity": "work",
+          "from": "08:45",
+          "location": "workplace",
+          "note": "Open shop; footfall peaks 10:00-13:00 and 17:00-21:00",
+          "to": "13:30"
+        },
+        {
+          "activity": "break",
+          "from": "13:30",
+          "location": "home",
+          "to": "15:00"
+        },
+        {
+          "activity": "work",
+          "from": "15:00",
+          "location": "workplace",
+          "note": "Evening session is the revenue core",
+          "to": "21:30"
+        },
+        {
+          "activity": "home",
+          "from": "21:30",
+          "location": "home",
+          "to": "23:30"
+        }
+      ],
+      "weekend_variant": "Friday: closed 12:30-14:30 (prayer/lunch break), evening session to 22:30."
+    },
+    {
+      "leisure_anchor_default": "riverfront",
+      "profession_id": "business_owner",
+      "template": [
+        {
+          "activity": "sleep",
+          "from": "23:30",
+          "location": "home",
+          "to": "06:30"
+        },
+        {
+          "activity": "leisure",
+          "from": "06:30",
+          "location": "riverfront",
+          "note": "Morning walk on the promenade",
+          "to": "07:30"
+        },
+        {
+          "activity": "home",
+          "from": "07:30",
+          "location": "home",
+          "to": "09:00"
+        },
+        {
+          "activity": "commute",
+          "from": "09:00",
+          "location": "transit",
+          "to": "09:30"
+        },
+        {
+          "activity": "work",
+          "from": "09:30",
+          "location": "workplace",
+          "note": "Office: reviews, payroll, supplier meetings",
+          "to": "13:30"
+        },
+        {
+          "activity": "break",
+          "from": "13:30",
+          "location": "restaurant",
+          "to": "14:30"
+        },
+        {
+          "activity": "work",
+          "from": "14:30",
+          "location": "mobile",
+          "note": "Site/premises visits across own businesses",
+          "to": "18:30"
+        },
+        {
+          "activity": "leisure",
+          "from": "18:30",
+          "location": "riverfront",
+          "to": "20:00"
+        },
+        {
+          "activity": "home",
+          "from": "20:00",
+          "location": "home",
+          "to": "23:30"
+        }
+      ],
+      "weekend_variant": "Friday morning only; afternoons are family/home blocks."
+    },
+    {
+      "leisure_anchor_default": "home",
+      "profession_id": "pilot",
+      "schedule_note": "Roster-based, not daily: pilots are District 1 residents who commute off-district (airport is Phase 8). Template is a home day; duty days replace work blocks with off_district absence 06:00-22:00 and a rest day follows.",
+      "template": [
+        {
+          "activity": "sleep",
+          "from": "23:00",
+          "location": "home",
+          "to": "06:30"
+        },
+        {
+          "activity": "home",
+          "from": "06:30",
+          "location": "home",
+          "to": "09:00"
+        },
+        {
+          "activity": "study",
+          "from": "09:00",
+          "location": "home",
+          "note": "Checks, manuals, licence currency",
+          "to": "11:00"
+        },
+        {
+          "activity": "leisure",
+          "from": "11:00",
+          "location": "park",
+          "to": "12:30"
+        },
+        {
+          "activity": "home",
+          "from": "12:30",
+          "location": "home",
+          "to": "17:00"
+        },
+        {
+          "activity": "leisure",
+          "from": "17:00",
+          "location": "riverfront",
+          "to": "19:00"
+        },
+        {
+          "activity": "home",
+          "from": "19:00",
+          "location": "home",
+          "to": "23:00"
+        }
+      ],
+      "weekend_variant": "Roster decides; no fixed weekend."
+    }
+  ],
+  "version": "1.0",
+  "life_stage_templates": {
+    "child_school_day": [
+      {
+        "activity": "sleep",
+        "from": "21:30",
+        "location": "home",
+        "to": "06:30"
+      },
+      {
+        "activity": "home",
+        "from": "06:30",
+        "location": "home",
+        "to": "07:15"
+      },
+      {
+        "activity": "commute",
+        "from": "07:15",
+        "location": "transit",
+        "note": "With parent/older sibling or school route",
+        "to": "07:30"
+      },
+      {
+        "activity": "study",
+        "from": "07:30",
+        "location": "school",
+        "note": "Civic Quarter school — matches teacher template",
+        "to": "13:00"
+      },
+      {
+        "activity": "home",
+        "from": "13:00",
+        "location": "home",
+        "to": "16:00"
+      },
+      {
+        "activity": "leisure",
+        "from": "16:00",
+        "location": "park",
+        "note": "Play — park or neighbourhood lane",
+        "to": "18:00"
+      },
+      {
+        "activity": "study",
+        "from": "18:00",
+        "location": "home",
+        "note": "Homework / tutor",
+        "to": "19:30"
+      },
+      {
+        "activity": "home",
+        "from": "19:30",
+        "location": "home",
+        "to": "21:30"
+      }
+    ],
+    "elder_day": [
+      {
+        "activity": "sleep",
+        "from": "22:00",
+        "location": "home",
+        "to": "05:30"
+      },
+      {
+        "activity": "leisure",
+        "from": "05:30",
+        "location": "riverfront",
+        "note": "Dawn walk — riverfront/park mornings skew elderly by design (GDD-02 §7)",
+        "to": "07:00"
+      },
+      {
+        "activity": "home",
+        "from": "07:00",
+        "location": "home",
+        "to": "10:00"
+      },
+      {
+        "activity": "errand",
+        "from": "10:00",
+        "location": "market",
+        "to": "11:00"
+      },
+      {
+        "activity": "home",
+        "from": "11:00",
+        "location": "home",
+        "to": "16:30"
+      },
+      {
+        "activity": "leisure",
+        "from": "16:30",
+        "location": "park",
+        "note": "Bench socialising; tea stall visits",
+        "to": "18:30"
+      },
+      {
+        "activity": "home",
+        "from": "18:30",
+        "location": "home",
+        "to": "22:00"
+      }
+    ],
+    "student_day": [
+      {
+        "activity": "sleep",
+        "from": "00:00",
+        "location": "home",
+        "to": "07:30"
+      },
+      {
+        "activity": "home",
+        "from": "07:30",
+        "location": "home",
+        "to": "08:30"
+      },
+      {
+        "activity": "commute",
+        "from": "08:30",
+        "location": "transit",
+        "to": "09:00"
+      },
+      {
+        "activity": "study",
+        "from": "09:00",
+        "location": "college",
+        "note": "College Para classes / library",
+        "to": "14:00"
+      },
+      {
+        "activity": "break",
+        "from": "14:00",
+        "location": "college_para",
+        "to": "15:00"
+      },
+      {
+        "activity": "study",
+        "from": "15:00",
+        "location": "college",
+        "note": "Library / group study; some students take part-time work blocks instead",
+        "to": "17:30"
+      },
+      {
+        "activity": "leisure",
+        "from": "17:30",
+        "location": "college_para",
+        "to": "20:00"
+      },
+      {
+        "activity": "home",
+        "from": "20:00",
+        "location": "home",
+        "to": "00:00"
+      }
+    ]
+  }
+}

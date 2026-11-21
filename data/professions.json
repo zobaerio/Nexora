@@ -1,0 +1,494 @@
+{
+  "currency": "Nexora Credits (NCr)",
+  "notes": "Income bands are monthly wages in Nexora Credits, design v1 — Unit F (economy GDD) owns final tuning. playable_in_v1 marks the three professions the master plan (Part C #11, Phase 6) makes playable first; all others are NPC-run until later phases. workplace_zone values are GDD-02 district ids.",
+  "professions": [
+    {
+      "gameplay_summary": "Physical site work on staged builds; the labour backbone of the Civil Engineer loop. NPC-run in v1; a natural future playable entry job.",
+      "id": "construction_worker",
+      "income_band_monthly": {
+        "entry": 9000,
+        "mid": 14000,
+        "senior": 20000
+      },
+      "name": "Construction Worker",
+      "playable_in_v1": false,
+      "primary_skills": [
+        "construction",
+        "strength"
+      ],
+      "progression": [
+        {
+          "tier": 1,
+          "title": "Helper",
+          "unlock": "Start of work life"
+        },
+        {
+          "tier": 2,
+          "title": "Mason / Steel Fixer",
+          "unlock": "Construction skill 25"
+        },
+        {
+          "tier": 3,
+          "title": "Senior Mason",
+          "unlock": "Construction skill 50"
+        },
+        {
+          "tier": 4,
+          "title": "Foreman",
+          "unlock": "Construction skill 70 + discipline trait 50"
+        },
+        {
+          "tier": 5,
+          "title": "Site Supervisor",
+          "unlock": "Construction skill 85 + reputation in district"
+        }
+      ],
+      "workplace": "Construction sites and the industry-edge yard",
+      "workplace_zone": "d1_industry"
+    },
+    {
+      "gameplay_summary": "FLAGSHIP loop (master plan Phase 5): take a job -> produce the plan -> estimate materials (real quantities, priced from the market) -> supervise staged construction -> get paid + reputation. Built from the owner's real profession.",
+      "id": "civil_engineer",
+      "income_band_monthly": {
+        "entry": 22000,
+        "mid": 38000,
+        "senior": 65000
+      },
+      "name": "Civil Engineer",
+      "playable_in_v1": true,
+      "primary_skills": [
+        "engineering",
+        "management"
+      ],
+      "progression": [
+        {
+          "tier": 1,
+          "title": "Junior Site Engineer",
+          "unlock": "Engineering degree / game start"
+        },
+        {
+          "tier": 2,
+          "title": "Site Engineer",
+          "unlock": "Engineering skill 30 + 1 completed build"
+        },
+        {
+          "tier": 3,
+          "title": "Senior Engineer",
+          "unlock": "Engineering skill 55 + 3 completed builds"
+        },
+        {
+          "tier": 4,
+          "title": "Project Manager",
+          "unlock": "Engineering 70 + management 40"
+        },
+        {
+          "tier": 5,
+          "title": "Chief Engineer / Own Firm",
+          "unlock": "Engineering 85 + capital to register a construction business"
+        }
+      ],
+      "starting_example": "The owner's example character starts here: Middle Class, 25,000 NCr balance, rented apartment in Nexora Central City (GDD-01 §1, §7).",
+      "workplace": "Construction site office + staged build plot (District 1 industry edge)",
+      "workplace_zone": "d1_industry"
+    },
+    {
+      "gameplay_summary": "Clinic shifts, patient cases as diagnosis puzzles, health events for the district's families. NPC-run in v1 (clinic fully staffed by NPCs); playable in a later phase.",
+      "id": "doctor",
+      "income_band_monthly": {
+        "entry": 30000,
+        "mid": 55000,
+        "senior": 95000
+      },
+      "name": "Doctor",
+      "playable_in_v1": false,
+      "primary_skills": [
+        "medicine",
+        "diagnosis"
+      ],
+      "progression": [
+        {
+          "tier": 1,
+          "title": "Intern Doctor",
+          "unlock": "Medical degree"
+        },
+        {
+          "tier": 2,
+          "title": "Medical Officer",
+          "unlock": "Medicine skill 35"
+        },
+        {
+          "tier": 3,
+          "title": "Senior Medical Officer",
+          "unlock": "Medicine skill 60"
+        },
+        {
+          "tier": 4,
+          "title": "Specialist",
+          "unlock": "Medicine 75 + specialisation study"
+        },
+        {
+          "tier": 5,
+          "title": "Chief Physician / Own Clinic",
+          "unlock": "Medicine 90 or capital for a clinic business"
+        }
+      ],
+      "workplace": "District clinic, Civic Quarter",
+      "workplace_zone": "d1_civic"
+    },
+    {
+      "gameplay_summary": "School-day rhythm profession; anchors the child/teen life stages (their classes are this profession's workplace). NPC-run in v1.",
+      "id": "teacher",
+      "income_band_monthly": {
+        "entry": 15000,
+        "mid": 24000,
+        "senior": 38000
+      },
+      "name": "Teacher",
+      "playable_in_v1": false,
+      "primary_skills": [
+        "teaching",
+        "subject_knowledge"
+      ],
+      "progression": [
+        {
+          "tier": 1,
+          "title": "Assistant Teacher",
+          "unlock": "Education certificate"
+        },
+        {
+          "tier": 2,
+          "title": "Teacher",
+          "unlock": "Teaching skill 30"
+        },
+        {
+          "tier": 3,
+          "title": "Senior Teacher",
+          "unlock": "Teaching skill 55"
+        },
+        {
+          "tier": 4,
+          "title": "Head of Department",
+          "unlock": "Teaching 70 + discipline 55"
+        },
+        {
+          "tier": 5,
+          "title": "Head Teacher / Principal",
+          "unlock": "Teaching 85 + reputation"
+        }
+      ],
+      "workplace": "District school, Civic Quarter (college lecturers: d1_education)",
+      "workplace_zone": "d1_civic"
+    },
+    {
+      "gameplay_summary": "Patrols, market-hours enforcement, incident response. In v1 the police are the visible law system NPCs; the wanted/chase interplay with the player matures in later phases.",
+      "id": "police_officer",
+      "income_band_monthly": {
+        "entry": 18000,
+        "mid": 28000,
+        "senior": 45000
+      },
+      "name": "Police Officer",
+      "playable_in_v1": false,
+      "primary_skills": [
+        "law_enforcement",
+        "driving"
+      ],
+      "progression": [
+        {
+          "tier": 1,
+          "title": "Constable",
+          "unlock": "Academy pass"
+        },
+        {
+          "tier": 2,
+          "title": "Senior Constable",
+          "unlock": "Law enforcement skill 30"
+        },
+        {
+          "tier": 3,
+          "title": "Sub-Inspector",
+          "unlock": "Law enforcement skill 55"
+        },
+        {
+          "tier": 4,
+          "title": "Inspector",
+          "unlock": "Law enforcement 72 + leadership events"
+        },
+        {
+          "tier": 5,
+          "title": "Officer-in-Charge",
+          "unlock": "Law enforcement 88 + district reputation"
+        }
+      ],
+      "workplace": "Police station, Civic Quarter + patrol routes",
+      "workplace_zone": "d1_civic"
+    },
+    {
+      "gameplay_summary": "Playable driving loop: fares with time/traffic trade-offs, vehicle costs and fuel from the ledger, regulars who remember good driving (relationship flags).",
+      "id": "taxi_driver",
+      "income_band_monthly": {
+        "entry": 14000,
+        "mid": 23000,
+        "senior": 36000
+      },
+      "name": "Taxi Driver",
+      "playable_in_v1": true,
+      "primary_skills": [
+        "driving",
+        "city_knowledge"
+      ],
+      "progression": [
+        {
+          "tier": 1,
+          "title": "CNG Driver (rented)",
+          "unlock": "Driving licence"
+        },
+        {
+          "tier": 2,
+          "title": "Taxi Driver (depot car)",
+          "unlock": "Driving skill 30 + clean record"
+        },
+        {
+          "tier": 3,
+          "title": "Owner-Driver",
+          "unlock": "Buy own vehicle (ledger goal)"
+        },
+        {
+          "tier": 4,
+          "title": "Fleet Partner (2-3 vehicles)",
+          "unlock": "Capital + hire first driver"
+        },
+        {
+          "tier": 5,
+          "title": "Transport Business Owner",
+          "unlock": "Register transport business (Unit F)"
+        }
+      ],
+      "workplace": "Taxi/CNG depot, Industry Edge; fares across all zones",
+      "workplace_zone": "d1_industry"
+    },
+    {
+      "gameplay_summary": "Kitchen shifts, menu quality driving restaurant revenue, market ingredient runs. NPC-run in v1; the tea stalls and restaurant stay socially important from Phase 5.",
+      "id": "chef",
+      "income_band_monthly": {
+        "entry": 13000,
+        "mid": 22000,
+        "senior": 40000
+      },
+      "name": "Chef",
+      "playable_in_v1": false,
+      "primary_skills": [
+        "cooking",
+        "management"
+      ],
+      "progression": [
+        {
+          "tier": 1,
+          "title": "Kitchen Assistant",
+          "unlock": "Start of work life"
+        },
+        {
+          "tier": 2,
+          "title": "Cook",
+          "unlock": "Cooking skill 30"
+        },
+        {
+          "tier": 3,
+          "title": "Senior Cook",
+          "unlock": "Cooking skill 55"
+        },
+        {
+          "tier": 4,
+          "title": "Head Chef",
+          "unlock": "Cooking 72 + menu events"
+        },
+        {
+          "tier": 5,
+          "title": "Chef-Owner",
+          "unlock": "Capital for own restaurant/tea stall business"
+        }
+      ],
+      "workplace": "Restaurant kitchen, Boro Bazar",
+      "workplace_zone": "d1_market"
+    },
+    {
+      "gameplay_summary": "Highest wage band in the district; project-deadline events, remote days in schedules. NPC-run in v1.",
+      "id": "software_developer",
+      "income_band_monthly": {
+        "entry": 28000,
+        "mid": 52000,
+        "senior": 90000
+      },
+      "name": "Software Developer",
+      "playable_in_v1": false,
+      "primary_skills": [
+        "programming",
+        "analysis"
+      ],
+      "progression": [
+        {
+          "tier": 1,
+          "title": "Junior Developer",
+          "unlock": "Programming portfolio / degree"
+        },
+        {
+          "tier": 2,
+          "title": "Developer",
+          "unlock": "Programming skill 35"
+        },
+        {
+          "tier": 3,
+          "title": "Senior Developer",
+          "unlock": "Programming skill 60"
+        },
+        {
+          "tier": 4,
+          "title": "Tech Lead",
+          "unlock": "Programming 75 + management 40"
+        },
+        {
+          "tier": 5,
+          "title": "CTO / Startup Founder",
+          "unlock": "Programming 85 or register a software business"
+        }
+      ],
+      "workplace": "Office block, Uptown Heights (some remote-work schedules)",
+      "workplace_zone": "d1_uptown"
+    },
+    {
+      "gameplay_summary": "Playable business loop: buy stock at wholesale prices, set prices, watch demand by time/weather/footfall, pay rent and staff from the ledger.",
+      "id": "shop_owner",
+      "income_band_monthly": {
+        "entry": 12000,
+        "mid": 26000,
+        "senior": 55000
+      },
+      "income_note": "Business income, not a wage: revenue minus stock, rent and staff — can be negative in a bad month (GDD-01 §7: classes move in both directions).",
+      "name": "Shop Owner",
+      "playable_in_v1": true,
+      "primary_skills": [
+        "trading",
+        "management"
+      ],
+      "progression": [
+        {
+          "tier": 1,
+          "title": "Tea Stall Owner",
+          "unlock": "Small capital + stall tenancy"
+        },
+        {
+          "tier": 2,
+          "title": "Shop Owner (1 unit)",
+          "unlock": "Capital + market unit lease/purchase"
+        },
+        {
+          "tier": 3,
+          "title": "Established Trader",
+          "unlock": "Trading skill 50 + 2 staff"
+        },
+        {
+          "tier": 4,
+          "title": "Multi-Shop Owner",
+          "unlock": "Second unit + trading 65"
+        },
+        {
+          "tier": 5,
+          "title": "Wholesale Business Owner",
+          "unlock": "Godown lease + trading 80 (business, Unit F)"
+        }
+      ],
+      "workplace": "Own shop unit, Boro Bazar market hall / spine",
+      "workplace_zone": "d1_market"
+    },
+    {
+      "gameplay_summary": "The entrepreneur endgame of the owner's spec: hire employees, open branches, move the district economy. Reached by growing a playable business (Shop Owner / Civil Engineer firm / transport) rather than chosen at start; NPC magnates exist from world seed.",
+      "id": "business_owner",
+      "income_band_monthly": {
+        "entry": 40000,
+        "mid": 110000,
+        "senior": 300000
+      },
+      "income_note": "Pure business income band — widest variance in the game; represents owners of factories, firms and multi-unit businesses (GDD-01 §7 entrepreneur class).",
+      "name": "Business Owner",
+      "playable_in_v1": false,
+      "primary_skills": [
+        "management",
+        "trading"
+      ],
+      "progression": [
+        {
+          "tier": 1,
+          "title": "Small Business Owner",
+          "unlock": "Register a business + first premises"
+        },
+        {
+          "tier": 2,
+          "title": "Growing Employer (5+ staff)",
+          "unlock": "Payroll sustained 3 months"
+        },
+        {
+          "tier": 3,
+          "title": "Established Company",
+          "unlock": "Second premises or factory unit"
+        },
+        {
+          "tier": 4,
+          "title": "Group Director",
+          "unlock": "Multiple businesses under one holding"
+        },
+        {
+          "tier": 5,
+          "title": "Industrialist",
+          "unlock": "Top-decile district net worth + market influence events"
+        }
+      ],
+      "workplace": "Own company office (Uptown) + owned premises across zones",
+      "workplace_zone": "d1_uptown"
+    },
+    {
+      "gameplay_summary": "Present in data from v1 so NPC pilots and the profession graph are complete, but the workplace (airport) and flight gameplay arrive with Phase 8 travel. Honest scope: not playable, no District 1 presence beyond residents who commute out.",
+      "id": "pilot",
+      "income_band_monthly": {
+        "entry": 45000,
+        "mid": 95000,
+        "senior": 180000
+      },
+      "name": "Pilot",
+      "playable_in_v1": false,
+      "primary_skills": [
+        "flying",
+        "navigation"
+      ],
+      "progression": [
+        {
+          "tier": 1,
+          "title": "Trainee / First Officer (regional)",
+          "unlock": "Pilot licence (Phase 8 content)"
+        },
+        {
+          "tier": 2,
+          "title": "First Officer",
+          "unlock": "Flying skill 40 + flight hours"
+        },
+        {
+          "tier": 3,
+          "title": "Captain (domestic)",
+          "unlock": "Flying skill 65 + hours"
+        },
+        {
+          "tier": 4,
+          "title": "Captain (international)",
+          "unlock": "Flying 80 + type ratings"
+        },
+        {
+          "tier": 5,
+          "title": "Chief Pilot / Charter Owner",
+          "unlock": "Flying 90 or charter business capital"
+        }
+      ],
+      "workplace": "Regional airport (Phase 8 travel content — no airport exists in District 1, GDD-02 §8)",
+      "workplace_zone": "off_district"
+    }
+  ],
+  "version": "1.0"
+}

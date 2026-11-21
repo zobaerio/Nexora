@@ -1,0 +1,272 @@
+{
+  "notes": "Weather presets for the Phase 4 Weather Manager (master plan Part C #6; runtime in Unit E). Each preset is a target state the manager blends toward: sun/lighting values are relative guides for Sky Atmosphere + Directional Light, rain/fog/wind drive Niagara + fog + material Wetness (Material Parameter Collection, see Phase 1 Build Sheet 7.9). snow_allowed is zone-gated: snow only ever applies in zones flagged snow_zone=true (none in Rupsha City District 1; high-altitude/planet zones later). environment_panel_exposed = the preset appears in the player's Environment Control Panel (master plan Phase 4).",
+  "presets": [
+    {
+      "cloud_cover_percent": 5,
+      "description": "Owner spec table: 09:00 bright daylight. Default fair day.",
+      "environment_panel_exposed": true,
+      "fog_density": 0.0005,
+      "id": "clear_day",
+      "lighting": {
+        "sky_exposure_bias": 0.0,
+        "sun_elevation_guide": "by clock",
+        "sun_intensity": 3.0
+      },
+      "name": "Clear Day",
+      "precipitation": {
+        "rate": 0.0,
+        "type": "none"
+      },
+      "temperature_c": {
+        "typical_day": 31,
+        "typical_night": 24
+      },
+      "wetness_target": 0.0,
+      "wind": {
+        "direction_deg": 110,
+        "gusts_kmh": 18,
+        "speed_kmh": 10
+      }
+    },
+    {
+      "cloud_cover_percent": 10,
+      "description": "Golden sunrise state the day cycle passes through around 06:00 (owner spec table). Not a settable weather so much as a lighting mood the clear presets inherit at that hour.",
+      "environment_panel_exposed": false,
+      "fog_density": 0.0012,
+      "id": "sunrise_clear",
+      "lighting": {
+        "sky_exposure_bias": -0.1,
+        "sun_elevation_guide": "0-12 deg",
+        "sun_intensity": 1.6
+      },
+      "name": "Sunrise (Clear)",
+      "precipitation": {
+        "rate": 0.0,
+        "type": "none"
+      },
+      "temperature_c": {
+        "typical_day": 27,
+        "typical_night": 24
+      },
+      "wetness_target": 0.0,
+      "wind": {
+        "direction_deg": 100,
+        "gusts_kmh": 12,
+        "speed_kmh": 7
+      }
+    },
+    {
+      "cloud_cover_percent": 15,
+      "description": "Owner spec table: 19:00, city lights come on (MegaLights street lamps + building windows). Any clear-ish preset at night uses this lighting state.",
+      "environment_panel_exposed": false,
+      "fog_density": 0.0008,
+      "id": "night_clear",
+      "lighting": {
+        "city_lights": true,
+        "sky_exposure_bias": -0.2,
+        "sun_elevation_guide": "below horizon; moon light",
+        "sun_intensity": 0.05
+      },
+      "name": "Night (Clear)",
+      "precipitation": {
+        "rate": 0.0,
+        "type": "none"
+      },
+      "temperature_c": {
+        "typical_day": 29,
+        "typical_night": 23
+      },
+      "wetness_target": 0.0,
+      "wind": {
+        "direction_deg": 120,
+        "gusts_kmh": 10,
+        "speed_kmh": 6
+      }
+    },
+    {
+      "cloud_cover_percent": 65,
+      "description": "Overcast daylight: flat soft light, no hard shadows, colours mute.",
+      "environment_panel_exposed": true,
+      "fog_density": 0.001,
+      "id": "cloudy",
+      "lighting": {
+        "sky_exposure_bias": -0.15,
+        "sun_elevation_guide": "by clock, heavily diffused",
+        "sun_intensity": 1.1
+      },
+      "name": "Cloudy",
+      "precipitation": {
+        "rate": 0.0,
+        "type": "none"
+      },
+      "temperature_c": {
+        "typical_day": 29,
+        "typical_night": 23
+      },
+      "wetness_target": 0.1,
+      "wind": {
+        "direction_deg": 140,
+        "gusts_kmh": 24,
+        "speed_kmh": 14
+      }
+    },
+    {
+      "cloud_cover_percent": 85,
+      "description": "Steady rain: Niagara rain around camera, Wetness blends to 0.8, fog up, NPCs prefer cover (schedule bend, GDD-01 §4), taxi demand rises.",
+      "environment_panel_exposed": true,
+      "fog_density": 0.0025,
+      "gameplay_effects": [
+        "npc_cover_seeking",
+        "taxi_demand_up",
+        "road_grip_down"
+      ],
+      "id": "rain",
+      "lighting": {
+        "sky_exposure_bias": -0.3,
+        "sun_elevation_guide": "by clock, diffused",
+        "sun_intensity": 0.7
+      },
+      "name": "Rain",
+      "precipitation": {
+        "rate": 0.6,
+        "type": "rain"
+      },
+      "temperature_c": {
+        "typical_day": 27,
+        "typical_night": 22
+      },
+      "wetness_target": 0.8,
+      "wind": {
+        "direction_deg": 160,
+        "gusts_kmh": 38,
+        "speed_kmh": 22
+      }
+    },
+    {
+      "cloud_cover_percent": 100,
+      "description": "Thunderstorm: heavy rain + lightning flashes with delayed thunder audio (MetaSounds), gust fronts, occasional streetlight flicker. The dramatic ceiling of District 1 weather.",
+      "environment_panel_exposed": true,
+      "fog_density": 0.004,
+      "gameplay_effects": [
+        "npc_cover_seeking_strong",
+        "taxi_demand_up_high",
+        "river_level_up_visual",
+        "flight_and_launch_delays"
+      ],
+      "id": "storm",
+      "lighting": {
+        "lightning": true,
+        "sky_exposure_bias": -0.45,
+        "sun_elevation_guide": "by clock, near-dark",
+        "sun_intensity": 0.35
+      },
+      "name": "Storm",
+      "precipitation": {
+        "rate": 1.0,
+        "type": "rain"
+      },
+      "temperature_c": {
+        "typical_day": 26,
+        "typical_night": 22
+      },
+      "wetness_target": 1.0,
+      "wind": {
+        "direction_deg": 180,
+        "gusts_kmh": 65,
+        "speed_kmh": 38
+      }
+    },
+    {
+      "cloud_cover_percent": 25,
+      "description": "Ground fog, worst at dawn: visibility is the gameplay variable (driving, river launches slow down).",
+      "environment_panel_exposed": true,
+      "fog_density": 0.012,
+      "gameplay_effects": [
+        "visibility_down",
+        "traffic_speed_down",
+        "launch_terminal_caution"
+      ],
+      "id": "fog",
+      "lighting": {
+        "sky_exposure_bias": -0.1,
+        "sun_elevation_guide": "by clock, fog-scattered",
+        "sun_intensity": 1.0
+      },
+      "name": "Fog",
+      "precipitation": {
+        "rate": 0.0,
+        "type": "none"
+      },
+      "temperature_c": {
+        "typical_day": 24,
+        "typical_night": 19
+      },
+      "wetness_target": 0.3,
+      "wind": {
+        "direction_deg": 90,
+        "gusts_kmh": 7,
+        "speed_kmh": 4
+      }
+    },
+    {
+      "cloud_cover_percent": 40,
+      "description": "Wind as the headline: foliage and water react, clouds race, rain (if any) slants. Pairs with other presets via the wind override in the control panel.",
+      "environment_panel_exposed": true,
+      "fog_density": 0.0008,
+      "id": "windy",
+      "lighting": {
+        "sky_exposure_bias": 0.0,
+        "sun_elevation_guide": "by clock",
+        "sun_intensity": 2.4
+      },
+      "name": "Windy",
+      "precipitation": {
+        "rate": 0.0,
+        "type": "none"
+      },
+      "temperature_c": {
+        "typical_day": 30,
+        "typical_night": 23
+      },
+      "wetness_target": 0.0,
+      "wind": {
+        "direction_deg": 200,
+        "gusts_kmh": 55,
+        "speed_kmh": 34
+      }
+    },
+    {
+      "cloud_cover_percent": 70,
+      "description": "Snowfall. ZONE-GATED: only applies where snow_zone=true. Rupsha City never snows — this preset exists for mountain districts and other planets/regions (Phase 8/10). Ground accumulation is a visual material layer, not physics (master plan Part C #6).",
+      "environment_panel_exposed": true,
+      "fog_density": 0.003,
+      "gameplay_effects": [
+        "road_grip_down_high",
+        "npc_warm_clothing"
+      ],
+      "id": "snow",
+      "lighting": {
+        "sky_exposure_bias": 0.1,
+        "sun_elevation_guide": "by clock, bright bounce",
+        "sun_intensity": 2.0
+      },
+      "name": "Snow (zone-gated)",
+      "precipitation": {
+        "rate": 0.5,
+        "type": "snow"
+      },
+      "snow_allowed": true,
+      "temperature_c": {
+        "typical_day": -2,
+        "typical_night": -9
+      },
+      "wetness_target": 0.2,
+      "wind": {
+        "direction_deg": 320,
+        "gusts_kmh": 28,
+        "speed_kmh": 16
+      }
+    }
+  ],
+  "version": "1.0"
+}
