@@ -72,6 +72,18 @@ Fix the four economy findings from Unit T's simulator report (`docs/ECONOMY-SIM-
 - [x] **Unit W — Per-Profession Starting Balances (Finding 3)** (`data/professions.json` + GDD-03): monthly-paid professions dip negative in month 1 from a zero start (pilot −34,800). Add `starting_balance_ncr` per profession (civil engineer keeps the canonical 25,000), sized from the simulator's month-1 dip so no profession goes negative on its normal path.
 - [x] **Unit X — Simulator v2 + Full Re-run** (`tools/economy_sim.py` + `docs/ECONOMY-SIM-REPORT-V2.md`): model business-owner/shop-owner rows with real operating costs (full P&L + 8% business tax — v1 treated their bands as pre-cost upper bounds, Finding 6), apply U–W, re-run everything deterministically, and publish the v2 report with verbatim output + a before/after verdict per finding (fixed / improved / still open, honestly).
 
+---
+
+# Queue 5 — "Life Systems", ordered by the owner ("Continue Your Work", 2026-11-21 08:01)
+
+Design/data/scaffold layer, same scope limits, honesty rules and GitHub batching rule as Queues 1–4. UE C++ remains UNCOMPILED SCAFFOLD until compiled on the owner's PC.
+
+- [x] **Unit Y — Character Creator & Clothing** (`docs/GDD-09-CHARACTER-CREATOR.md` + `data/clothing.json` + clothing price table in `data/prices.json`): creator flow on MetaHuman (what the player picks vs what MetaHuman generates), outfit slots, clothing catalogue with prices resolving to prices.json clothing entries (a clothing price table is added to prices.json — none existed, only monthly budget lines), profession uniform mapping for all 11 professions.
+- [x] **Unit Z — Housing & Home Life** (`docs/GDD-10-HOUSING-AND-HOME-LIFE.md`): living in the properties from buildings-district1.json — move-in/move-out, rent payment hookup to the ledger (GDD-03 §3.2 owns the missed-rent ladder), home needs loop (sleep/eat/social/security from GDD-01 §4), furniture tiers tied to prices, visitors/household hookup to GDD-01 §5 households.
+- [x] **Unit AA — Drivable Vehicle C++ Scaffold** (`ue-project/Source/Nexora/Vehicles/NexoraVehiclePawn.h/.cpp` + `docs/TECH-VEHICLES.md`): Chaos-vehicle-oriented pawn scaffold + enter/exit interaction contract with NexoraCharacter, camera states, and the taxi fare meter hookup points from GDD-07; UNCOMPILED SCAFFOLD headers; braces balanced.
+- [ ] **Unit AB — Education & School Life** (`docs/GDD-11-EDUCATION.md`): child/student life-stage loops (school day from npc-schedules templates), teacher profession hookup (GDD-06), skills progression into character_skills (schema), university in District 1's education zone.
+- [ ] **Unit AC — Health & Hospital** (`docs/GDD-12-HEALTH.md`): doctor profession loop, illness/injury model (causes from weather/traffic/construction systems already designed), hospital interiors from GDD-02, treatment costs resolving to prices.json.
+
 ## Status
 
 See `STATUS.md` (updated every unit).
