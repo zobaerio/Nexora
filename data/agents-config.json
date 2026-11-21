@@ -1,0 +1,135 @@
+{
+  "assessments": {
+    "housing_vacancy_below": 0.08,
+    "pollution_air_above": 45,
+    "road_condition_below": 55,
+    "unemployment_above": 0.12
+  },
+  "capabilities": {
+    "business": [
+      "hire",
+      "produce",
+      "price",
+      "order_supply",
+      "negotiate_wage",
+      "invest"
+    ],
+    "citizen": [
+      "decide_daily",
+      "hold_goal",
+      "negotiate_wage",
+      "apply_job",
+      "purchase",
+      "save"
+    ],
+    "city": [
+      "assess",
+      "maintain_roads",
+      "fund_services",
+      "coordinate_response"
+    ],
+    "government": [
+      "enact_policy",
+      "enact_law",
+      "allocate_budget",
+      "assess",
+      "coordinate_response"
+    ],
+    "institution": [
+      "employ_civic",
+      "provide_service",
+      "assess"
+    ],
+    "system": [
+      "observe"
+    ]
+  },
+  "coordination": {
+    "overdue_days": 7
+  },
+  "forecasts": {
+    "horizon_months": 1,
+    "kinds": [
+      "population",
+      "housing_vacancy",
+      "congestion",
+      "business_profit"
+    ],
+    "trend_window_months": 3
+  },
+  "goals": {
+    "abandon_progress_below": 0.1,
+    "business_failure_memory_priority_cut": 30,
+    "derived_deadline_months": 12,
+    "goal_step_deposit_ratio": 0.25,
+    "home_progress_min_balance_ratio": 0.05,
+    "priority_bounds": [
+      10,
+      95
+    ],
+    "priority_progress_gain": 2,
+    "priority_stall_loss": 3,
+    "savings_target_wage_months": 3
+  },
+  "learning": {
+    "citizen_job_search_note": "Job-search adaptation is expressed through the wage-negotiation parameters (candidate premium factor) and goal priority adaptation; both are bounded, recorded in agent_learning, and never modify code."
+  },
+  "memory": {
+    "civilization_cap": 60,
+    "community_cap": 40,
+    "compress_below_importance": 40,
+    "family_cap": 24,
+    "major_life_events": [
+      "childbirth",
+      "death",
+      "marriage",
+      "job_gain",
+      "business_founded",
+      "bought_home",
+      "financial_distress",
+      "moved_home",
+      "promotion"
+    ],
+    "organisation_cap": 40
+  },
+  "model_invocation": {
+    "daily_budget": 0,
+    "note": "External AI models are OPTIONAL enhancements, never mandatory. The deterministic sim runs with a budget of 0 external calls per day: request_model() always refuses and records the refusal, so no agent action ever depends on an external model. A future owner-approved integration would raise this budget and count every call against it."
+  },
+  "negotiation": {
+    "candidate_factor_bounds": [
+      0.5,
+      1.2
+    ],
+    "candidate_factor_concede": 0.97,
+    "candidate_factor_default": 1.0,
+    "candidate_factor_walkaway": 0.9,
+    "candidate_factor_win": 1.05,
+    "candidate_floor_ratio": 0.5,
+    "employer_cap_bounds": [
+      0.0,
+      0.15
+    ],
+    "employer_cap_default": 0.06,
+    "employer_cap_walkaway_gain": 0.01,
+    "max_premium": 0.12,
+    "min_premium": 0.03
+  },
+  "note": "Session 09 \u2014 agent coordination configuration. The registry's capability lists are the coordination layer's permission model (in-simulation data only; nothing here touches real platform access \u2014 the Session 05 separation rule). Every numeric rate in this file is a labelled SIM MODEL parameter: no design document prices negotiation premiums, forecast formulas or assessment thresholds, so the models are transparent, bounded and recorded with every use.",
+  "orchestrator": {
+    "batch_size": 50,
+    "max_task_attempts": 3,
+    "priority_order": [
+      "government",
+      "city",
+      "institution",
+      "business",
+      "citizen"
+    ]
+  },
+  "supplier_selection": {
+    "reliability_min_units": 20,
+    "reliability_window_months": 3
+  },
+  "version": 1
+}

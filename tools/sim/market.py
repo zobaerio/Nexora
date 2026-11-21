@@ -286,7 +286,7 @@ def _distance_km(store, data, biz_a, biz_b):
 
 
 def _suppliers_from_pool(store, data, pool, good_id, city_id,
-                         buyer):
+                         buyer, month_index=None):
     """Suppliers ranked from the pass-start stock pool: producers
     first, then distributors, same city first. The pool is a
     snapshot — a business that buys a good in this pass does not
@@ -295,7 +295,21 @@ def _suppliers_from_pool(store, data, pool, good_id, city_id,
     service) never supply other businesses unless they produce
     the good themselves, and same-category trades happen only
     for production inputs (a garment workshop buying cloth-goods
-    from a light manufacturer)."""
+    from a light manufacturer).
+
+    Session 09: when the coordination layer is live and a month
+    is given, a third rank term prefers suppliers with a measured
+    delivery record for this good (trailing recorded supply
+    orders) — selection by experience, learned from outcomes.
+    Price cannot rank suppliers here: Session 04 prices are per
+    city+good, identical for every seller into a city, so there
+    is no per-supplier price signal to select on (recorded in
+    the Session 09 report). With no month (other callers, older
+    tests) the term is 0 for everyone and the Session 04 order
+    is preserved exactly."""
+    from . import agents as agents_mod
+    agents_live = month_index is not None \
+        and agents_mod.is_setup(store)
     exclude_id = buyer["business_id"]
     buyer_inputs = set()
     for r in _recipes_for(data, buyer["category"]):
@@ -318,7 +332,12 @@ def _suppliers_from_pool(store, data, pool, good_id, city_id,
             continue  # no sideways trade within a category
         same_city = business_mod.business_city(store, data, b) \
             == city_id
-        rank = (0 if same_city else 1, 0 if is_producer else 1, bid)
+        reliable = 0
+        if agents_live:
+            reliable = 0 if agents_mod.supplier_reliable(
+                store, data, bid, good_id, month_index) else 1
+        rank = (0 if same_city else 1, 0 if is_producer else 1,
+                reliable, bid)
         out.append((rank, b))
     out.sort(key=lambda t: t[0])
     return [b for _rank, b in out]
@@ -349,8 +368,10 @@ def supply_chain_pass(store, data, month_index, game_minutes):
                 continue
             need = target - have
             price = price_of(store, data, city, good_id)
-            for supplier in _suppliers_from_pool(
-                    store, data, pool, good_id, city, b):
+            suppliers = _suppliers_from_pool(
+                store, data, pool, good_id, city, b,
+                month_index=month_index)
+            for supplier in suppliers:
                 if need <= 0:
                     break
                 sid = supplier["business_id"]
@@ -399,10 +420,37 @@ def supply_chain_pass(store, data, month_index, game_minutes):
                                  details={"month_index": month_index,
                                           "distance_km": round(dist, 2),
                                           "shipping_ncr": shipping})
-                orders.append({"buyer": bid, "seller": sid,
-                               "good_id": good_id, "units": take,
-                               "amount_ncr": amount,
-                               "shipping_ncr": shipping})
+                order = {"buyer": bid, "seller": sid,
+                         "good_id": good_id, "units": take,
+                         "amount_ncr": amount,
+                         "shipping_ncr": shipping}
+                orders.append(order)
+                # Session 09: every executed order is recorded
+                # (the measured basis for supplier reliability)
+                # and explained (inputs -> rule -> outcome) in the
+                # buyer's decision record, when the coordination
+                # layer is live.
+                from . import agents as agents_mod
+                if agents_mod.is_setup(store):
+                    agents_mod.record_supply_order(
+                        store, order, month_index, game_minutes)
+                    agents_mod.log_agent_decision(
+                        store, bid, "business", "supplier_selection",
+                        {"good_id": good_id, "need_units": need,
+                         "candidates": [s["business_id"]
+                                        for s in suppliers],
+                         "reliability_units": {
+                             s["business_id"]:
+                             agents_mod.supplier_reliability(
+                                 store, data, s["business_id"],
+                                 good_id, month_index)
+                             for s in suppliers}},
+                        "same city first, producers first, then"
+                        " measured trailing delivery volume"
+                        " (Session 09); price is per city+good in"
+                        " Session 04 and cannot rank sellers",
+                        {"seller": sid, "units": take,
+                         "amount_ncr": amount}, game_minutes)
                 need -= take
     return orders
 

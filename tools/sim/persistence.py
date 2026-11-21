@@ -1669,6 +1669,192 @@ CREATE TABLE IF NOT EXISTS disaster_responses (
 );
 CREATE INDEX IF NOT EXISTS idx_disresponses_disaster
     ON disaster_responses(disaster_id);
+-- SESSION 09 tables (additive only; see SESSION-09-REPORT.md) ------------
+-- Agent coordination layer: a registry over the actors the earlier
+-- sessions already created (never duplicate entities), extended
+-- personal goals (columns on character_goals via MIGRATIONS),
+-- structured negotiations, supply orders (the measured basis for
+-- supplier selection), decision explanations, multi-level memory,
+-- agent messages, forecasts with scored outcomes, city/national
+-- assessments, disaster coordination tasks, executed/failed action
+-- records, bounded learning parameters and goal progress history.
+-- data/schema.sql has no agent-coordination model; gap recorded.
+CREATE TABLE IF NOT EXISTS agent_registry (
+    agent_id TEXT PRIMARY KEY,
+    agent_class TEXT NOT NULL,
+    ref_id TEXT NOT NULL,
+    display_name TEXT NOT NULL DEFAULT '',
+    capabilities TEXT NOT NULL DEFAULT '[]',
+    status TEXT NOT NULL DEFAULT 'active',
+    registered_at_game_minutes INTEGER NOT NULL DEFAULT 0,
+    updated_at_game_minutes INTEGER NOT NULL DEFAULT 0,
+    UNIQUE (agent_class, ref_id)
+);
+CREATE TABLE IF NOT EXISTS agent_params (
+    owner_ref TEXT NOT NULL,
+    param TEXT NOT NULL,
+    value REAL NOT NULL,
+    PRIMARY KEY (owner_ref, param)
+);
+CREATE TABLE IF NOT EXISTS agent_learning (
+    record_id TEXT PRIMARY KEY,
+    owner_ref TEXT NOT NULL,
+    param TEXT NOT NULL,
+    old_value REAL NOT NULL,
+    new_value REAL NOT NULL,
+    reason TEXT NOT NULL DEFAULT '{}',
+    game_minutes INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_learning_owner
+    ON agent_learning(owner_ref, game_minutes);
+CREATE TABLE IF NOT EXISTS negotiations (
+    negotiation_id TEXT PRIMARY KEY,
+    kind TEXT NOT NULL,
+    vacancy_id TEXT,
+    party_a_ref TEXT NOT NULL,
+    party_b_ref TEXT NOT NULL,
+    objective TEXT NOT NULL DEFAULT '{}',
+    constraints TEXT NOT NULL DEFAULT '{}',
+    status TEXT NOT NULL DEFAULT 'open',
+    rounds INTEGER NOT NULL DEFAULT 0,
+    final_terms TEXT NOT NULL DEFAULT '{}',
+    created_at_game_minutes INTEGER NOT NULL DEFAULT 0,
+    closed_at_game_minutes INTEGER
+);
+CREATE TABLE IF NOT EXISTS negotiation_offers (
+    offer_id TEXT PRIMARY KEY,
+    negotiation_id TEXT NOT NULL,
+    round INTEGER NOT NULL,
+    from_ref TEXT NOT NULL,
+    amount_ncr INTEGER NOT NULL DEFAULT 0,
+    response TEXT NOT NULL,
+    game_minutes INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_offers_negotiation
+    ON negotiation_offers(negotiation_id, round);
+CREATE TABLE IF NOT EXISTS supply_orders (
+    order_id TEXT PRIMARY KEY,
+    month_index INTEGER NOT NULL,
+    buyer_business_id TEXT NOT NULL,
+    seller_business_id TEXT NOT NULL,
+    good_id TEXT NOT NULL,
+    units REAL NOT NULL DEFAULT 0,
+    amount_ncr INTEGER NOT NULL DEFAULT 0,
+    game_minutes INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_supply_orders_seller
+    ON supply_orders(seller_business_id, good_id, month_index);
+CREATE TABLE IF NOT EXISTS agent_decisions (
+    record_id TEXT PRIMARY KEY,
+    agent_ref TEXT NOT NULL,
+    agent_class TEXT NOT NULL,
+    decision_kind TEXT NOT NULL,
+    inputs TEXT NOT NULL DEFAULT '{}',
+    rule TEXT NOT NULL DEFAULT '',
+    outcome TEXT NOT NULL DEFAULT '{}',
+    game_minutes INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_agentdecisions_agent
+    ON agent_decisions(agent_ref, game_minutes);
+CREATE TABLE IF NOT EXISTS agent_memories (
+    memory_id TEXT PRIMARY KEY,
+    level TEXT NOT NULL,
+    owner_ref TEXT NOT NULL,
+    event_kind TEXT NOT NULL,
+    summary TEXT NOT NULL DEFAULT '{}',
+    importance INTEGER NOT NULL DEFAULT 0,
+    access_count INTEGER NOT NULL DEFAULT 0,
+    compressed INTEGER NOT NULL DEFAULT 0,
+    created_at_game_minutes INTEGER NOT NULL DEFAULT 0,
+    updated_at_game_minutes INTEGER NOT NULL DEFAULT 0
+);
+CREATE INDEX IF NOT EXISTS idx_agentmem_owner
+    ON agent_memories(level, owner_ref, importance);
+CREATE TABLE IF NOT EXISTS agent_messages (
+    message_id TEXT PRIMARY KEY,
+    from_ref TEXT NOT NULL,
+    to_ref TEXT NOT NULL,
+    kind TEXT NOT NULL,
+    payload TEXT NOT NULL DEFAULT '{}',
+    game_minutes INTEGER NOT NULL
+);
+CREATE TABLE IF NOT EXISTS forecasts (
+    forecast_id TEXT PRIMARY KEY,
+    kind TEXT NOT NULL,
+    scope TEXT NOT NULL,
+    made_month INTEGER NOT NULL,
+    horizon_months INTEGER NOT NULL DEFAULT 1,
+    target_month INTEGER NOT NULL,
+    inputs TEXT NOT NULL DEFAULT '{}',
+    predicted TEXT NOT NULL DEFAULT '{}',
+    actual TEXT,
+    score TEXT,
+    status TEXT NOT NULL DEFAULT 'open',
+    created_at_game_minutes INTEGER NOT NULL DEFAULT 0,
+    scored_at_game_minutes INTEGER
+);
+CREATE INDEX IF NOT EXISTS idx_forecasts_target
+    ON forecasts(status, target_month);
+CREATE TABLE IF NOT EXISTS assessments (
+    assessment_id TEXT PRIMARY KEY,
+    scope TEXT NOT NULL,
+    problem_kind TEXT NOT NULL,
+    month_index INTEGER NOT NULL,
+    indicator TEXT NOT NULL DEFAULT '{}',
+    baseline REAL,
+    current_value REAL,
+    action_kind TEXT,
+    action_ref TEXT,
+    status TEXT NOT NULL DEFAULT 'identified',
+    evaluation TEXT,
+    created_at_game_minutes INTEGER NOT NULL DEFAULT 0,
+    updated_at_game_minutes INTEGER NOT NULL DEFAULT 0
+);
+CREATE INDEX IF NOT EXISTS idx_assessments_open
+    ON assessments(scope, problem_kind, status);
+CREATE TABLE IF NOT EXISTS coordination_tasks (
+    task_id TEXT PRIMARY KEY,
+    disaster_id TEXT NOT NULL,
+    kind TEXT NOT NULL,
+    assigned_ref TEXT,
+    status TEXT NOT NULL DEFAULT 'pending',
+    attempts INTEGER NOT NULL DEFAULT 0,
+    details TEXT NOT NULL DEFAULT '{}',
+    created_at_game_minutes INTEGER NOT NULL DEFAULT 0,
+    updated_at_game_minutes INTEGER NOT NULL DEFAULT 0,
+    completed_at_game_minutes INTEGER,
+    UNIQUE (disaster_id, kind)
+);
+CREATE TABLE IF NOT EXISTS agent_actions (
+    action_id TEXT PRIMARY KEY,
+    agent_ref TEXT NOT NULL,
+    action_kind TEXT NOT NULL,
+    status TEXT NOT NULL,
+    details TEXT NOT NULL DEFAULT '{}',
+    game_minutes INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_agentactions_agent
+    ON agent_actions(agent_ref, game_minutes);
+CREATE TABLE IF NOT EXISTS goal_progress_log (
+    log_id TEXT PRIMARY KEY,
+    goal_id TEXT NOT NULL,
+    character_id TEXT NOT NULL,
+    progress REAL NOT NULL,
+    measured TEXT NOT NULL DEFAULT '{}',
+    game_minutes INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_goalprogress_goal
+    ON goal_progress_log(goal_id, game_minutes);
+CREATE TABLE IF NOT EXISTS agent_perf (
+    perf_id TEXT PRIMARY KEY,
+    agent_class TEXT NOT NULL,
+    pass_kind TEXT NOT NULL,
+    duration_ms REAL NOT NULL DEFAULT 0,
+    agents_updated INTEGER NOT NULL DEFAULT 0,
+    game_minutes INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_agentperf_pass
+    ON agent_perf(pass_kind, game_minutes);
 """
 
 # Additive column migrations for tables that predate a session.
@@ -1689,6 +1875,13 @@ MIGRATIONS = (
     ("world_state", "transport_setup", "INTEGER NOT NULL DEFAULT 0"),
     ("road_segments", "closed", "INTEGER NOT NULL DEFAULT 0"),
     ("world_state", "environment_setup", "INTEGER NOT NULL DEFAULT 0"),
+    ("world_state", "agents_setup", "INTEGER NOT NULL DEFAULT 0"),
+    ("character_goals", "priority", "INTEGER NOT NULL DEFAULT 50"),
+    ("character_goals", "progress", "REAL NOT NULL DEFAULT 0"),
+    ("character_goals", "feasibility", "TEXT NOT NULL DEFAULT '{}'"),
+    ("character_goals", "deadline_game_minutes", "INTEGER"),
+    ("character_goals", "dependencies", "TEXT NOT NULL DEFAULT '[]'"),
+    ("character_goals", "completion_rule", "TEXT NOT NULL DEFAULT ''"),
 )
 
 SYSTEM_ACCOUNTS = ("SYS-CITY", "SYS-EMPLOYERS", "SYS-MARKET", "SYS-BANK")

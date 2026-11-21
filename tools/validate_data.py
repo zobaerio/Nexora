@@ -528,6 +528,49 @@ def main():
               ["relief_ncr_per_household"] > 0,
               "environment model parameters are positive")
 
+    # -- Session 09: agents-config.json ---------------------------
+    # The capability model must cover every agent class; only the
+    # government class may hold enact_policy (the coordination
+    # layer's permission rule); negotiation and learning bounds
+    # must be sane intervals; memory caps positive; forecast kinds
+    # are the four transparent models the layer implements.
+    try:
+        data["agents-config.json"] = load("agents-config.json")
+        print("  ok: agents-config.json parses")
+    except Exception as e:
+        check(False, "agents-config.json parses", f"({e})")
+    if "agents-config.json" in data:
+        ac = data["agents-config.json"]
+        caps = ac["capabilities"]
+        check(set(caps) == {"citizen", "business", "institution",
+                            "city", "government", "system"},
+              "agents capabilities cover every agent class")
+        check("enact_policy" in caps["government"]
+              and all("enact_policy" not in v for k, v in caps.items()
+                      if k != "government"),
+              "only the government class holds enact_policy")
+        n = ac["negotiation"]
+        check(0 < n["min_premium"] < n["max_premium"] <= 0.5
+              and n["employer_cap_bounds"][0]
+              < n["employer_cap_bounds"][1] <= 0.5
+              and n["candidate_factor_bounds"][0]
+              < n["candidate_factor_bounds"][1],
+              "agents negotiation bounds are sane intervals")
+        check(all(ac["memory"][k] > 0 for k in
+                  ("family_cap", "organisation_cap", "community_cap",
+                   "civilization_cap")),
+              "agents memory caps are positive")
+        check(set(ac["forecasts"]["kinds"]) == {
+            "population", "housing_vacancy", "congestion",
+            "business_profit"} and ac["forecasts"]["horizon_months"]
+              > 0,
+              "agents forecasts are the four transparent models")
+        g = ac["goals"]
+        check(g["priority_bounds"][0] < g["priority_bounds"][1]
+              and 0 < g["goal_step_deposit_ratio"] <= 1
+              and g["business_failure_memory_priority_cut"] > 0,
+              "agents goal parameters are sane")
+
     return finish()
 
 

@@ -189,10 +189,12 @@ def match_vacancies(store, data, rng, month_index, game_minutes):
             # the civil-service pass (admin.py), which records the
             # institution assignment and pays from the treasury.
         best, best_score = None, -1
+        pool_scores = []
         for cid in unemployed:
             if not _eligible(store, data, cid, v["profession_id"]):
                 continue
             score = _score(store, data, rng, cid, v, day_index)
+            pool_scores.append(score)
             aid = store.next_id("AP", "job_applications",
                                 "application_id")
             store.insert("job_applications", application_id=aid,
@@ -203,6 +205,27 @@ def match_vacancies(store, data, rng, month_index, game_minutes):
                 best, best_score = cid, score
         if best is None:
             continue
+        wage = v["wage_per_month"]
+        # Session 09: a business hire is a structured negotiation
+        # when the coordination layer is live — the best candidate
+        # may ask a premium over the posted wage, the employer may
+        # counter, and a walk-away leaves the vacancy open with
+        # the candidate still in the pool. Civic pay is a fixed
+        # scale and is never negotiated. Worlds without the agent
+        # layer keep the exact Session 04 behaviour.
+        if v["employer_kind"] == "business":
+            from . import agents as agents_mod
+            if agents_mod.is_setup(store):
+                wage, _nid = agents_mod.negotiate_wage(
+                    store, data, v, best, best_score, pool_scores,
+                    game_minutes)
+                if wage is None:
+                    store.execute(
+                        "UPDATE job_applications SET status ="
+                        " 'walked_away' WHERE vacancy_id = ? AND"
+                        " character_id = ?",
+                        (v["vacancy_id"], best))
+                    continue
         eid = store.next_id("EM", "employments", "employment_id")
         store.insert(
             "employments", employment_id=eid, character_id=best,
@@ -210,7 +233,7 @@ def match_vacancies(store, data, rng, month_index, game_minutes):
             employer_business_id=v["employer_business_id"],
             employer_character_id="SYS-CITY"
             if v["employer_kind"] == "civic" else None,
-            tier=1, wage_per_month=v["wage_per_month"],
+            tier=1, wage_per_month=wage,
             started_at_game_minutes=game_minutes)
         store.execute(
             "UPDATE vacancies SET status = 'filled',"
@@ -226,6 +249,36 @@ def match_vacancies(store, data, rng, month_index, game_minutes):
             " vacancy_id = ? AND character_id = ?",
             (v["vacancy_id"], best))
         unemployed.remove(best)
+        # Session 09: contention resolution, recorded. One person
+        # cannot take two jobs: the hired candidate's still-pending
+        # applications to other vacancies close as contention_lost,
+        # with the orchestrator's rule on record (vacancies are
+        # processed in id order; the highest score wins the
+        # person). The household analogue — two households claiming
+        # one vacant unit — is resolved by households.move_household
+        # (first mover wins; the loser gets None, recorded in its
+        # decision outcome).
+        from . import agents as agents_mod
+        if agents_mod.is_setup(store):
+            lost = store.rows(
+                "SELECT vacancy_id FROM job_applications WHERE"
+                " character_id = ? AND status = 'pending'",
+                (best,))
+            if lost:
+                store.execute(
+                    "UPDATE job_applications SET status ="
+                    " 'contention_lost' WHERE character_id = ? AND"
+                    " status = 'pending'", (best,))
+                agents_mod.log_agent_decision(
+                    store, best, "citizen", "conflict_resolution",
+                    {"won_vacancy": v["vacancy_id"],
+                     "lost_vacancies": [r["vacancy_id"]
+                                        for r in lost]},
+                    "one agent, one job: vacancies in id order,"
+                    " highest score wins the candidate; losing"
+                    " applications close with the reason recorded",
+                    {"hired_vacancy": v["vacancy_id"]},
+                    game_minutes)
         memory_mod.log_life_event(
             store, best, "job_gain", game_minutes,
             details={"profession": v["profession_id"],
