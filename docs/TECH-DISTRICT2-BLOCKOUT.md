@@ -96,12 +96,12 @@ Rules for the subset (same as District 1's):
 | Northgate Rd, the collector ring, all locals/lanes, the Northgate crossing and its tower | **PROPOSED** | No District 1 data implies their positions; the mirror-shift (−1020 m) is a proposal |
 | `d2_garden` (Garden Suburb) and `d2_maidan` (North Maidan) zones | **New PROPOSED** | No District 1 equivalent; see §2 for why |
 | Promenade class applied to a maidan edge | **PROPOSED extension** | GDD-02 §3 defines it as riverside; see §3 |
-| All 40 plots, 6 landmarks, the Phase 8 first slice | **PROPOSED** | No buildings data exists; plots carry `building_id: null` |
+| All 40 plots, 6 landmarks, the Phase 8 first slice | **PROPOSED** | First-slice buildings data now exists (Unit AT, §10); the other 29 plots still have no buildings data. All 40 plots still carry `building_id: null` in the blockout file — the plot → building link lives in `data/buildings-district2.json` (`plot_id`) until the owner confirms the layout |
 | No second bridge; no river in District 2; no onward route past `(0, −1520)` | **Deliberately absent** | TECH-MULTIDISTRICT §3.5; GDD-02 §8 |
 
 ## 8. What This Spec Deliberately Does Not Decide
 
-- **No buildings data.** Plots reference zone + tier + `proposed_use`, never building ids. A `data/buildings-district2.json` is a later unit, after owner confirmation — with the same 1:1 plot rule as District 1.
+- **Buildings data for the first slice only.** Unit AT (Queue 9) authored `data/buildings-district2.json` for the 11 first-slice plots — ahead of owner confirmation, as PROPOSED v1 data under the standing continuous-development order, the same status this whole spec carries. The other 29 plots still have no buildings data. The blockout file's plot-level `building_id` fields stay `null` until the owner confirms the layout (a one-line data edit per plot then); until then the plot → building link lives in the buildings file's `plot_id` field, and the validator checks the 1:1 coverage of the first slice.
 - **No interiors.** As District 1 (§7): interiors are a later unit. Plots carry anchors, not rooms.
 - **No verticality data.** Building heights/floors come from the plan/property data when buildings are modelled; the blockout is a ground-plane contract.
 - **No prop dressing.** Tea-stall positions, benches, signage — the art pass places them inside plots/zones on the PC; the blockout guarantees the *space* exists, not the dressing.
@@ -120,3 +120,13 @@ Rules for the subset (same as District 1's):
 6. **Landmark names:** the six proposed names, or replacements.
 7. **The northern terminus:** what, if anything, lies beyond `(0, −1520)` — and whether the North Gate bus terminal is the district's intercity hub or whether intercity travel stays at District 1's station/terminal.
 8. **Scope decision:** whether District 2 proceeds to a GDD section and a buildings file (the next units), or stays a concept on the shelf.
+
+## 10. Unit AT Note — First-Slice Buildings Data (Queue 9)
+
+`data/buildings-district2.json` (v1.0, status `PROPOSED`) authors buildings for the Phase 8 first slice only — the 11 plots §6 marks. The other 29 plots have no building: their `building_id` stays `null` and no second-slice building is invented anywhere.
+
+- **Residential (5 buildings: 3 apartments, 2 houses):** rent/buy per unit from the shared `data/prices.json` `rent_monthly_by_tier` table — tier 2: 4000/350000, tier 3: 6000/750000. These are the canonical tier values, not District 1's file: the same table District 1's residential stock is validated against.
+- **Commercial (5 buildings: hall shops, tea stalls, godowns, restaurant, food carts):** there is no per-tier commercial table in `prices.json`, so rent/buy mirror the closest District 1 analogue of the same type + tier, cited per building (`b_d1_market_hall_units`, `b_d1_market_tea_stalls`, `b_d1_market_godowns`, `b_d1_market_restaurant`, `b_d1_park_food_carts`). This is a deliberate, labelled deviation from §8's "never copied from District 1's table": the values are PROPOSED v1 seeds with exactly the standing District 1's own commercial values carry (its file calls them seed extrapolations of the tier model, pending Phase 6 tuning). If the owner prices District 2 commercially from its own zones instead, these five values are replaced, not defended.
+- **Parkland (1 building):** `b_d2_park_green` — rent/buy null, civic-owned, mirroring `b_d1_park_land`.
+- **Availability:** all 11 buildings are for rent at opening (`for_rent_units` = `units`) and none is listed for sale (`for_sale_units` = 0); sales open only after the owner confirms the layout. Unit counts are PROPOSED estimates from the cited District 1 analogue.
+- **Link rule:** each building carries `plot_id` into the first slice; the validator checks the 11 `plot_id` values cover the first-slice plot ids exactly once, and that each building's zone/type/tier equals its plot's. The blockout file's `building_id` fields remain `null` (see §8) until owner confirmation.
