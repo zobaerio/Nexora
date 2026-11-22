@@ -1,0 +1,1486 @@
+{
+  "coordinate_system": "Local metres \u2014 the SAME frame as District 1 (data/district1-blockout.json): origin (0,0) is 60 m north of the Clock Tower junction; +x = east, +z = south (ground plane; engine Y is up). District 2 extent approx 1,020 m x 1,020 m: x -510..510, z -1520..-500, immediately north of District 1 (whose north edge is z -500).",
+  "district": "District 2 \u2014 Rupsha North (PROPOSED name; owner to confirm or rename)",
+  "junctions": [
+    {
+      "at": [
+        0,
+        -1080
+      ],
+      "id": "d2_j_northgate",
+      "landmark": "Northgate Tower (PROPOSED)",
+      "signalled": true,
+      "status": "PROPOSED"
+    },
+    {
+      "at": [
+        0,
+        -720
+      ],
+      "id": "d2_j_civic_ring_s",
+      "signalled": true,
+      "status": "PROPOSED"
+    },
+    {
+      "at": [
+        350,
+        -1080
+      ],
+      "id": "d2_j_northgate_ring_e",
+      "signalled": true,
+      "status": "PROPOSED"
+    },
+    {
+      "at": [
+        350,
+        -1320
+      ],
+      "id": "d2_j_ring_ne",
+      "signalled": false,
+      "status": "PROPOSED"
+    },
+    {
+      "at": [
+        350,
+        -720
+      ],
+      "id": "d2_j_ring_se",
+      "signalled": false,
+      "status": "PROPOSED"
+    },
+    {
+      "at": [
+        -350,
+        -720
+      ],
+      "id": "d2_j_ring_sw",
+      "signalled": false,
+      "status": "PROPOSED"
+    },
+    {
+      "at": [
+        -350,
+        -1320
+      ],
+      "id": "d2_j_ring_nw",
+      "signalled": false,
+      "status": "PROPOSED"
+    },
+    {
+      "at": [
+        0,
+        -1320
+      ],
+      "id": "d2_j_civic_ring_n",
+      "signalled": false,
+      "status": "PROPOSED"
+    },
+    {
+      "at": [
+        -350,
+        -1080
+      ],
+      "id": "d2_j_northgate_ring_w",
+      "signalled": false,
+      "status": "PROPOSED"
+    },
+    {
+      "at": [
+        0,
+        -500
+      ],
+      "id": "d2_j_south_gate",
+      "notes": "Inter-district join: District 2's seg_civic_ave_s meets District 1's seg_civic_ave_n here, at District 1's north edge (TECH-MULTIDISTRICT \u00a73.2).",
+      "signalled": false,
+      "status": "PROPOSED"
+    }
+  ],
+  "landmarks": [
+    {
+      "at": [
+        0,
+        -1080
+      ],
+      "id": "d2_lm_northgate_tower",
+      "name": "Northgate Tower",
+      "source": "PROPOSED mirror of GDD-02 \u00a74.1 (Clock Tower) at the District 2 arterial crossing.",
+      "status": "PROPOSED"
+    },
+    {
+      "at": [
+        60,
+        -980
+      ],
+      "id": "d2_lm_north_bazar_hall",
+      "name": "North Bazar hall",
+      "source": "PROPOSED mirror of GDD-02 \u00a74.5 (Boro Bazar market hall). No building_id: no District 2 buildings data exists yet.",
+      "status": "PROPOSED"
+    },
+    {
+      "at": [
+        -60,
+        -635
+      ],
+      "id": "d2_lm_maidan_pavilion",
+      "name": "Maidan pavilion",
+      "source": "PROPOSED new landmark: pavilion on the maidan strip (d2_maidan, a PROPOSED new zone).",
+      "status": "PROPOSED"
+    },
+    {
+      "at": [
+        -260,
+        -840
+      ],
+      "id": "d2_lm_garden_tank",
+      "name": "Garden Suburb water tank",
+      "source": "PROPOSED mirror of GDD-02 \u00a74.8 (the old water tank).",
+      "status": "PROPOSED"
+    },
+    {
+      "at": [
+        430,
+        -900
+      ],
+      "id": "d2_lm_north_gate_depot",
+      "name": "North Gate depot frontage",
+      "source": "PROPOSED mirror of GDD-02 \u00a74.7 (station clock frontage) at the North Gate bus terminal. No building_id: no District 2 buildings data exists yet.",
+      "status": "PROPOSED"
+    },
+    {
+      "at": [
+        430,
+        -660
+      ],
+      "id": "d2_lm_north_heights_view",
+      "name": "North Heights viewpoint",
+      "source": "PROPOSED mirror of GDD-02 \u00a74.6 (uptown rooftop restaurant tower) as a skyline marker on the northern strip.",
+      "status": "PROPOSED"
+    }
+  ],
+  "notes": "PROPOSED District 2 concept & blockout v1 (Unit AR). No data/buildings-district2.json exists yet: plots reference zone + tier + proposed_use only, never building ids (building_id is null on every plot). All geometry is PROPOSED until the owner confirms or revises it; a revision is a data edit, not a redesign (same rule as GDD-04's proposed level names). District 2 sits immediately north of District 1 in the same Rupsha City coordinate frame and World Partition map (TECH-MULTIDISTRICT \u00a73.1, \u00a73.5); its south edge (z -500) is District 1's north edge, joined at d2_j_south_gate (0,-500) where d2_seg_civic_ave_s meets District 1's seg_civic_ave_n.",
+  "phase8_first_slice": {
+    "bbox_m": {
+      "x0": -200,
+      "x1": 200,
+      "z0": -1080,
+      "z1": -680
+    },
+    "name": "Phase 8 first slice (PROPOSED)",
+    "notes": "The subset the owner would build FIRST if District 2 is confirmed: a 400 m x 400 m box around the Northgate crossing (0,-1080), mirroring District 1's Phase 1 test scene (TECH-DISTRICT1-BLOCKOUT \u00a76) \u2014 one arterial crossing, the North Bazar spine head, the garden lanes and the North Green park edge. It is a subset, not a separate map: same ids, same coordinates. District 2 is Phase 8 work (TECH-MULTIDISTRICT); nothing here is a Phase 1 commitment.",
+    "plot_ids": [
+      "d2_plot_market_01",
+      "d2_plot_market_02",
+      "d2_plot_market_03",
+      "d2_plot_market_04",
+      "d2_plot_midtown_01",
+      "d2_plot_midtown_02",
+      "d2_plot_midtown_04",
+      "d2_plot_garden_02",
+      "d2_plot_garden_04",
+      "d2_plot_park_01",
+      "d2_plot_park_02"
+    ],
+    "segment_ids": [
+      "d2_seg_civic_ave_n",
+      "d2_seg_civic_ave_s",
+      "d2_seg_northgate_rd_w",
+      "d2_seg_northgate_rd_e",
+      "d2_seg_market_spine",
+      "d2_seg_midtown_local",
+      "d2_seg_garden_local",
+      "d2_seg_garden_lane_1",
+      "d2_seg_garden_lane_2",
+      "d2_seg_garden_lane_3"
+    ]
+  },
+  "plots": [
+    {
+      "anchor": {
+        "facing": "south",
+        "x": 120.0,
+        "z": -890
+      },
+      "building_id": null,
+      "id": "d2_plot_midtown_01",
+      "notes": "PROPOSED v1 grid placement inside the zone box; no data/buildings-district2.json exists yet, so this plot references zone + tier + proposed_use only (building_id is null). Art direction on PC may shift within the zone (TECH-DISTRICT2-BLOCKOUT \u00a72).",
+      "plot_rect_m": {
+        "d": 60,
+        "w": 60,
+        "x": 90,
+        "z": -950
+      },
+      "property_type": "apartment",
+      "proposed_use": "Midtown North apartments",
+      "status": "PROPOSED",
+      "tier": 3,
+      "zone_id": "d2_midtown"
+    },
+    {
+      "anchor": {
+        "facing": "south",
+        "x": 203.3,
+        "z": -890
+      },
+      "building_id": null,
+      "id": "d2_plot_midtown_02",
+      "notes": "PROPOSED v1 grid placement inside the zone box; no data/buildings-district2.json exists yet, so this plot references zone + tier + proposed_use only (building_id is null). Art direction on PC may shift within the zone (TECH-DISTRICT2-BLOCKOUT \u00a72).",
+      "plot_rect_m": {
+        "d": 60,
+        "w": 60,
+        "x": 173.3,
+        "z": -950
+      },
+      "property_type": "apartment",
+      "proposed_use": "Midtown North apartments",
+      "status": "PROPOSED",
+      "tier": 3,
+      "zone_id": "d2_midtown"
+    },
+    {
+      "anchor": {
+        "facing": "south",
+        "x": 286.7,
+        "z": -890
+      },
+      "building_id": null,
+      "id": "d2_plot_midtown_03",
+      "notes": "PROPOSED v1 grid placement inside the zone box; no data/buildings-district2.json exists yet, so this plot references zone + tier + proposed_use only (building_id is null). Art direction on PC may shift within the zone (TECH-DISTRICT2-BLOCKOUT \u00a72).",
+      "plot_rect_m": {
+        "d": 60,
+        "w": 60,
+        "x": 256.7,
+        "z": -950
+      },
+      "property_type": "apartment",
+      "proposed_use": "Midtown North apartments",
+      "status": "PROPOSED",
+      "tier": 3,
+      "zone_id": "d2_midtown"
+    },
+    {
+      "anchor": {
+        "facing": "south",
+        "x": 120.0,
+        "z": -780
+      },
+      "building_id": null,
+      "id": "d2_plot_midtown_04",
+      "notes": "PROPOSED v1 grid placement inside the zone box; no data/buildings-district2.json exists yet, so this plot references zone + tier + proposed_use only (building_id is null). Art direction on PC may shift within the zone (TECH-DISTRICT2-BLOCKOUT \u00a72).",
+      "plot_rect_m": {
+        "d": 60,
+        "w": 60,
+        "x": 90,
+        "z": -840
+      },
+      "property_type": "apartment",
+      "proposed_use": "Midtown North showpiece flat",
+      "status": "PROPOSED",
+      "tier": 3,
+      "zone_id": "d2_midtown"
+    },
+    {
+      "anchor": {
+        "facing": "south",
+        "x": 203.3,
+        "z": -780
+      },
+      "building_id": null,
+      "id": "d2_plot_midtown_05",
+      "notes": "PROPOSED v1 grid placement inside the zone box; no data/buildings-district2.json exists yet, so this plot references zone + tier + proposed_use only (building_id is null). Art direction on PC may shift within the zone (TECH-DISTRICT2-BLOCKOUT \u00a72).",
+      "plot_rect_m": {
+        "d": 60,
+        "w": 60,
+        "x": 173.3,
+        "z": -840
+      },
+      "property_type": "apartment",
+      "proposed_use": "Midtown North tier-2 flats",
+      "status": "PROPOSED",
+      "tier": 2,
+      "zone_id": "d2_midtown"
+    },
+    {
+      "anchor": {
+        "facing": "south",
+        "x": -310.0,
+        "z": -890
+      },
+      "building_id": null,
+      "id": "d2_plot_garden_01",
+      "notes": "PROPOSED v1 grid placement inside the zone box; no data/buildings-district2.json exists yet, so this plot references zone + tier + proposed_use only (building_id is null). Art direction on PC may shift within the zone (TECH-DISTRICT2-BLOCKOUT \u00a72).",
+      "plot_rect_m": {
+        "d": 60,
+        "w": 60,
+        "x": -340,
+        "z": -950
+      },
+      "property_type": "house",
+      "proposed_use": "Garden Suburb house",
+      "status": "PROPOSED",
+      "tier": 2,
+      "zone_id": "d2_garden"
+    },
+    {
+      "anchor": {
+        "facing": "south",
+        "x": -185.0,
+        "z": -890
+      },
+      "building_id": null,
+      "id": "d2_plot_garden_02",
+      "notes": "PROPOSED v1 grid placement inside the zone box; no data/buildings-district2.json exists yet, so this plot references zone + tier + proposed_use only (building_id is null). Art direction on PC may shift within the zone (TECH-DISTRICT2-BLOCKOUT \u00a72).",
+      "plot_rect_m": {
+        "d": 60,
+        "w": 60,
+        "x": -215,
+        "z": -950
+      },
+      "property_type": "house",
+      "proposed_use": "Garden Suburb house",
+      "status": "PROPOSED",
+      "tier": 2,
+      "zone_id": "d2_garden"
+    },
+    {
+      "anchor": {
+        "facing": "south",
+        "x": -310.0,
+        "z": -780
+      },
+      "building_id": null,
+      "id": "d2_plot_garden_03",
+      "notes": "PROPOSED v1 grid placement inside the zone box; no data/buildings-district2.json exists yet, so this plot references zone + tier + proposed_use only (building_id is null). Art direction on PC may shift within the zone (TECH-DISTRICT2-BLOCKOUT \u00a72).",
+      "plot_rect_m": {
+        "d": 60,
+        "w": 60,
+        "x": -340,
+        "z": -840
+      },
+      "property_type": "house",
+      "proposed_use": "Garden Suburb house",
+      "status": "PROPOSED",
+      "tier": 1,
+      "zone_id": "d2_garden"
+    },
+    {
+      "anchor": {
+        "facing": "south",
+        "x": -185.0,
+        "z": -780
+      },
+      "building_id": null,
+      "id": "d2_plot_garden_04",
+      "notes": "PROPOSED v1 grid placement inside the zone box; no data/buildings-district2.json exists yet, so this plot references zone + tier + proposed_use only (building_id is null). Art direction on PC may shift within the zone (TECH-DISTRICT2-BLOCKOUT \u00a72).",
+      "plot_rect_m": {
+        "d": 60,
+        "w": 60,
+        "x": -215,
+        "z": -840
+      },
+      "property_type": "house",
+      "proposed_use": "Garden Suburb house",
+      "status": "PROPOSED",
+      "tier": 2,
+      "zone_id": "d2_garden"
+    },
+    {
+      "anchor": {
+        "facing": "south",
+        "x": -50.0,
+        "z": -615
+      },
+      "building_id": null,
+      "id": "d2_plot_maidan_01",
+      "notes": "PROPOSED v1 grid placement inside the zone box; no data/buildings-district2.json exists yet, so this plot references zone + tier + proposed_use only (building_id is null). Art direction on PC may shift within the zone (TECH-DISTRICT2-BLOCKOUT \u00a72).",
+      "plot_rect_m": {
+        "d": 60,
+        "w": 60,
+        "x": -80,
+        "z": -675
+      },
+      "property_type": "plot",
+      "proposed_use": "Maidan pavilion",
+      "status": "PROPOSED",
+      "tier": 1,
+      "zone_id": "d2_maidan"
+    },
+    {
+      "anchor": {
+        "facing": "south",
+        "x": 97.5,
+        "z": -615
+      },
+      "building_id": null,
+      "id": "d2_plot_maidan_02",
+      "notes": "PROPOSED v1 grid placement inside the zone box; no data/buildings-district2.json exists yet, so this plot references zone + tier + proposed_use only (building_id is null). Art direction on PC may shift within the zone (TECH-DISTRICT2-BLOCKOUT \u00a72).",
+      "plot_rect_m": {
+        "d": 60,
+        "w": 60,
+        "x": 67.5,
+        "z": -675
+      },
+      "property_type": "plot",
+      "proposed_use": "Maidan open ground",
+      "status": "PROPOSED",
+      "tier": 1,
+      "zone_id": "d2_maidan"
+    },
+    {
+      "anchor": {
+        "facing": "south",
+        "x": 55.0,
+        "z": -1000
+      },
+      "building_id": null,
+      "id": "d2_plot_market_01",
+      "notes": "PROPOSED v1 grid placement inside the zone box; no data/buildings-district2.json exists yet, so this plot references zone + tier + proposed_use only (building_id is null). Art direction on PC may shift within the zone (TECH-DISTRICT2-BLOCKOUT \u00a72).",
+      "plot_rect_m": {
+        "d": 60,
+        "w": 60,
+        "x": 25,
+        "z": -1060
+      },
+      "property_type": "shop",
+      "proposed_use": "North Bazar hall shop units",
+      "status": "PROPOSED",
+      "tier": 3,
+      "zone_id": "d2_market"
+    },
+    {
+      "anchor": {
+        "facing": "south",
+        "x": 150.0,
+        "z": -1000
+      },
+      "building_id": null,
+      "id": "d2_plot_market_02",
+      "notes": "PROPOSED v1 grid placement inside the zone box; no data/buildings-district2.json exists yet, so this plot references zone + tier + proposed_use only (building_id is null). Art direction on PC may shift within the zone (TECH-DISTRICT2-BLOCKOUT \u00a72).",
+      "plot_rect_m": {
+        "d": 60,
+        "w": 60,
+        "x": 120,
+        "z": -1060
+      },
+      "property_type": "shop",
+      "proposed_use": "North Bazar tea stalls",
+      "status": "PROPOSED",
+      "tier": 1,
+      "zone_id": "d2_market"
+    },
+    {
+      "anchor": {
+        "facing": "south",
+        "x": 55.0,
+        "z": -895
+      },
+      "building_id": null,
+      "id": "d2_plot_market_03",
+      "notes": "PROPOSED v1 grid placement inside the zone box; no data/buildings-district2.json exists yet, so this plot references zone + tier + proposed_use only (building_id is null). Art direction on PC may shift within the zone (TECH-DISTRICT2-BLOCKOUT \u00a72).",
+      "plot_rect_m": {
+        "d": 60,
+        "w": 60,
+        "x": 25,
+        "z": -955
+      },
+      "property_type": "factory",
+      "proposed_use": "North Bazar wholesale godowns",
+      "status": "PROPOSED",
+      "tier": 3,
+      "zone_id": "d2_market"
+    },
+    {
+      "anchor": {
+        "facing": "south",
+        "x": 150.0,
+        "z": -895
+      },
+      "building_id": null,
+      "id": "d2_plot_market_04",
+      "notes": "PROPOSED v1 grid placement inside the zone box; no data/buildings-district2.json exists yet, so this plot references zone + tier + proposed_use only (building_id is null). Art direction on PC may shift within the zone (TECH-DISTRICT2-BLOCKOUT \u00a72).",
+      "plot_rect_m": {
+        "d": 60,
+        "w": 60,
+        "x": 120,
+        "z": -955
+      },
+      "property_type": "shop",
+      "proposed_use": "North Bazar restaurant",
+      "status": "PROPOSED",
+      "tier": 3,
+      "zone_id": "d2_market"
+    },
+    {
+      "anchor": {
+        "facing": "south",
+        "x": -310.0,
+        "z": -1250
+      },
+      "building_id": null,
+      "id": "d2_plot_civic_01",
+      "notes": "PROPOSED v1 grid placement inside the zone box; no data/buildings-district2.json exists yet, so this plot references zone + tier + proposed_use only (building_id is null). Art direction on PC may shift within the zone (TECH-DISTRICT2-BLOCKOUT \u00a72).",
+      "plot_rect_m": {
+        "d": 60,
+        "w": 60,
+        "x": -340,
+        "z": -1310
+      },
+      "property_type": "office",
+      "proposed_use": "North school",
+      "status": "PROPOSED",
+      "tier": 3,
+      "zone_id": "d2_civic"
+    },
+    {
+      "anchor": {
+        "facing": "south",
+        "x": -226.7,
+        "z": -1250
+      },
+      "building_id": null,
+      "id": "d2_plot_civic_02",
+      "notes": "PROPOSED v1 grid placement inside the zone box; no data/buildings-district2.json exists yet, so this plot references zone + tier + proposed_use only (building_id is null). Art direction on PC may shift within the zone (TECH-DISTRICT2-BLOCKOUT \u00a72).",
+      "plot_rect_m": {
+        "d": 60,
+        "w": 60,
+        "x": -256.7,
+        "z": -1310
+      },
+      "property_type": "office",
+      "proposed_use": "North clinic",
+      "status": "PROPOSED",
+      "tier": 3,
+      "zone_id": "d2_civic"
+    },
+    {
+      "anchor": {
+        "facing": "south",
+        "x": -143.3,
+        "z": -1250
+      },
+      "building_id": null,
+      "id": "d2_plot_civic_03",
+      "notes": "PROPOSED v1 grid placement inside the zone box; no data/buildings-district2.json exists yet, so this plot references zone + tier + proposed_use only (building_id is null). Art direction on PC may shift within the zone (TECH-DISTRICT2-BLOCKOUT \u00a72).",
+      "plot_rect_m": {
+        "d": 60,
+        "w": 60,
+        "x": -173.3,
+        "z": -1310
+      },
+      "property_type": "office",
+      "proposed_use": "North bank branch",
+      "status": "PROPOSED",
+      "tier": 3,
+      "zone_id": "d2_civic"
+    },
+    {
+      "anchor": {
+        "facing": "south",
+        "x": -310.0,
+        "z": -1150
+      },
+      "building_id": null,
+      "id": "d2_plot_civic_04",
+      "notes": "PROPOSED v1 grid placement inside the zone box; no data/buildings-district2.json exists yet, so this plot references zone + tier + proposed_use only (building_id is null). Art direction on PC may shift within the zone (TECH-DISTRICT2-BLOCKOUT \u00a72).",
+      "plot_rect_m": {
+        "d": 60,
+        "w": 60,
+        "x": -340,
+        "z": -1210
+      },
+      "property_type": "office",
+      "proposed_use": "North police post",
+      "status": "PROPOSED",
+      "tier": 3,
+      "zone_id": "d2_civic"
+    },
+    {
+      "anchor": {
+        "facing": "south",
+        "x": -226.7,
+        "z": -1150
+      },
+      "building_id": null,
+      "id": "d2_plot_civic_05",
+      "notes": "PROPOSED v1 grid placement inside the zone box; no data/buildings-district2.json exists yet, so this plot references zone + tier + proposed_use only (building_id is null). Art direction on PC may shift within the zone (TECH-DISTRICT2-BLOCKOUT \u00a72).",
+      "plot_rect_m": {
+        "d": 60,
+        "w": 60,
+        "x": -256.7,
+        "z": -1210
+      },
+      "property_type": "office",
+      "proposed_use": "North ward office",
+      "status": "PROPOSED",
+      "tier": 3,
+      "zone_id": "d2_civic"
+    },
+    {
+      "anchor": {
+        "facing": "south",
+        "x": 120.0,
+        "z": -1250
+      },
+      "building_id": null,
+      "id": "d2_plot_education_01",
+      "notes": "PROPOSED v1 grid placement inside the zone box; no data/buildings-district2.json exists yet, so this plot references zone + tier + proposed_use only (building_id is null). Art direction on PC may shift within the zone (TECH-DISTRICT2-BLOCKOUT \u00a72).",
+      "plot_rect_m": {
+        "d": 60,
+        "w": 60,
+        "x": 90,
+        "z": -1310
+      },
+      "property_type": "office",
+      "proposed_use": "North college",
+      "status": "PROPOSED",
+      "tier": 3,
+      "zone_id": "d2_education"
+    },
+    {
+      "anchor": {
+        "facing": "south",
+        "x": 245.0,
+        "z": -1250
+      },
+      "building_id": null,
+      "id": "d2_plot_education_02",
+      "notes": "PROPOSED v1 grid placement inside the zone box; no data/buildings-district2.json exists yet, so this plot references zone + tier + proposed_use only (building_id is null). Art direction on PC may shift within the zone (TECH-DISTRICT2-BLOCKOUT \u00a72).",
+      "plot_rect_m": {
+        "d": 60,
+        "w": 60,
+        "x": 215,
+        "z": -1310
+      },
+      "property_type": "office",
+      "proposed_use": "North library",
+      "status": "PROPOSED",
+      "tier": 2,
+      "zone_id": "d2_education"
+    },
+    {
+      "anchor": {
+        "facing": "south",
+        "x": 120.0,
+        "z": -1150
+      },
+      "building_id": null,
+      "id": "d2_plot_education_03",
+      "notes": "PROPOSED v1 grid placement inside the zone box; no data/buildings-district2.json exists yet, so this plot references zone + tier + proposed_use only (building_id is null). Art direction on PC may shift within the zone (TECH-DISTRICT2-BLOCKOUT \u00a72).",
+      "plot_rect_m": {
+        "d": 60,
+        "w": 60,
+        "x": 90,
+        "z": -1210
+      },
+      "property_type": "apartment",
+      "proposed_use": "North student hostels",
+      "status": "PROPOSED",
+      "tier": 1,
+      "zone_id": "d2_education"
+    },
+    {
+      "anchor": {
+        "facing": "south",
+        "x": 245.0,
+        "z": -1150
+      },
+      "building_id": null,
+      "id": "d2_plot_education_04",
+      "notes": "PROPOSED v1 grid placement inside the zone box; no data/buildings-district2.json exists yet, so this plot references zone + tier + proposed_use only (building_id is null). Art direction on PC may shift within the zone (TECH-DISTRICT2-BLOCKOUT \u00a72).",
+      "plot_rect_m": {
+        "d": 60,
+        "w": 60,
+        "x": 215,
+        "z": -1210
+      },
+      "property_type": "shop",
+      "proposed_use": "North bookshops & food row",
+      "status": "PROPOSED",
+      "tier": 2,
+      "zone_id": "d2_education"
+    },
+    {
+      "anchor": {
+        "facing": "south",
+        "x": -464.0,
+        "z": -890
+      },
+      "building_id": null,
+      "id": "d2_plot_industry_01",
+      "notes": "PROPOSED v1 grid placement inside the zone box; no data/buildings-district2.json exists yet, so this plot references zone + tier + proposed_use only (building_id is null). Art direction on PC may shift within the zone (TECH-DISTRICT2-BLOCKOUT \u00a72).",
+      "plot_rect_m": {
+        "d": 60,
+        "w": 52,
+        "x": -490,
+        "z": -950
+      },
+      "property_type": "factory",
+      "proposed_use": "North factory units",
+      "status": "PROPOSED",
+      "tier": 3,
+      "zone_id": "d2_industry"
+    },
+    {
+      "anchor": {
+        "facing": "south",
+        "x": -399.0,
+        "z": -890
+      },
+      "building_id": null,
+      "id": "d2_plot_industry_02",
+      "notes": "PROPOSED v1 grid placement inside the zone box; no data/buildings-district2.json exists yet, so this plot references zone + tier + proposed_use only (building_id is null). Art direction on PC may shift within the zone (TECH-DISTRICT2-BLOCKOUT \u00a72).",
+      "plot_rect_m": {
+        "d": 60,
+        "w": 52,
+        "x": -425,
+        "z": -950
+      },
+      "property_type": "factory",
+      "proposed_use": "North transport depot",
+      "status": "PROPOSED",
+      "tier": 2,
+      "zone_id": "d2_industry"
+    },
+    {
+      "anchor": {
+        "facing": "south",
+        "x": -464.0,
+        "z": -780
+      },
+      "building_id": null,
+      "id": "d2_plot_industry_03",
+      "notes": "PROPOSED v1 grid placement inside the zone box; no data/buildings-district2.json exists yet, so this plot references zone + tier + proposed_use only (building_id is null). Art direction on PC may shift within the zone (TECH-DISTRICT2-BLOCKOUT \u00a72).",
+      "plot_rect_m": {
+        "d": 60,
+        "w": 52,
+        "x": -490,
+        "z": -840
+      },
+      "property_type": "plot",
+      "proposed_use": "North construction yard",
+      "status": "PROPOSED",
+      "tier": 2,
+      "zone_id": "d2_industry"
+    },
+    {
+      "anchor": {
+        "facing": "south",
+        "x": -399.0,
+        "z": -780
+      },
+      "building_id": null,
+      "id": "d2_plot_industry_04",
+      "notes": "PROPOSED v1 grid placement inside the zone box; no data/buildings-district2.json exists yet, so this plot references zone + tier + proposed_use only (building_id is null). Art direction on PC may shift within the zone (TECH-DISTRICT2-BLOCKOUT \u00a72).",
+      "plot_rect_m": {
+        "d": 60,
+        "w": 52,
+        "x": -425,
+        "z": -840
+      },
+      "property_type": "plot",
+      "proposed_use": "North staged build plot",
+      "status": "PROPOSED",
+      "tier": 2,
+      "zone_id": "d2_industry"
+    },
+    {
+      "anchor": {
+        "facing": "south",
+        "x": -50.0,
+        "z": -775
+      },
+      "building_id": null,
+      "id": "d2_plot_park_01",
+      "notes": "PROPOSED v1 grid placement inside the zone box; no data/buildings-district2.json exists yet, so this plot references zone + tier + proposed_use only (building_id is null). Art direction on PC may shift within the zone (TECH-DISTRICT2-BLOCKOUT \u00a72).",
+      "plot_rect_m": {
+        "d": 60,
+        "w": 60,
+        "x": -80,
+        "z": -835
+      },
+      "property_type": "plot",
+      "proposed_use": "North Green parkland",
+      "status": "PROPOSED",
+      "tier": 1,
+      "zone_id": "d2_park"
+    },
+    {
+      "anchor": {
+        "facing": "south",
+        "x": 97.5,
+        "z": -775
+      },
+      "building_id": null,
+      "id": "d2_plot_park_02",
+      "notes": "PROPOSED v1 grid placement inside the zone box; no data/buildings-district2.json exists yet, so this plot references zone + tier + proposed_use only (building_id is null). Art direction on PC may shift within the zone (TECH-DISTRICT2-BLOCKOUT \u00a72).",
+      "plot_rect_m": {
+        "d": 60,
+        "w": 60,
+        "x": 67.5,
+        "z": -835
+      },
+      "property_type": "shop",
+      "proposed_use": "North Green food carts",
+      "status": "PROPOSED",
+      "tier": 1,
+      "zone_id": "d2_park"
+    },
+    {
+      "anchor": {
+        "facing": "south",
+        "x": 386.0,
+        "z": -1000
+      },
+      "building_id": null,
+      "id": "d2_plot_transport_01",
+      "notes": "PROPOSED v1 grid placement inside the zone box; no data/buildings-district2.json exists yet, so this plot references zone + tier + proposed_use only (building_id is null). Art direction on PC may shift within the zone (TECH-DISTRICT2-BLOCKOUT \u00a72).",
+      "plot_rect_m": {
+        "d": 60,
+        "w": 52,
+        "x": 360,
+        "z": -1060
+      },
+      "property_type": "plot",
+      "proposed_use": "North Gate bus terminal",
+      "status": "PROPOSED",
+      "tier": 2,
+      "zone_id": "d2_transport"
+    },
+    {
+      "anchor": {
+        "facing": "south",
+        "x": 451.0,
+        "z": -1000
+      },
+      "building_id": null,
+      "id": "d2_plot_transport_02",
+      "notes": "PROPOSED v1 grid placement inside the zone box; no data/buildings-district2.json exists yet, so this plot references zone + tier + proposed_use only (building_id is null). Art direction on PC may shift within the zone (TECH-DISTRICT2-BLOCKOUT \u00a72).",
+      "plot_rect_m": {
+        "d": 60,
+        "w": 52,
+        "x": 425,
+        "z": -1060
+      },
+      "property_type": "plot",
+      "proposed_use": "North Gate depot frontage",
+      "status": "PROPOSED",
+      "tier": 2,
+      "zone_id": "d2_transport"
+    },
+    {
+      "anchor": {
+        "facing": "south",
+        "x": 386.0,
+        "z": -895
+      },
+      "building_id": null,
+      "id": "d2_plot_transport_03",
+      "notes": "PROPOSED v1 grid placement inside the zone box; no data/buildings-district2.json exists yet, so this plot references zone + tier + proposed_use only (building_id is null). Art direction on PC may shift within the zone (TECH-DISTRICT2-BLOCKOUT \u00a72).",
+      "plot_rect_m": {
+        "d": 60,
+        "w": 52,
+        "x": 360,
+        "z": -955
+      },
+      "property_type": "plot",
+      "proposed_use": "North Gate rickshaw & CNG stands",
+      "status": "PROPOSED",
+      "tier": 1,
+      "zone_id": "d2_transport"
+    },
+    {
+      "anchor": {
+        "facing": "south",
+        "x": 260.0,
+        "z": -653.7
+      },
+      "building_id": null,
+      "id": "d2_plot_uptown_01",
+      "notes": "PROPOSED v1 grid placement inside the zone box; no data/buildings-district2.json exists yet, so this plot references zone + tier + proposed_use only (building_id is null). Art direction on PC may shift within the zone (TECH-DISTRICT2-BLOCKOUT \u00a72).",
+      "plot_rect_m": {
+        "d": 21.3,
+        "w": 60,
+        "x": 230,
+        "z": -675
+      },
+      "property_type": "apartment",
+      "proposed_use": "North Heights luxury apartments",
+      "status": "PROPOSED",
+      "tier": 5,
+      "zone_id": "d2_uptown"
+    },
+    {
+      "anchor": {
+        "facing": "south",
+        "x": 346.7,
+        "z": -653.7
+      },
+      "building_id": null,
+      "id": "d2_plot_uptown_02",
+      "notes": "PROPOSED v1 grid placement inside the zone box; no data/buildings-district2.json exists yet, so this plot references zone + tier + proposed_use only (building_id is null). Art direction on PC may shift within the zone (TECH-DISTRICT2-BLOCKOUT \u00a72).",
+      "plot_rect_m": {
+        "d": 21.3,
+        "w": 60,
+        "x": 316.7,
+        "z": -675
+      },
+      "property_type": "apartment",
+      "proposed_use": "North Heights showpiece flat",
+      "status": "PROPOSED",
+      "tier": 4,
+      "zone_id": "d2_uptown"
+    },
+    {
+      "anchor": {
+        "facing": "south",
+        "x": 433.3,
+        "z": -653.7
+      },
+      "building_id": null,
+      "id": "d2_plot_uptown_03",
+      "notes": "PROPOSED v1 grid placement inside the zone box; no data/buildings-district2.json exists yet, so this plot references zone + tier + proposed_use only (building_id is null). Art direction on PC may shift within the zone (TECH-DISTRICT2-BLOCKOUT \u00a72).",
+      "plot_rect_m": {
+        "d": 21.3,
+        "w": 60,
+        "x": 403.3,
+        "z": -675
+      },
+      "property_type": "apartment",
+      "proposed_use": "North Heights rooftop flat",
+      "status": "PROPOSED",
+      "tier": 5,
+      "zone_id": "d2_uptown"
+    },
+    {
+      "anchor": {
+        "facing": "south",
+        "x": 260.0,
+        "z": -627.0
+      },
+      "building_id": null,
+      "id": "d2_plot_uptown_04",
+      "notes": "PROPOSED v1 grid placement inside the zone box; no data/buildings-district2.json exists yet, so this plot references zone + tier + proposed_use only (building_id is null). Art direction on PC may shift within the zone (TECH-DISTRICT2-BLOCKOUT \u00a72).",
+      "plot_rect_m": {
+        "d": 21.3,
+        "w": 60,
+        "x": 230,
+        "z": -648.3
+      },
+      "property_type": "house",
+      "proposed_use": "North Heights tier-4 houses",
+      "status": "PROPOSED",
+      "tier": 4,
+      "zone_id": "d2_uptown"
+    },
+    {
+      "anchor": {
+        "facing": "south",
+        "x": 346.7,
+        "z": -627.0
+      },
+      "building_id": null,
+      "id": "d2_plot_uptown_05",
+      "notes": "PROPOSED v1 grid placement inside the zone box; no data/buildings-district2.json exists yet, so this plot references zone + tier + proposed_use only (building_id is null). Art direction on PC may shift within the zone (TECH-DISTRICT2-BLOCKOUT \u00a72).",
+      "plot_rect_m": {
+        "d": 21.3,
+        "w": 60,
+        "x": 316.7,
+        "z": -648.3
+      },
+      "property_type": "office",
+      "proposed_use": "North Heights office block",
+      "status": "PROPOSED",
+      "tier": 4,
+      "zone_id": "d2_uptown"
+    },
+    {
+      "anchor": {
+        "facing": "south",
+        "x": 433.3,
+        "z": -627.0
+      },
+      "building_id": null,
+      "id": "d2_plot_uptown_06",
+      "notes": "PROPOSED v1 grid placement inside the zone box; no data/buildings-district2.json exists yet, so this plot references zone + tier + proposed_use only (building_id is null). Art direction on PC may shift within the zone (TECH-DISTRICT2-BLOCKOUT \u00a72).",
+      "plot_rect_m": {
+        "d": 21.3,
+        "w": 60,
+        "x": 403.3,
+        "z": -648.3
+      },
+      "property_type": "shop",
+      "proposed_use": "North Heights premium shops",
+      "status": "PROPOSED",
+      "tier": 4,
+      "zone_id": "d2_uptown"
+    },
+    {
+      "anchor": {
+        "facing": "south",
+        "x": 260.0,
+        "z": -600.3
+      },
+      "building_id": null,
+      "id": "d2_plot_uptown_07",
+      "notes": "PROPOSED v1 grid placement inside the zone box; no data/buildings-district2.json exists yet, so this plot references zone + tier + proposed_use only (building_id is null). Art direction on PC may shift within the zone (TECH-DISTRICT2-BLOCKOUT \u00a72).",
+      "plot_rect_m": {
+        "d": 21.3,
+        "w": 60,
+        "x": 230,
+        "z": -621.6
+      },
+      "property_type": "shop",
+      "proposed_use": "North Heights rooftop restaurant",
+      "status": "PROPOSED",
+      "tier": 5,
+      "zone_id": "d2_uptown"
+    }
+  ],
+  "river": {
+    "band": {
+      "x0": -520,
+      "x1": 520,
+      "z0": 432,
+      "z1": 520
+    },
+    "bridge": {
+      "segment_ref": null,
+      "status": "No bridge in District 2. The only crossing remains District 1's Rupsha Bridge approach (seg_bridge_approach), a Phase 8 travel gate (GDD-02 \u00a74; TECH-MULTIDISTRICT \u00a73.5). No second bridge is proposed."
+    },
+    "flow": "west to east",
+    "ghat": null,
+    "name": "Rupsha River",
+    "notes": "Cited from District 1 (data/district1-blockout.json river band): the river does not enter District 2. The band lies approx 932 m south of District 2's south edge (z -500), across the whole of District 1; District 2 has no riverfront zone, no ghat and no river geometry. Riverfront anchors close under storm (GDD-06 \u00a77) \u2014 that rule applies in District 1 only."
+  },
+  "road_segments": [
+    {
+      "class": "arterial",
+      "from": [
+        0,
+        -1520
+      ],
+      "id": "d2_seg_civic_ave_n",
+      "name": "Civic Ave North (District 2, north)",
+      "status": "PROPOSED",
+      "to": [
+        0,
+        -1080
+      ],
+      "width_m": 16
+    },
+    {
+      "class": "arterial",
+      "from": [
+        0,
+        -1080
+      ],
+      "id": "d2_seg_civic_ave_s",
+      "name": "Civic Ave North (District 2, south)",
+      "notes": "Joins District 1 at d2_j_south_gate (0,-500), where District 1's seg_civic_ave_n ends (TECH-MULTIDISTRICT \u00a73.2: new segments join the existing graph at a named junction).",
+      "status": "PROPOSED",
+      "to": [
+        0,
+        -500
+      ],
+      "width_m": 16
+    },
+    {
+      "class": "arterial",
+      "from": [
+        -500,
+        -1080
+      ],
+      "id": "d2_seg_northgate_rd_w",
+      "name": "Northgate Road (west)",
+      "status": "PROPOSED",
+      "to": [
+        0,
+        -1080
+      ],
+      "width_m": 16
+    },
+    {
+      "class": "arterial",
+      "from": [
+        0,
+        -1080
+      ],
+      "id": "d2_seg_northgate_rd_e",
+      "name": "Northgate Road (east)",
+      "status": "PROPOSED",
+      "to": [
+        500,
+        -1080
+      ],
+      "width_m": 16
+    },
+    {
+      "class": "collector",
+      "from": [
+        -350,
+        -1320
+      ],
+      "id": "d2_seg_ring_n",
+      "name": "Collector Ring North (District 2)",
+      "status": "PROPOSED",
+      "to": [
+        350,
+        -1320
+      ],
+      "width_m": 10
+    },
+    {
+      "class": "collector",
+      "from": [
+        350,
+        -1320
+      ],
+      "id": "d2_seg_ring_e",
+      "name": "Collector Ring East (District 2)",
+      "status": "PROPOSED",
+      "to": [
+        350,
+        -720
+      ],
+      "width_m": 10
+    },
+    {
+      "class": "collector",
+      "from": [
+        -350,
+        -720
+      ],
+      "id": "d2_seg_ring_s",
+      "name": "Collector Ring South (District 2)",
+      "status": "PROPOSED",
+      "to": [
+        350,
+        -720
+      ],
+      "width_m": 10
+    },
+    {
+      "class": "collector",
+      "from": [
+        -350,
+        -1320
+      ],
+      "id": "d2_seg_ring_w",
+      "name": "Collector Ring West (District 2)",
+      "status": "PROPOSED",
+      "to": [
+        -350,
+        -720
+      ],
+      "width_m": 10
+    },
+    {
+      "class": "local",
+      "from": [
+        60,
+        -1080
+      ],
+      "id": "d2_seg_market_spine",
+      "name": "North Bazar Spine",
+      "pedestrian_priority": "07:00-22:00 bollards up; delivery vehicles only before 07:00 (GDD-02 \u00a73, as District 1 Market Spine)",
+      "status": "PROPOSED",
+      "to": [
+        60,
+        -900
+      ],
+      "width_m": 8
+    },
+    {
+      "class": "local",
+      "from": [
+        200,
+        -960
+      ],
+      "id": "d2_seg_midtown_local",
+      "name": "Midtown North Local",
+      "status": "PROPOSED",
+      "to": [
+        200,
+        -720
+      ],
+      "width_m": 8
+    },
+    {
+      "class": "local",
+      "from": [
+        -200,
+        -960
+      ],
+      "id": "d2_seg_garden_local",
+      "name": "Garden Suburb Local",
+      "status": "PROPOSED",
+      "to": [
+        -200,
+        -720
+      ],
+      "width_m": 8
+    },
+    {
+      "class": "local",
+      "from": [
+        200,
+        -1320
+      ],
+      "id": "d2_seg_education_local",
+      "name": "College North Local",
+      "status": "PROPOSED",
+      "to": [
+        200,
+        -1100
+      ],
+      "width_m": 8
+    },
+    {
+      "class": "local",
+      "from": [
+        -200,
+        -1320
+      ],
+      "id": "d2_seg_civic_local",
+      "name": "Civic North Local",
+      "status": "PROPOSED",
+      "to": [
+        -200,
+        -1100
+      ],
+      "width_m": 8
+    },
+    {
+      "class": "local",
+      "from": [
+        -420,
+        -1080
+      ],
+      "id": "d2_seg_industry_local",
+      "name": "North Workshops Local",
+      "status": "PROPOSED",
+      "to": [
+        -420,
+        -720
+      ],
+      "width_m": 8
+    },
+    {
+      "class": "local",
+      "from": [
+        420,
+        -1080
+      ],
+      "id": "d2_seg_transport_local",
+      "name": "North Gate Local",
+      "status": "PROPOSED",
+      "to": [
+        420,
+        -720
+      ],
+      "width_m": 8
+    },
+    {
+      "class": "local",
+      "from": [
+        350,
+        -690
+      ],
+      "id": "d2_seg_uptown_local",
+      "name": "North Heights Local",
+      "status": "PROPOSED",
+      "to": [
+        460,
+        -630
+      ],
+      "width_m": 8
+    },
+    {
+      "class": "lane",
+      "from": [
+        -290,
+        -900
+      ],
+      "id": "d2_seg_garden_lane_1",
+      "name": "Garden Lane 1",
+      "status": "PROPOSED",
+      "to": [
+        -110,
+        -900
+      ],
+      "width_m": 3.5
+    },
+    {
+      "class": "lane",
+      "from": [
+        -290,
+        -820
+      ],
+      "id": "d2_seg_garden_lane_2",
+      "name": "Garden Lane 2",
+      "status": "PROPOSED",
+      "to": [
+        -110,
+        -820
+      ],
+      "width_m": 3.5
+    },
+    {
+      "class": "lane",
+      "from": [
+        -290,
+        -760
+      ],
+      "id": "d2_seg_garden_lane_3",
+      "name": "Garden Lane 3",
+      "status": "PROPOSED",
+      "to": [
+        -160,
+        -760
+      ],
+      "width_m": 4
+    },
+    {
+      "class": "promenade",
+      "from": [
+        -340,
+        -635
+      ],
+      "id": "d2_seg_maidan_promenade",
+      "name": "Maidan Promenade",
+      "notes": "PROPOSED extension of the promenade class (GDD-02 \u00a73) from a riverfront to a maidan edge: pedestrian + cycles, no vehicles.",
+      "status": "PROPOSED",
+      "to": [
+        215,
+        -635
+      ],
+      "width_m": 6
+    }
+  ],
+  "source_doc": "docs/TECH-DISTRICT2-BLOCKOUT.md (Unit AR). Zones, road hierarchy and property tiers reuse docs/GDD-02-RUPSHA-CITY-DISTRICT1.md \u00a7\u00a72-3, 6; siting follows docs/TECH-MULTIDISTRICT.md \u00a73.5; shape mirrors data/district1-blockout.json (Unit R). No buildings data exists for District 2 yet.",
+  "status": "PROPOSED",
+  "version": "1.0",
+  "zone_boxes_m": {
+    "d2_civic": {
+      "x0": -340,
+      "x1": -90,
+      "z0": -1310,
+      "z1": -1110
+    },
+    "d2_education": {
+      "x0": 90,
+      "x1": 340,
+      "z0": -1310,
+      "z1": -1110
+    },
+    "d2_garden": {
+      "x0": -340,
+      "x1": -90,
+      "z0": -950,
+      "z1": -730
+    },
+    "d2_industry": {
+      "x0": -490,
+      "x1": -360,
+      "z0": -950,
+      "z1": -730
+    },
+    "d2_maidan": {
+      "x0": -340,
+      "x1": 215,
+      "z0": -675,
+      "z1": -595
+    },
+    "d2_market": {
+      "x0": 25,
+      "x1": 215,
+      "z0": -1060,
+      "z1": -850
+    },
+    "d2_midtown": {
+      "x0": 90,
+      "x1": 340,
+      "z0": -950,
+      "z1": -730
+    },
+    "d2_park": {
+      "x0": -80,
+      "x1": 215,
+      "z0": -835,
+      "z1": -695
+    },
+    "d2_transport": {
+      "x0": 360,
+      "x1": 490,
+      "z0": -1060,
+      "z1": -730
+    },
+    "d2_uptown": {
+      "x0": 230,
+      "x1": 490,
+      "z0": -675,
+      "z1": -595
+    }
+  },
+  "zones": {
+    "d2_civic": {
+      "character": "Institutions (north school, clinic, bank, police post, ward office)",
+      "name": "Civic North",
+      "status": "PROPOSED",
+      "vocabulary": "reused from District 1 (d1_civic, GDD-02 \u00a72)"
+    },
+    "d2_education": {
+      "character": "Students, bookshops, hostels (north college, library)",
+      "name": "College North",
+      "status": "PROPOSED",
+      "vocabulary": "reused from District 1 (d1_education, GDD-02 \u00a72)"
+    },
+    "d2_garden": {
+      "character": "Low-density houses with garden plots; District 2's quiet residential quarter",
+      "name": "Garden Suburb",
+      "status": "PROPOSED",
+      "vocabulary": "NEW PROPOSED zone \u2014 no District 1 equivalent (replaces d1_oldtown's slot; a second old town is not proposed)"
+    },
+    "d2_industry": {
+      "character": "Work sheds, depot, construction yard",
+      "name": "North Workshops",
+      "status": "PROPOSED",
+      "vocabulary": "reused from District 1 (d1_industry, GDD-02 \u00a72)"
+    },
+    "d2_maidan": {
+      "character": "Open playing-field ground with a pavilion; District 2's open gathering space",
+      "name": "North Maidan",
+      "status": "PROPOSED",
+      "vocabulary": "NEW PROPOSED zone \u2014 no District 1 equivalent (replaces d1_riverfront's slot; District 2 has no river)"
+    },
+    "d2_market": {
+      "character": "Dense retail, noise, crowds (North Bazar)",
+      "name": "North Bazar",
+      "status": "PROPOSED",
+      "vocabulary": "reused from District 1 (d1_market, GDD-02 \u00a72)"
+    },
+    "d2_midtown": {
+      "character": "Middle-class apartments",
+      "name": "Midtown North",
+      "status": "PROPOSED",
+      "vocabulary": "reused from District 1 (d1_midtown, GDD-02 \u00a72)"
+    },
+    "d2_park": {
+      "character": "Green lung (North Green)",
+      "name": "North Green",
+      "status": "PROPOSED",
+      "vocabulary": "reused from District 1 (d1_park, GDD-02 \u00a72)"
+    },
+    "d2_transport": {
+      "character": "Intercity movement (North Gate bus terminal and depot)",
+      "name": "North Gate",
+      "status": "PROPOSED",
+      "vocabulary": "reused from District 1 (d1_transport, GDD-02 \u00a72)"
+    },
+    "d2_uptown": {
+      "character": "Upper-income housing + offices on the northern strip",
+      "name": "North Heights",
+      "status": "PROPOSED",
+      "vocabulary": "reused from District 1 (d1_uptown, GDD-02 \u00a72)"
+    }
+  }
+}

@@ -1,0 +1,3033 @@
+{
+  "version": "1.0",
+  "unit": "AO",
+  "authoring": "authored",
+  "source_doc": "docs/GDD-15-DIALOGUE.md §3 (greeting bands), §4 (topics), §5 (node contract, tree structures), §7 (effects)",
+  "source_data": [
+    "data/missions.json (mission ids, objectives, rewards, unlocks — quoted verbatim)",
+    "data/professions.json (11 profession ids, workplaces, gameplay summaries)",
+    "data/buildings-district1.json (10 canonical zone ids)",
+    "docs/GDD-02-RUPSHA-CITY-DISTRICT1.md §2 (zone display names and contents)",
+    "data/npc-cast.json (25 cast ids npc_01..npc_25; trees are per situation, not per NPC)"
+  ],
+  "notes": [
+    "Authored data, not generated text (GDD-15 §11). Every line is written here; the Phase 6 runtime walks the trees and never authors a line.",
+    "Placeholders in angle brackets are filled at runtime from data that already exists, never invented: <name> = the speaking NPC's cast name, <life_goal> = the NPC's goal-stack life goal (GDD-01 §2.2), <current_work> = the NPC's current work sub-state (GDD-06 §4), <zone_name> = the display name of the NPC's current zone (GDD-02 §2).",
+    "No line references a fact the data does not hold: no invented NPC names, relatives, places, prices, or rewards. Zone lines use only the contents GDD-02 §2 lists for that zone; profession lines use only the workplace and gameplay summary professions.json carries for that profession.",
+    "Rewards are quoted verbatim from missions.json. Each mission tree carries rewards_quoted and objectives_quoted copied exactly from missions.json; the verifier checks them field-for-field. Mission 1.3 and 2.4 both have credits_ncr null — their lines say so plainly instead of inventing a credit amount.",
+    "Debt amounts are never stated in a line: a debt's amount lives in the ledger, and the ledger_settlement effect reads it from there (amount_ref ledger_debt_amount). Dialogue never creates or erases a debt (GDD-15 §4).",
+    "The apology weight reduction has no number in any source: GDD-15 §4 says only that the harming memory's weight is reduced, not deleted. The memory_weight_reduce effect therefore carries amount_ref runtime_rule and no invented number.",
+    "Memory weights are given only where a source gives one: +40 for the mission 1.3 completion memory (GDD-15 §5 worked example / §10 check 4). Other memory_write effects carry no weight; the runtime assigns it.",
+    "Speaker tokens: 'player' = the player; 'npc' = the speaking NPC, resolved at runtime to that NPC's cast id (trees are per situation, GDD-15 §5 rule 4); a profession id = an NPC of that profession template speaking a small-talk line.",
+    "Line counts: a node holds 1-3 lines (GDD-15 §5). Every line object and every node carries its own condition and effects fields per the §5 node contract."
+  ],
+  "condition_vocabulary": {
+    "always": "always:true — no gate",
+    "band": "band:<close|warm|neutral|wary|hostile> — the §3 greeting band of the NPC's outgoing edge to the player",
+    "band_min": "band_min:<band> — band at least this warm",
+    "band_max": "band_max:<band> — band at most this warm",
+    "flag": "flag:<met_player|owes_player|player_owes|worked_with_player|employs_player|apologised_for_offence>, value:true|false",
+    "mission": "mission:<mission id>, state:<available|not_started|offered|accepted|objective_complete|completed>",
+    "relationship_mean_min": "relationship_mean_min:<number> — mean of trust and affection toward the player at least this",
+    "respect_min": "respect_min:<number>",
+    "employed": "employed:true",
+    "has_household": "has_household:true",
+    "zone": "zone:<zone id> — the NPC's current zone",
+    "profession": "profession:<profession id>",
+    "memory": "memory:harming_episodic_memory, exists:true",
+    "tier": "tier:<full|child>",
+    "favour_available": "favour_available:true|false — the side-mission generator has a favour for this NPC (GDD-04 §3)"
+  },
+  "effect_vocabulary": {
+    "relationship_drift": "type:relationship_drift, trust/affection/respect n — small drift per GDD-01 §4 step 4; big changes come only from events",
+    "set_flag": "type:set_flag, flag:<flag>, value:true|false",
+    "memory_write": "type:memory_write, text:<...>, weight:<number, only when a source gives one>, tier:full — appends to character_memories (Full tier only)",
+    "memory_weight_reduce": "type:memory_weight_reduce, target:harming_episodic_memory, amount_ref:runtime_rule — weight reduced, never deleted (GDD-15 §4)",
+    "mission_progress": "type:mission_progress, mission_id:<id>, state:<accepted|objective_complete>",
+    "mission_complete": "type:mission_complete, mission_id:<id>, rewards:<verbatim missions.json rewards object>",
+    "ledger_settlement": "type:ledger_settlement, reason:repayment, amount_ref:ledger_debt_amount — settles an existing debt through the ledger's own functions only",
+    "propose_goal": "type:propose_goal, goal_ref:npc_life_goal — proposes a stage goal; the player accepts it or not, never silently applied",
+    "none": "type:none — explicitly no write (a decline, a refusal, a waiting answer)"
+  },
+  "greeting_bands": [
+    {
+      "band": "close",
+      "mean_trust_affection_min": 60,
+      "mean_trust_affection_max": 100,
+      "behaviour": "Warm personal greeting, first-name, may open with an episodic memory (Full tier only)."
+    },
+    {
+      "band": "warm",
+      "mean_trust_affection_min": 20,
+      "mean_trust_affection_max": 59,
+      "behaviour": "Friendly greeting, topic menu opens with personal topics available."
+    },
+    {
+      "band": "neutral",
+      "mean_trust_affection_min": -19,
+      "mean_trust_affection_max": 19,
+      "behaviour": "Polite neutral greeting. The band for met_player = false (first meeting)."
+    },
+    {
+      "band": "wary",
+      "mean_trust_affection_min": -59,
+      "mean_trust_affection_max": -20,
+      "behaviour": "Short, guarded greeting; personal topics locked; mission offers refused until the band improves."
+    },
+    {
+      "band": "hostile",
+      "mean_trust_affection_min": -100,
+      "mean_trust_affection_max": -60,
+      "behaviour": "Refusal to talk, or a single hostile line and exit."
+    }
+  ],
+  "trees": {
+    "mission_1_3_neighbour_help": {
+      "mission_id": "1.3",
+      "title": "Know Your Neighbours",
+      "objectives_quoted": [
+        "Meet 3 neighbours",
+        "Help one neighbour with a small task (carry, fetch, fix)"
+      ],
+      "rewards_quoted": {
+        "credits_ncr": null,
+        "other": [],
+        "reputation": [
+          {
+            "amount": 10,
+            "scope": "relationship_each_met"
+          },
+          {
+            "amount": 5,
+            "scope": "district"
+          }
+        ]
+      },
+      "unlocks_quoted": [
+        "Neighbour favour system"
+      ],
+      "nodes": [
+        {
+          "node_id": "dlg_1_3_intro",
+          "speaker": "npc",
+          "condition": {
+            "flag": "met_player",
+            "value": false
+          },
+          "lines": [
+            {
+              "speaker": "npc",
+              "text": "I'm <name>. I live two doors down — the blue door.",
+              "condition": {
+                "flag": "met_player",
+                "value": false
+              },
+              "effects": [
+                {
+                  "type": "none"
+                }
+              ]
+            }
+          ],
+          "choices": [
+            {
+              "text": "I just moved in.",
+              "condition": {
+                "always": true
+              },
+              "next": "dlg_1_3_offer"
+            },
+            {
+              "text": "Nice to meet you.",
+              "condition": {
+                "always": true
+              },
+              "next": "dlg_1_3_hello"
+            }
+          ],
+          "effects": [
+            {
+              "type": "set_flag",
+              "flag": "met_player",
+              "value": true
+            }
+          ],
+          "ends": false
+        },
+        {
+          "node_id": "dlg_1_3_offer",
+          "speaker": "npc",
+          "condition": {
+            "mission": "1.3",
+            "state": "available"
+          },
+          "lines": [
+            {
+              "speaker": "npc",
+              "text": "The market's that way — but my roof leaks and I can't climb. Could you carry these tiles up for me?",
+              "condition": {
+                "mission": "1.3",
+                "state": "available"
+              },
+              "effects": [
+                {
+                  "type": "none"
+                }
+              ]
+            },
+            {
+              "speaker": "npc",
+              "text": "It's 'Know Your Neighbours': meet 3 neighbours, and help one neighbour with a small task — carry, fetch, fix. There are no credits in it. The reward is +10 reputation with each neighbour met and +5 district reputation, and it unlocks the Neighbour favour system.",
+              "condition": {
+                "mission": "1.3",
+                "state": "available"
+              },
+              "effects": [
+                {
+                  "type": "none"
+                }
+              ]
+            }
+          ],
+          "choices": [
+            {
+              "text": "I'll carry the tiles up.",
+              "condition": {
+                "always": true
+              },
+              "next": "dlg_1_3_accept"
+            },
+            {
+              "text": "Not right now.",
+              "condition": {
+                "always": true
+              },
+              "next": "dlg_1_3_decline"
+            }
+          ],
+          "effects": [
+            {
+              "type": "none"
+            }
+          ],
+          "ends": false
+        },
+        {
+          "node_id": "dlg_1_3_accept",
+          "speaker": "npc",
+          "condition": {
+            "mission": "1.3",
+            "state": "offered"
+          },
+          "lines": [
+            {
+              "speaker": "npc",
+              "text": "Thank you. Come back when it's done — I'll have tea ready.",
+              "condition": {
+                "mission": "1.3",
+                "state": "offered"
+              },
+              "effects": [
+                {
+                  "type": "mission_progress",
+                  "mission_id": "1.3",
+                  "state": "accepted"
+                }
+              ]
+            }
+          ],
+          "choices": [],
+          "effects": [
+            {
+              "type": "mission_progress",
+              "mission_id": "1.3",
+              "state": "accepted"
+            }
+          ],
+          "ends": true
+        },
+        {
+          "node_id": "dlg_1_3_decline",
+          "speaker": "npc",
+          "condition": {
+            "mission": "1.3",
+            "state": "offered"
+          },
+          "lines": [
+            {
+              "speaker": "npc",
+              "text": "No trouble — the tiles will wait.",
+              "condition": {
+                "mission": "1.3",
+                "state": "offered"
+              },
+              "effects": [
+                {
+                  "type": "none"
+                }
+              ]
+            }
+          ],
+          "choices": [],
+          "effects": [
+            {
+              "type": "none"
+            }
+          ],
+          "ends": true
+        },
+        {
+          "node_id": "dlg_1_3_hello",
+          "speaker": "npc",
+          "condition": {
+            "flag": "met_player",
+            "value": false
+          },
+          "lines": [
+            {
+              "speaker": "npc",
+              "text": "Welcome to the district. The market's that way if you need anything.",
+              "condition": {
+                "flag": "met_player",
+                "value": false
+              },
+              "effects": [
+                {
+                  "type": "set_flag",
+                  "flag": "met_player",
+                  "value": true
+                },
+                {
+                  "type": "relationship_drift",
+                  "trust": 1,
+                  "affection": 1
+                }
+              ]
+            }
+          ],
+          "choices": [],
+          "effects": [
+            {
+              "type": "set_flag",
+              "flag": "met_player",
+              "value": true
+            },
+            {
+              "type": "relationship_drift",
+              "trust": 1,
+              "affection": 1
+            }
+          ],
+          "ends": true
+        },
+        {
+          "node_id": "dlg_1_3_reminder",
+          "speaker": "npc",
+          "condition": {
+            "mission": "1.3",
+            "state": "accepted"
+          },
+          "lines": [
+            {
+              "speaker": "npc",
+              "text": "The tiles are still waiting, whenever you have a moment. No rush — but the roof won't fix itself.",
+              "condition": {
+                "mission": "1.3",
+                "state": "accepted"
+              },
+              "effects": [
+                {
+                  "type": "none"
+                }
+              ]
+            }
+          ],
+          "choices": [
+            {
+              "text": "On my way.",
+              "condition": {
+                "always": true
+              },
+              "next": "dlg_1_3_reminder_exit"
+            }
+          ],
+          "effects": [
+            {
+              "type": "none"
+            }
+          ],
+          "ends": false
+        },
+        {
+          "node_id": "dlg_1_3_reminder_exit",
+          "speaker": "npc",
+          "condition": {
+            "mission": "1.3",
+            "state": "accepted"
+          },
+          "lines": [
+            {
+              "speaker": "npc",
+              "text": "Good. I'll put the kettle on for when you're done.",
+              "condition": {
+                "mission": "1.3",
+                "state": "accepted"
+              },
+              "effects": [
+                {
+                  "type": "none"
+                }
+              ]
+            }
+          ],
+          "choices": [],
+          "effects": [
+            {
+              "type": "none"
+            }
+          ],
+          "ends": true
+        },
+        {
+          "node_id": "dlg_1_3_return",
+          "speaker": "npc",
+          "condition": {
+            "mission": "1.3",
+            "state": "objective_complete"
+          },
+          "lines": [
+            {
+              "speaker": "npc",
+              "text": "You did it! The tea's on — you're a good neighbour.",
+              "condition": {
+                "mission": "1.3",
+                "state": "objective_complete"
+              },
+              "effects": [
+                {
+                  "type": "relationship_drift",
+                  "trust": 10,
+                  "affection": 10
+                },
+                {
+                  "type": "memory_write",
+                  "text": "helped <name>",
+                  "weight": 40,
+                  "tier": "full"
+                },
+                {
+                  "type": "mission_complete",
+                  "mission_id": "1.3",
+                  "rewards": {
+                    "credits_ncr": null,
+                    "other": [],
+                    "reputation": [
+                      {
+                        "amount": 10,
+                        "scope": "relationship_each_met"
+                      },
+                      {
+                        "amount": 5,
+                        "scope": "district"
+                      }
+                    ]
+                  }
+                }
+              ]
+            }
+          ],
+          "choices": [],
+          "effects": [
+            {
+              "type": "relationship_drift",
+              "trust": 10,
+              "affection": 10
+            },
+            {
+              "type": "memory_write",
+              "text": "helped <name>",
+              "weight": 40,
+              "tier": "full"
+            },
+            {
+              "type": "mission_complete",
+              "mission_id": "1.3",
+              "rewards": {
+                "credits_ncr": null,
+                "other": [],
+                "reputation": [
+                  {
+                    "amount": 10,
+                    "scope": "relationship_each_met"
+                  },
+                  {
+                    "amount": 5,
+                    "scope": "district"
+                  }
+                ]
+              }
+            }
+          ],
+          "ends": true
+        }
+      ]
+    },
+    "mission_2_4_friendship": {
+      "mission_id": "2.4",
+      "title": "A Friend in the City",
+      "objectives_quoted": [
+        "Raise one friendship to 40+ (trust/affection)"
+      ],
+      "rewards_quoted": {
+        "credits_ncr": null,
+        "other": [
+          "Memory event"
+        ],
+        "reputation": [
+          {
+            "amount": 10,
+            "scope": "district"
+          }
+        ]
+      },
+      "unlocks_quoted": [
+        "Friend favour missions"
+      ],
+      "nodes": [
+        {
+          "node_id": "dlg_2_4_entry",
+          "speaker": "npc",
+          "condition": {
+            "relationship_mean_min": 40
+          },
+          "lines": [
+            {
+              "speaker": "npc",
+              "text": "You're becoming a real friend, you know. I've been thinking — friends look out for each other in this city.",
+              "condition": {
+                "relationship_mean_min": 40
+              },
+              "effects": [
+                {
+                  "type": "none"
+                }
+              ]
+            }
+          ],
+          "choices": [
+            {
+              "text": "What did you have in mind?",
+              "condition": {
+                "always": true
+              },
+              "next": "dlg_2_4_offer"
+            },
+            {
+              "text": "Maybe another time.",
+              "condition": {
+                "always": true
+              },
+              "next": "dlg_2_4_later"
+            }
+          ],
+          "effects": [
+            {
+              "type": "none"
+            }
+          ],
+          "ends": false
+        },
+        {
+          "node_id": "dlg_2_4_offer",
+          "speaker": "npc",
+          "condition": {
+            "mission": "2.4",
+            "state": "available"
+          },
+          "lines": [
+            {
+              "speaker": "npc",
+              "text": "Raise one friendship to 40 or more — trust and affection both count. That's the whole of it: be a friend, properly.",
+              "condition": {
+                "mission": "2.4",
+                "state": "available"
+              },
+              "effects": [
+                {
+                  "type": "none"
+                }
+              ]
+            },
+            {
+              "speaker": "npc",
+              "text": "There's no credit reward. It gives +10 district reputation and a memory event, and it unlocks Friend favour missions.",
+              "condition": {
+                "mission": "2.4",
+                "state": "available"
+              },
+              "effects": [
+                {
+                  "type": "none"
+                }
+              ]
+            }
+          ],
+          "choices": [
+            {
+              "text": "Friends it is.",
+              "condition": {
+                "always": true
+              },
+              "next": "dlg_2_4_accept"
+            },
+            {
+              "text": "I can't promise that.",
+              "condition": {
+                "always": true
+              },
+              "next": "dlg_2_4_decline"
+            }
+          ],
+          "effects": [
+            {
+              "type": "none"
+            }
+          ],
+          "ends": false
+        },
+        {
+          "node_id": "dlg_2_4_accept",
+          "speaker": "npc",
+          "condition": {
+            "mission": "2.4",
+            "state": "offered"
+          },
+          "lines": [
+            {
+              "speaker": "npc",
+              "text": "Good. Friends first, everything else second.",
+              "condition": {
+                "mission": "2.4",
+                "state": "offered"
+              },
+              "effects": [
+                {
+                  "type": "mission_progress",
+                  "mission_id": "2.4",
+                  "state": "accepted"
+                }
+              ]
+            }
+          ],
+          "choices": [],
+          "effects": [
+            {
+              "type": "mission_progress",
+              "mission_id": "2.4",
+              "state": "accepted"
+            }
+          ],
+          "ends": true
+        },
+        {
+          "node_id": "dlg_2_4_decline",
+          "speaker": "npc",
+          "condition": {
+            "mission": "2.4",
+            "state": "offered"
+          },
+          "lines": [
+            {
+              "speaker": "npc",
+              "text": "No trouble — friendship isn't a job to apply for.",
+              "condition": {
+                "mission": "2.4",
+                "state": "offered"
+              },
+              "effects": [
+                {
+                  "type": "none"
+                }
+              ]
+            }
+          ],
+          "choices": [],
+          "effects": [
+            {
+              "type": "none"
+            }
+          ],
+          "ends": true
+        },
+        {
+          "node_id": "dlg_2_4_later",
+          "speaker": "npc",
+          "condition": {
+            "relationship_mean_min": 40
+          },
+          "lines": [
+            {
+              "speaker": "npc",
+              "text": "Another time, then. The offer stands — friends don't keep score.",
+              "condition": {
+                "relationship_mean_min": 40
+              },
+              "effects": [
+                {
+                  "type": "none"
+                }
+              ]
+            }
+          ],
+          "choices": [],
+          "effects": [
+            {
+              "type": "none"
+            }
+          ],
+          "ends": true
+        },
+        {
+          "node_id": "dlg_2_4_progress",
+          "speaker": "npc",
+          "condition": {
+            "mission": "2.4",
+            "state": "accepted"
+          },
+          "lines": [
+            {
+              "speaker": "npc",
+              "text": "We're getting there. Keep showing up — that's what friendship is.",
+              "condition": {
+                "mission": "2.4",
+                "state": "accepted"
+              },
+              "effects": [
+                {
+                  "type": "none"
+                }
+              ]
+            }
+          ],
+          "choices": [],
+          "effects": [
+            {
+              "type": "none"
+            }
+          ],
+          "ends": true
+        },
+        {
+          "node_id": "dlg_2_4_return",
+          "speaker": "npc",
+          "condition": {
+            "mission": "2.4",
+            "state": "objective_complete"
+          },
+          "lines": [
+            {
+              "speaker": "npc",
+              "text": "Look at us — proper friends now. The city feels smaller with you in it.",
+              "condition": {
+                "mission": "2.4",
+                "state": "objective_complete"
+              },
+              "effects": [
+                {
+                  "type": "memory_write",
+                  "text": "Memory event: friendship with <name>",
+                  "tier": "full"
+                },
+                {
+                  "type": "mission_complete",
+                  "mission_id": "2.4",
+                  "rewards": {
+                    "credits_ncr": null,
+                    "other": [
+                      "Memory event"
+                    ],
+                    "reputation": [
+                      {
+                        "amount": 10,
+                        "scope": "district"
+                      }
+                    ]
+                  }
+                }
+              ]
+            }
+          ],
+          "choices": [],
+          "effects": [
+            {
+              "type": "memory_write",
+              "text": "Memory event: friendship with <name>",
+              "tier": "full"
+            },
+            {
+              "type": "mission_complete",
+              "mission_id": "2.4",
+              "rewards": {
+                "credits_ncr": null,
+                "other": [
+                  "Memory event"
+                ],
+                "reputation": [
+                  {
+                    "amount": 10,
+                    "scope": "district"
+                  }
+                ]
+              }
+            }
+          ],
+          "ends": true
+        }
+      ]
+    },
+    "debt": {
+      "mission_id": null,
+      "title": "Debt",
+      "notes": "Dialogue never creates or erases a debt — it only settles one the ledger already holds (GDD-15 §4). No line states an amount; the ledger_settlement effect reads the amount from the ledger.",
+      "nodes": [
+        {
+          "node_id": "dlg_debt_npc_owes",
+          "speaker": "npc",
+          "condition": {
+            "flag": "owes_player",
+            "value": true
+          },
+          "lines": [
+            {
+              "speaker": "npc",
+              "text": "I haven't forgotten — I owe you, and the ledger says so. I want to settle it.",
+              "condition": {
+                "flag": "owes_player",
+                "value": true
+              },
+              "effects": [
+                {
+                  "type": "none"
+                }
+              ]
+            }
+          ],
+          "choices": [
+            {
+              "text": "Pay it now.",
+              "condition": {
+                "always": true
+              },
+              "next": "dlg_debt_repay_now"
+            },
+            {
+              "text": "I need it today.",
+              "condition": {
+                "always": true
+              },
+              "next": "dlg_debt_npc_refuses"
+            },
+            {
+              "text": "Keep it for now.",
+              "condition": {
+                "always": true
+              },
+              "next": "dlg_debt_wait"
+            }
+          ],
+          "effects": [
+            {
+              "type": "none"
+            }
+          ],
+          "ends": false
+        },
+        {
+          "node_id": "dlg_debt_repay_now",
+          "speaker": "npc",
+          "condition": {
+            "flag": "owes_player",
+            "value": true
+          },
+          "lines": [
+            {
+              "speaker": "npc",
+              "text": "Here — settled in full, through the ledger, so there's a proper record of it.",
+              "condition": {
+                "flag": "owes_player",
+                "value": true
+              },
+              "effects": [
+                {
+                  "type": "ledger_settlement",
+                  "reason": "repayment",
+                  "amount_ref": "ledger_debt_amount"
+                },
+                {
+                  "type": "set_flag",
+                  "flag": "owes_player",
+                  "value": false
+                },
+                {
+                  "type": "relationship_drift",
+                  "trust": 2,
+                  "affection": 1
+                }
+              ]
+            }
+          ],
+          "choices": [],
+          "effects": [
+            {
+              "type": "ledger_settlement",
+              "reason": "repayment",
+              "amount_ref": "ledger_debt_amount"
+            },
+            {
+              "type": "set_flag",
+              "flag": "owes_player",
+              "value": false
+            },
+            {
+              "type": "relationship_drift",
+              "trust": 2,
+              "affection": 1
+            }
+          ],
+          "ends": true
+        },
+        {
+          "node_id": "dlg_debt_npc_refuses",
+          "speaker": "npc",
+          "condition": {
+            "flag": "owes_player",
+            "value": true
+          },
+          "lines": [
+            {
+              "speaker": "npc",
+              "text": "I can't pay it yet — I don't have it. Ask me again after payday, and I'll settle it.",
+              "condition": {
+                "flag": "owes_player",
+                "value": true
+              },
+              "effects": [
+                {
+                  "type": "memory_write",
+                  "text": "<name> could not repay a debt yet",
+                  "tier": "full"
+                },
+                {
+                  "type": "relationship_drift",
+                  "trust": -3,
+                  "affection": -1
+                }
+              ]
+            }
+          ],
+          "choices": [],
+          "effects": [
+            {
+              "type": "memory_write",
+              "text": "<name> could not repay a debt yet",
+              "tier": "full"
+            },
+            {
+              "type": "relationship_drift",
+              "trust": -3,
+              "affection": -1
+            }
+          ],
+          "ends": true
+        },
+        {
+          "node_id": "dlg_debt_wait",
+          "speaker": "npc",
+          "condition": {
+            "flag": "owes_player",
+            "value": true
+          },
+          "lines": [
+            {
+              "speaker": "npc",
+              "text": "Thank you for waiting. I'll settle it as soon as I can — the debt stands until then.",
+              "condition": {
+                "flag": "owes_player",
+                "value": true
+              },
+              "effects": [
+                {
+                  "type": "none"
+                }
+              ]
+            }
+          ],
+          "choices": [],
+          "effects": [
+            {
+              "type": "none"
+            }
+          ],
+          "ends": true
+        },
+        {
+          "node_id": "dlg_debt_player_owes",
+          "speaker": "npc",
+          "condition": {
+            "flag": "player_owes",
+            "value": true
+          },
+          "lines": [
+            {
+              "speaker": "npc",
+              "text": "I don't like chasing money, but the ledger says you owe me. Can we settle it?",
+              "condition": {
+                "flag": "player_owes",
+                "value": true
+              },
+              "effects": [
+                {
+                  "type": "none"
+                }
+              ]
+            }
+          ],
+          "choices": [
+            {
+              "text": "Pay it now.",
+              "condition": {
+                "always": true
+              },
+              "next": "dlg_debt_player_pays"
+            },
+            {
+              "text": "I need more time.",
+              "condition": {
+                "always": true
+              },
+              "next": "dlg_debt_player_wait"
+            }
+          ],
+          "effects": [
+            {
+              "type": "none"
+            }
+          ],
+          "ends": false
+        },
+        {
+          "node_id": "dlg_debt_player_pays",
+          "speaker": "npc",
+          "condition": {
+            "flag": "player_owes",
+            "value": true
+          },
+          "lines": [
+            {
+              "speaker": "player",
+              "text": "Here — paid in full, through the ledger.",
+              "condition": {
+                "flag": "player_owes",
+                "value": true
+              },
+              "effects": [
+                {
+                  "type": "ledger_settlement",
+                  "reason": "repayment",
+                  "amount_ref": "ledger_debt_amount"
+                },
+                {
+                  "type": "set_flag",
+                  "flag": "player_owes",
+                  "value": false
+                }
+              ]
+            },
+            {
+              "speaker": "npc",
+              "text": "Thank you. That's the end of it — no hard feelings.",
+              "condition": {
+                "flag": "player_owes",
+                "value": true
+              },
+              "effects": [
+                {
+                  "type": "relationship_drift",
+                  "trust": 2,
+                  "affection": 1
+                }
+              ]
+            }
+          ],
+          "choices": [],
+          "effects": [
+            {
+              "type": "ledger_settlement",
+              "reason": "repayment",
+              "amount_ref": "ledger_debt_amount"
+            },
+            {
+              "type": "set_flag",
+              "flag": "player_owes",
+              "value": false
+            },
+            {
+              "type": "relationship_drift",
+              "trust": 2,
+              "affection": 1
+            }
+          ],
+          "ends": true
+        },
+        {
+          "node_id": "dlg_debt_player_wait",
+          "speaker": "npc",
+          "condition": {
+            "flag": "player_owes",
+            "value": true
+          },
+          "lines": [
+            {
+              "speaker": "npc",
+              "text": "All right — but the debt stands, and I'll have to ask again.",
+              "condition": {
+                "flag": "player_owes",
+                "value": true
+              },
+              "effects": [
+                {
+                  "type": "memory_write",
+                  "text": "player asked for more time to repay a debt",
+                  "tier": "full"
+                },
+                {
+                  "type": "relationship_drift",
+                  "trust": -2,
+                  "affection": 0
+                }
+              ]
+            }
+          ],
+          "choices": [],
+          "effects": [
+            {
+              "type": "memory_write",
+              "text": "player asked for more time to repay a debt",
+              "tier": "full"
+            },
+            {
+              "type": "relationship_drift",
+              "trust": -2,
+              "affection": 0
+            }
+          ],
+          "ends": true
+        }
+      ]
+    },
+    "apology": {
+      "mission_id": null,
+      "title": "Apology",
+      "notes": "One apology per offence (GDD-15 §4). On acceptance the harming memory's weight is reduced, not deleted; the reduction step is a runtime rule, not authored here.",
+      "nodes": [
+        {
+          "node_id": "dlg_apology_open",
+          "speaker": "npc",
+          "condition": {
+            "band_max": "wary"
+          },
+          "lines": [
+            {
+              "speaker": "player",
+              "text": "I'm sorry about what happened. I was wrong.",
+              "condition": {
+                "band_max": "wary"
+              },
+              "effects": [
+                {
+                  "type": "none"
+                }
+              ]
+            },
+            {
+              "speaker": "npc",
+              "text": "Sorry doesn't undo it. Tell me why I should believe you.",
+              "condition": {
+                "band_max": "wary"
+              },
+              "effects": [
+                {
+                  "type": "none"
+                }
+              ]
+            }
+          ],
+          "choices": [
+            {
+              "text": "I mean it — let me make it right.",
+              "condition": {
+                "memory": "harming_episodic_memory",
+                "exists": true
+              },
+              "next": "dlg_apology_accepted"
+            },
+            {
+              "text": "Forget it, then.",
+              "condition": {
+                "always": true
+              },
+              "next": "dlg_apology_refused"
+            }
+          ],
+          "effects": [
+            {
+              "type": "none"
+            }
+          ],
+          "ends": false
+        },
+        {
+          "node_id": "dlg_apology_accepted",
+          "speaker": "npc",
+          "condition": {
+            "memory": "harming_episodic_memory",
+            "exists": true
+          },
+          "lines": [
+            {
+              "speaker": "npc",
+              "text": "All right. I remember it — I won't forget it — but I forgive you. Don't make me regret it.",
+              "condition": {
+                "memory": "harming_episodic_memory",
+                "exists": true
+              },
+              "effects": [
+                {
+                  "type": "memory_weight_reduce",
+                  "target": "harming_episodic_memory",
+                  "amount_ref": "runtime_rule"
+                },
+                {
+                  "type": "set_flag",
+                  "flag": "apologised_for_offence",
+                  "value": true
+                },
+                {
+                  "type": "relationship_drift",
+                  "trust": 5,
+                  "affection": 5
+                }
+              ]
+            }
+          ],
+          "choices": [],
+          "effects": [
+            {
+              "type": "memory_weight_reduce",
+              "target": "harming_episodic_memory",
+              "amount_ref": "runtime_rule"
+            },
+            {
+              "type": "set_flag",
+              "flag": "apologised_for_offence",
+              "value": true
+            },
+            {
+              "type": "relationship_drift",
+              "trust": 5,
+              "affection": 5
+            }
+          ],
+          "ends": true
+        },
+        {
+          "node_id": "dlg_apology_refused",
+          "speaker": "npc",
+          "condition": {
+            "band_max": "wary"
+          },
+          "lines": [
+            {
+              "speaker": "npc",
+              "text": "Then we're done talking. Come back when you actually mean it.",
+              "condition": {
+                "band_max": "wary"
+              },
+              "effects": [
+                {
+                  "type": "relationship_drift",
+                  "trust": -2,
+                  "affection": -1
+                }
+              ]
+            }
+          ],
+          "choices": [],
+          "effects": [
+            {
+              "type": "relationship_drift",
+              "trust": -2,
+              "affection": -1
+            }
+          ],
+          "ends": true
+        },
+        {
+          "node_id": "dlg_apology_repeat",
+          "speaker": "npc",
+          "condition": {
+            "flag": "apologised_for_offence",
+            "value": true
+          },
+          "lines": [
+            {
+              "speaker": "npc",
+              "text": "You already apologised for that once. Once is all you get — the rest is up to how you act now.",
+              "condition": {
+                "flag": "apologised_for_offence",
+                "value": true
+              },
+              "effects": [
+                {
+                  "type": "none"
+                }
+              ]
+            }
+          ],
+          "choices": [],
+          "effects": [
+            {
+              "type": "none"
+            }
+          ],
+          "ends": true
+        },
+        {
+          "node_id": "dlg_apology_hostile",
+          "speaker": "npc",
+          "condition": {
+            "band": "hostile"
+          },
+          "lines": [
+            {
+              "speaker": "npc",
+              "text": "I have nothing to say to you.",
+              "condition": {
+                "band": "hostile"
+              },
+              "effects": [
+                {
+                  "type": "none"
+                }
+              ]
+            }
+          ],
+          "choices": [],
+          "effects": [
+            {
+              "type": "none"
+            }
+          ],
+          "ends": true
+        }
+      ]
+    }
+  },
+  "topics": {
+    "greet": {
+      "unlock": "Always (band >= wary)",
+      "nodes": [
+        {
+          "node_id": "dlg_topic_greet",
+          "speaker": "npc",
+          "condition": {
+            "band_min": "wary"
+          },
+          "lines": [
+            {
+              "speaker": "npc",
+              "text": "There you are! Sit — I was just thinking about you.",
+              "condition": {
+                "band": "close"
+              },
+              "effects": [
+                {
+                  "type": "relationship_drift",
+                  "trust": 1,
+                  "affection": 1
+                }
+              ]
+            },
+            {
+              "speaker": "npc",
+              "text": "Good to see you! How's your day going?",
+              "condition": {
+                "band": "warm"
+              },
+              "effects": [
+                {
+                  "type": "relationship_drift",
+                  "trust": 1,
+                  "affection": 1
+                }
+              ]
+            },
+            {
+              "speaker": "npc",
+              "text": "Hello. Can I help you with something?",
+              "condition": {
+                "band": "neutral"
+              },
+              "effects": [
+                {
+                  "type": "relationship_drift",
+                  "trust": 1,
+                  "affection": 0
+                }
+              ]
+            }
+          ],
+          "choices": [],
+          "effects": [
+            {
+              "type": "relationship_drift",
+              "trust": 1,
+              "affection": 1
+            }
+          ],
+          "ends": false
+        },
+        {
+          "node_id": "dlg_topic_greet_wary",
+          "speaker": "npc",
+          "condition": {
+            "band": "wary"
+          },
+          "lines": [
+            {
+              "speaker": "npc",
+              "text": "Yes? What do you want?",
+              "condition": {
+                "band": "wary"
+              },
+              "effects": [
+                {
+                  "type": "none"
+                }
+              ]
+            }
+          ],
+          "choices": [],
+          "effects": [
+            {
+              "type": "none"
+            }
+          ],
+          "ends": false
+        },
+        {
+          "node_id": "dlg_topic_greet_hostile",
+          "speaker": "npc",
+          "condition": {
+            "band": "hostile"
+          },
+          "lines": [
+            {
+              "speaker": "npc",
+              "text": "What are you doing here?",
+              "condition": {
+                "band": "hostile"
+              },
+              "effects": [
+                {
+                  "type": "none"
+                }
+              ]
+            }
+          ],
+          "choices": [],
+          "effects": [
+            {
+              "type": "none"
+            }
+          ],
+          "ends": true
+        }
+      ]
+    },
+    "introduce": {
+      "unlock": "First meeting (met_player = false)",
+      "nodes": [
+        {
+          "node_id": "dlg_topic_introduce",
+          "speaker": "npc",
+          "condition": {
+            "flag": "met_player",
+            "value": false
+          },
+          "lines": [
+            {
+              "speaker": "player",
+              "text": "I'm new here — I just moved in.",
+              "condition": {
+                "flag": "met_player",
+                "value": false
+              },
+              "effects": [
+                {
+                  "type": "none"
+                }
+              ]
+            },
+            {
+              "speaker": "npc",
+              "text": "I'm <name>. Good to meet you — welcome to the district.",
+              "condition": {
+                "flag": "met_player",
+                "value": false
+              },
+              "effects": [
+                {
+                  "type": "set_flag",
+                  "flag": "met_player",
+                  "value": true
+                },
+                {
+                  "type": "relationship_drift",
+                  "trust": 2,
+                  "affection": 1
+                },
+                {
+                  "type": "memory_write",
+                  "text": "met <name>",
+                  "tier": "full"
+                }
+              ]
+            }
+          ],
+          "choices": [],
+          "effects": [
+            {
+              "type": "set_flag",
+              "flag": "met_player",
+              "value": true
+            },
+            {
+              "type": "relationship_drift",
+              "trust": 2,
+              "affection": 1
+            },
+            {
+              "type": "memory_write",
+              "text": "met <name>",
+              "tier": "full"
+            }
+          ],
+          "ends": false
+        },
+        {
+          "node_id": "dlg_topic_introduce_child",
+          "speaker": "npc",
+          "condition": {
+            "tier": "child"
+          },
+          "lines": [
+            {
+              "speaker": "npc",
+              "text": "I'm not supposed to talk to strangers.",
+              "condition": {
+                "tier": "child"
+              },
+              "effects": [
+                {
+                  "type": "none"
+                }
+              ]
+            }
+          ],
+          "choices": [],
+          "effects": [
+            {
+              "type": "none"
+            }
+          ],
+          "ends": true
+        }
+      ]
+    },
+    "ask_about_work": {
+      "unlock": "NPC employed; respect >= 0",
+      "nodes": [
+        {
+          "node_id": "dlg_topic_work",
+          "speaker": "npc",
+          "condition": {
+            "employed": true
+          },
+          "lines": [
+            {
+              "speaker": "npc",
+              "text": "Work? Right now I'm <current_work> — that's where the day goes.",
+              "condition": {
+                "employed": true
+              },
+              "effects": [
+                {
+                  "type": "relationship_drift",
+                  "trust": 1,
+                  "affection": 0
+                }
+              ]
+            },
+            {
+              "speaker": "npc",
+              "text": "Ask me again after my shift and I'll tell you how it really went.",
+              "condition": {
+                "employed": true
+              },
+              "effects": [
+                {
+                  "type": "none"
+                }
+              ]
+            }
+          ],
+          "choices": [
+            {
+              "text": "How's work treating you?",
+              "condition": {
+                "always": true
+              },
+              "next": "dlg_topic_work_how"
+            }
+          ],
+          "effects": [
+            {
+              "type": "relationship_drift",
+              "trust": 1,
+              "affection": 0
+            }
+          ],
+          "ends": false
+        },
+        {
+          "node_id": "dlg_topic_work_how",
+          "speaker": "npc",
+          "condition": {
+            "employed": true
+          },
+          "lines": [
+            {
+              "speaker": "npc",
+              "text": "Same as always — the work doesn't stop, but neither do I.",
+              "condition": {
+                "employed": true
+              },
+              "effects": [
+                {
+                  "type": "relationship_drift",
+                  "trust": 1,
+                  "affection": 1
+                }
+              ]
+            }
+          ],
+          "choices": [],
+          "effects": [
+            {
+              "type": "relationship_drift",
+              "trust": 1,
+              "affection": 1
+            }
+          ],
+          "ends": false
+        }
+      ]
+    },
+    "ask_about_goals": {
+      "unlock": "Band >= warm",
+      "nodes": [
+        {
+          "node_id": "dlg_topic_goals",
+          "speaker": "npc",
+          "condition": {
+            "band_min": "warm"
+          },
+          "lines": [
+            {
+              "speaker": "npc",
+              "text": "My goal right now is <life_goal>.",
+              "condition": {
+                "band_min": "warm"
+              },
+              "effects": [
+                {
+                  "type": "relationship_drift",
+                  "trust": 1,
+                  "affection": 1
+                }
+              ]
+            }
+          ],
+          "choices": [
+            {
+              "text": "Can I help with that?",
+              "condition": {
+                "always": true
+              },
+              "next": "dlg_topic_goals_help"
+            }
+          ],
+          "effects": [
+            {
+              "type": "relationship_drift",
+              "trust": 1,
+              "affection": 1
+            }
+          ],
+          "ends": false
+        },
+        {
+          "node_id": "dlg_topic_goals_help",
+          "speaker": "npc",
+          "condition": {
+            "band_min": "warm"
+          },
+          "lines": [
+            {
+              "speaker": "npc",
+              "text": "Maybe. Ask me again when the time's right — I'll know it when I see it.",
+              "condition": {
+                "band_min": "warm"
+              },
+              "effects": [
+                {
+                  "type": "propose_goal",
+                  "goal_ref": "npc_life_goal"
+                }
+              ]
+            }
+          ],
+          "choices": [],
+          "effects": [
+            {
+              "type": "propose_goal",
+              "goal_ref": "npc_life_goal"
+            }
+          ],
+          "ends": false
+        }
+      ]
+    },
+    "ask_about_family": {
+      "unlock": "Band >= warm, NPC has household",
+      "nodes": [
+        {
+          "node_id": "dlg_topic_family",
+          "speaker": "npc",
+          "condition": {
+            "band_min": "warm"
+          },
+          "lines": [
+            {
+              "speaker": "npc",
+              "text": "The family is doing well. We look after each other — that's how it works in this house.",
+              "condition": {
+                "has_household": true
+              },
+              "effects": [
+                {
+                  "type": "relationship_drift",
+                  "trust": 1,
+                  "affection": 1
+                }
+              ]
+            }
+          ],
+          "choices": [
+            {
+              "text": "Anyone I should meet?",
+              "condition": {
+                "always": true
+              },
+              "next": "dlg_topic_family_meet"
+            }
+          ],
+          "effects": [
+            {
+              "type": "relationship_drift",
+              "trust": 1,
+              "affection": 1
+            }
+          ],
+          "ends": false
+        },
+        {
+          "node_id": "dlg_topic_family_meet",
+          "speaker": "npc",
+          "condition": {
+            "has_household": true
+          },
+          "lines": [
+            {
+              "speaker": "npc",
+              "text": "You'll meet them when there's a reason to. Family isn't a tour.",
+              "condition": {
+                "has_household": true
+              },
+              "effects": [
+                {
+                  "type": "none"
+                }
+              ]
+            }
+          ],
+          "choices": [],
+          "effects": [
+            {
+              "type": "none"
+            }
+          ],
+          "ends": false
+        }
+      ]
+    },
+    "ask_about_place": {
+      "unlock": "Always",
+      "notes": "One line per zone, from the contents GDD-02 §2 lists for that zone. <zone_name> is the zone's display name from GDD-02 §2.",
+      "nodes": [
+        {
+          "node_id": "dlg_topic_place_market",
+          "speaker": "npc",
+          "condition": {
+            "zone": "d1_market"
+          },
+          "lines": [
+            {
+              "speaker": "npc",
+              "text": "This is Boro Bazar — the market hall, the shop units, the tea stalls. If you need anything, it starts here.",
+              "condition": {
+                "zone": "d1_market"
+              },
+              "effects": [
+                {
+                  "type": "relationship_drift",
+                  "trust": 1,
+                  "affection": 0
+                }
+              ]
+            }
+          ],
+          "choices": [],
+          "effects": [
+            {
+              "type": "relationship_drift",
+              "trust": 1,
+              "affection": 0
+            }
+          ],
+          "ends": false
+        },
+        {
+          "node_id": "dlg_topic_place_oldtown",
+          "speaker": "npc",
+          "condition": {
+            "zone": "d1_oldtown"
+          },
+          "lines": [
+            {
+              "speaker": "npc",
+              "text": "Old Town Lanes — the oldest housing in the district. Narrow lanes, repair workshops, and neighbours who all know each other.",
+              "condition": {
+                "zone": "d1_oldtown"
+              },
+              "effects": [
+                {
+                  "type": "relationship_drift",
+                  "trust": 1,
+                  "affection": 0
+                }
+              ]
+            }
+          ],
+          "choices": [],
+          "effects": [
+            {
+              "type": "relationship_drift",
+              "trust": 1,
+              "affection": 0
+            }
+          ],
+          "ends": false
+        },
+        {
+          "node_id": "dlg_topic_place_riverfront",
+          "speaker": "npc",
+          "condition": {
+            "zone": "d1_riverfront"
+          },
+          "lines": [
+            {
+              "speaker": "npc",
+              "text": "The riverfront and the ghat — the launch terminal, the fish market edge, and the promenade when the evening comes.",
+              "condition": {
+                "zone": "d1_riverfront"
+              },
+              "effects": [
+                {
+                  "type": "relationship_drift",
+                  "trust": 1,
+                  "affection": 0
+                }
+              ]
+            }
+          ],
+          "choices": [],
+          "effects": [
+            {
+              "type": "relationship_drift",
+              "trust": 1,
+              "affection": 0
+            }
+          ],
+          "ends": false
+        },
+        {
+          "node_id": "dlg_topic_place_midtown",
+          "speaker": "npc",
+          "condition": {
+            "zone": "d1_midtown"
+          },
+          "lines": [
+            {
+              "speaker": "npc",
+              "text": "Midtown Residences — six-storey apartment blocks, including the building with the starter flats.",
+              "condition": {
+                "zone": "d1_midtown"
+              },
+              "effects": [
+                {
+                  "type": "relationship_drift",
+                  "trust": 1,
+                  "affection": 0
+                }
+              ]
+            }
+          ],
+          "choices": [],
+          "effects": [
+            {
+              "type": "relationship_drift",
+              "trust": 1,
+              "affection": 0
+            }
+          ],
+          "ends": false
+        },
+        {
+          "node_id": "dlg_topic_place_civic",
+          "speaker": "npc",
+          "condition": {
+            "zone": "d1_civic"
+          },
+          "lines": [
+            {
+              "speaker": "npc",
+              "text": "The Civic Quarter — school, clinic, bank, police station, city office. Everything official lives here.",
+              "condition": {
+                "zone": "d1_civic"
+              },
+              "effects": [
+                {
+                  "type": "relationship_drift",
+                  "trust": 1,
+                  "affection": 0
+                }
+              ]
+            }
+          ],
+          "choices": [],
+          "effects": [
+            {
+              "type": "relationship_drift",
+              "trust": 1,
+              "affection": 0
+            }
+          ],
+          "ends": false
+        },
+        {
+          "node_id": "dlg_topic_place_education",
+          "speaker": "npc",
+          "condition": {
+            "zone": "d1_education"
+          },
+          "lines": [
+            {
+              "speaker": "npc",
+              "text": "College Para — the college building, the library, the student hostels, and the photocopy row.",
+              "condition": {
+                "zone": "d1_education"
+              },
+              "effects": [
+                {
+                  "type": "relationship_drift",
+                  "trust": 1,
+                  "affection": 0
+                }
+              ]
+            }
+          ],
+          "choices": [],
+          "effects": [
+            {
+              "type": "relationship_drift",
+              "trust": 1,
+              "affection": 0
+            }
+          ],
+          "ends": false
+        },
+        {
+          "node_id": "dlg_topic_place_industry",
+          "speaker": "npc",
+          "condition": {
+            "zone": "d1_industry"
+          },
+          "lines": [
+            {
+              "speaker": "npc",
+              "text": "The Industry Edge — three small factories, the taxi and CNG depot, and the construction yard.",
+              "condition": {
+                "zone": "d1_industry"
+              },
+              "effects": [
+                {
+                  "type": "relationship_drift",
+                  "trust": 1,
+                  "affection": 0
+                }
+              ]
+            }
+          ],
+          "choices": [],
+          "effects": [
+            {
+              "type": "relationship_drift",
+              "trust": 1,
+              "affection": 0
+            }
+          ],
+          "ends": false
+        },
+        {
+          "node_id": "dlg_topic_place_park",
+          "speaker": "npc",
+          "condition": {
+            "zone": "d1_park"
+          },
+          "lines": [
+            {
+              "speaker": "npc",
+              "text": "Central Park — the pond, the walking loop, the benches. The district breathes here.",
+              "condition": {
+                "zone": "d1_park"
+              },
+              "effects": [
+                {
+                  "type": "relationship_drift",
+                  "trust": 1,
+                  "affection": 0
+                }
+              ]
+            }
+          ],
+          "choices": [],
+          "effects": [
+            {
+              "type": "relationship_drift",
+              "trust": 1,
+              "affection": 0
+            }
+          ],
+          "ends": false
+        },
+        {
+          "node_id": "dlg_topic_place_transport",
+          "speaker": "npc",
+          "condition": {
+            "zone": "d1_transport"
+          },
+          "lines": [
+            {
+              "speaker": "npc",
+              "text": "Station Quarter — the bus terminal, the railway station, the rickshaw and CNG stands. Everyone passes through here eventually.",
+              "condition": {
+                "zone": "d1_transport"
+              },
+              "effects": [
+                {
+                  "type": "relationship_drift",
+                  "trust": 1,
+                  "affection": 0
+                }
+              ]
+            }
+          ],
+          "choices": [],
+          "effects": [
+            {
+              "type": "relationship_drift",
+              "trust": 1,
+              "affection": 0
+            }
+          ],
+          "ends": false
+        },
+        {
+          "node_id": "dlg_topic_place_uptown",
+          "speaker": "npc",
+          "condition": {
+            "zone": "d1_uptown"
+          },
+          "lines": [
+            {
+              "speaker": "npc",
+              "text": "Uptown Heights — luxury apartments, the office block, and the rooftop restaurant. The district's high end.",
+              "condition": {
+                "zone": "d1_uptown"
+              },
+              "effects": [
+                {
+                  "type": "relationship_drift",
+                  "trust": 1,
+                  "affection": 0
+                }
+              ]
+            }
+          ],
+          "choices": [],
+          "effects": [
+            {
+              "type": "relationship_drift",
+              "trust": 1,
+              "affection": 0
+            }
+          ],
+          "ends": false
+        }
+      ]
+    },
+    "mission_offer": {
+      "unlock": "NPC is the giver of an available mission",
+      "nodes": [
+        {
+          "node_id": "dlg_topic_mission_offer",
+          "speaker": "npc",
+          "condition": {
+            "always": true
+          },
+          "lines": [
+            {
+              "speaker": "npc",
+              "text": "I might have something for you — ask me about it and I'll tell you plainly, rewards and all.",
+              "condition": {
+                "always": true
+              },
+              "effects": [
+                {
+                  "type": "none"
+                }
+              ]
+            }
+          ],
+          "choices": [
+            {
+              "text": "Tell me about 'Know Your Neighbours'.",
+              "condition": {
+                "mission": "1.3",
+                "state": "available"
+              },
+              "next": "dlg_1_3_offer"
+            },
+            {
+              "text": "Tell me about 'A Friend in the City'.",
+              "condition": {
+                "mission": "2.4",
+                "state": "available"
+              },
+              "next": "dlg_2_4_offer"
+            }
+          ],
+          "effects": [
+            {
+              "type": "none"
+            }
+          ],
+          "ends": false
+        }
+      ]
+    },
+    "favour": {
+      "unlock": "Side-mission generator has one for this NPC (GDD-04 §3)",
+      "notes": "The errand reward pattern is quoted verbatim from missions.json side_mission_types ('200-2,000 NCr + relationship') as a pattern, never as a promise for a specific favour.",
+      "nodes": [
+        {
+          "node_id": "dlg_topic_favour",
+          "speaker": "npc",
+          "condition": {
+            "favour_available": true
+          },
+          "lines": [
+            {
+              "speaker": "npc",
+              "text": "A favour? Errands, lending a hand, mediating — that's the shape of it. The going pattern for errands is 200-2,000 NCr + relationship, but a favour is a favour first.",
+              "condition": {
+                "favour_available": true
+              },
+              "effects": [
+                {
+                  "type": "relationship_drift",
+                  "trust": 1,
+                  "affection": 0
+                }
+              ]
+            }
+          ],
+          "choices": [],
+          "effects": [
+            {
+              "type": "relationship_drift",
+              "trust": 1,
+              "affection": 0
+            }
+          ],
+          "ends": false
+        },
+        {
+          "node_id": "dlg_topic_favour_none",
+          "speaker": "npc",
+          "condition": {
+            "favour_available": false
+          },
+          "lines": [
+            {
+              "speaker": "npc",
+              "text": "Nothing right now, thank you. If I need a hand, you'll be the first to know.",
+              "condition": {
+                "favour_available": false
+              },
+              "effects": [
+                {
+                  "type": "none"
+                }
+              ]
+            }
+          ],
+          "choices": [],
+          "effects": [
+            {
+              "type": "none"
+            }
+          ],
+          "ends": false
+        }
+      ]
+    },
+    "debt": {
+      "unlock": "Semantic flag owes_player or player_owes set",
+      "nodes": [
+        {
+          "node_id": "dlg_topic_debt",
+          "speaker": "npc",
+          "condition": {
+            "always": true
+          },
+          "lines": [
+            {
+              "speaker": "npc",
+              "text": "Money between us? Say it plainly — the ledger keeps the record, not either of us.",
+              "condition": {
+                "always": true
+              },
+              "effects": [
+                {
+                  "type": "none"
+                }
+              ]
+            }
+          ],
+          "choices": [
+            {
+              "text": "You owe me — let's settle it.",
+              "condition": {
+                "flag": "owes_player",
+                "value": true
+              },
+              "next": "dlg_debt_npc_owes"
+            },
+            {
+              "text": "I owe you — let's settle it.",
+              "condition": {
+                "flag": "player_owes",
+                "value": true
+              },
+              "next": "dlg_debt_player_owes"
+            }
+          ],
+          "effects": [
+            {
+              "type": "none"
+            }
+          ],
+          "ends": false
+        }
+      ]
+    },
+    "apologise": {
+      "unlock": "Band <= wary and a harming episodic memory exists; one apology per offence",
+      "nodes": [
+        {
+          "node_id": "dlg_topic_apologise",
+          "speaker": "player",
+          "condition": {
+            "band_max": "wary"
+          },
+          "lines": [
+            {
+              "speaker": "player",
+              "text": "I owe you an apology.",
+              "condition": {
+                "band_max": "wary"
+              },
+              "effects": [
+                {
+                  "type": "none"
+                }
+              ]
+            }
+          ],
+          "choices": [
+            {
+              "text": "Say it properly.",
+              "condition": {
+                "memory": "harming_episodic_memory",
+                "exists": true
+              },
+              "next": "dlg_apology_open"
+            },
+            {
+              "text": "I've already said it once.",
+              "condition": {
+                "flag": "apologised_for_offence",
+                "value": true
+              },
+              "next": "dlg_apology_repeat"
+            }
+          ],
+          "effects": [
+            {
+              "type": "none"
+            }
+          ],
+          "ends": false
+        }
+      ]
+    },
+    "say_goodbye": {
+      "unlock": "Always",
+      "nodes": [
+        {
+          "node_id": "dlg_topic_goodbye",
+          "speaker": "npc",
+          "condition": {
+            "always": true
+          },
+          "lines": [
+            {
+              "speaker": "player",
+              "text": "I'll see you around.",
+              "condition": {
+                "always": true
+              },
+              "effects": [
+                {
+                  "type": "none"
+                }
+              ]
+            },
+            {
+              "speaker": "npc",
+              "text": "Take care. The district's smaller than it looks.",
+              "condition": {
+                "always": true
+              },
+              "effects": [
+                {
+                  "type": "none"
+                }
+              ]
+            },
+            {
+              "speaker": "npc",
+              "text": "Don't be a stranger — come by any time.",
+              "condition": {
+                "band": "close"
+              },
+              "effects": [
+                {
+                  "type": "relationship_drift",
+                  "trust": 0,
+                  "affection": 1
+                }
+              ]
+            }
+          ],
+          "choices": [],
+          "effects": [
+            {
+              "type": "none"
+            }
+          ],
+          "ends": true
+        }
+      ]
+    }
+  },
+  "small_talk": {
+    "by_profession": {
+      "construction_worker": [
+        {
+          "speaker": "construction_worker",
+          "text": "Physical site work, staged builds — that's the job. You learn to read a site the way others read a book.",
+          "condition": {
+            "band_min": "wary"
+          },
+          "effects": [
+            {
+              "type": "relationship_drift",
+              "trust": 1,
+              "affection": 0
+            }
+          ]
+        },
+        {
+          "speaker": "construction_worker",
+          "text": "The yard at the industry edge is where the day starts. Tools, plans, and a foreman who notices everything.",
+          "condition": {
+            "band_min": "wary"
+          },
+          "effects": [
+            {
+              "type": "relationship_drift",
+              "trust": 1,
+              "affection": 0
+            }
+          ]
+        }
+      ],
+      "civil_engineer": [
+        {
+          "speaker": "civil_engineer",
+          "text": "Take a job, draw the plan, estimate the materials, supervise the build, get paid. That's the loop — simple to say, hard to do well.",
+          "condition": {
+            "band_min": "wary"
+          },
+          "effects": [
+            {
+              "type": "relationship_drift",
+              "trust": 1,
+              "affection": 0
+            }
+          ]
+        },
+        {
+          "speaker": "civil_engineer",
+          "text": "The site office at the industry edge is my second home. Every build starts as lines on paper.",
+          "condition": {
+            "band_min": "wary"
+          },
+          "effects": [
+            {
+              "type": "relationship_drift",
+              "trust": 1,
+              "affection": 0
+            }
+          ]
+        }
+      ],
+      "doctor": [
+        {
+          "speaker": "doctor",
+          "text": "Clinic shifts in the Civic Quarter. People come in worried and leave lighter — that's the whole job, really.",
+          "condition": {
+            "band_min": "wary"
+          },
+          "effects": [
+            {
+              "type": "relationship_drift",
+              "trust": 1,
+              "affection": 0
+            }
+          ]
+        },
+        {
+          "speaker": "doctor",
+          "text": "Diagnosis is mostly listening. The patient usually tells you what's wrong, if you let them finish.",
+          "condition": {
+            "band_min": "wary"
+          },
+          "effects": [
+            {
+              "type": "relationship_drift",
+              "trust": 1,
+              "affection": 0
+            }
+          ]
+        }
+      ],
+      "teacher": [
+        {
+          "speaker": "teacher",
+          "text": "School days run on bells and the children's questions. They keep you honest — they notice everything.",
+          "condition": {
+            "band_min": "wary"
+          },
+          "effects": [
+            {
+              "type": "relationship_drift",
+              "trust": 1,
+              "affection": 0
+            }
+          ]
+        },
+        {
+          "speaker": "teacher",
+          "text": "Teaching is half subject, half patience. The certificate gets you in the door; the children decide if you stay.",
+          "condition": {
+            "band_min": "wary"
+          },
+          "effects": [
+            {
+              "type": "relationship_drift",
+              "trust": 1,
+              "affection": 0
+            }
+          ]
+        }
+      ],
+      "police_officer": [
+        {
+          "speaker": "police_officer",
+          "text": "Patrols through the Civic Quarter and the market hours. Most days it's quiet — quiet is good.",
+          "condition": {
+            "band_min": "wary"
+          },
+          "effects": [
+            {
+              "type": "relationship_drift",
+              "trust": 1,
+              "affection": 0
+            }
+          ]
+        },
+        {
+          "speaker": "police_officer",
+          "text": "The station's in the Civic Quarter. We keep the peace; the district does the rest.",
+          "condition": {
+            "band_min": "wary"
+          },
+          "effects": [
+            {
+              "type": "relationship_drift",
+              "trust": 1,
+              "affection": 0
+            }
+          ]
+        }
+      ],
+      "taxi_driver": [
+        {
+          "speaker": "taxi_driver",
+          "text": "Fares across all the zones, from the depot at the industry edge. Every passenger is a small story.",
+          "condition": {
+            "band_min": "wary"
+          },
+          "effects": [
+            {
+              "type": "relationship_drift",
+              "trust": 1,
+              "affection": 0
+            }
+          ]
+        },
+        {
+          "speaker": "taxi_driver",
+          "text": "A rented CNG today, my own car tomorrow — that's the plan. The road teaches you the city.",
+          "condition": {
+            "band_min": "wary"
+          },
+          "effects": [
+            {
+              "type": "relationship_drift",
+              "trust": 1,
+              "affection": 0
+            }
+          ]
+        }
+      ],
+      "chef": [
+        {
+          "speaker": "chef",
+          "text": "Kitchen shifts at the restaurant in Boro Bazar. A good menu is half the business — the other half is showing up.",
+          "condition": {
+            "band_min": "wary"
+          },
+          "effects": [
+            {
+              "type": "relationship_drift",
+              "trust": 1,
+              "affection": 0
+            }
+          ]
+        },
+        {
+          "speaker": "chef",
+          "text": "The market run comes first: fresh ingredients, and a cook who knows the stallholders by name.",
+          "condition": {
+            "band_min": "wary"
+          },
+          "effects": [
+            {
+              "type": "relationship_drift",
+              "trust": 1,
+              "affection": 0
+            }
+          ]
+        }
+      ],
+      "software_developer": [
+        {
+          "speaker": "software_developer",
+          "text": "Office block in Uptown Heights — deadlines, code, and the occasional remote day. The work follows me home sometimes.",
+          "condition": {
+            "band_min": "wary"
+          },
+          "effects": [
+            {
+              "type": "relationship_drift",
+              "trust": 1,
+              "affection": 0
+            }
+          ]
+        },
+        {
+          "speaker": "software_developer",
+          "text": "Programming is just breaking a big problem into small ones until none of them scare you anymore.",
+          "condition": {
+            "band_min": "wary"
+          },
+          "effects": [
+            {
+              "type": "relationship_drift",
+              "trust": 1,
+              "affection": 0
+            }
+          ]
+        }
+      ],
+      "shop_owner": [
+        {
+          "speaker": "shop_owner",
+          "text": "My shop unit in Boro Bazar — buy stock wholesale, set the price, watch the day. Some months are kind, some aren't.",
+          "condition": {
+            "band_min": "wary"
+          },
+          "effects": [
+            {
+              "type": "relationship_drift",
+              "trust": 1,
+              "affection": 0
+            }
+          ]
+        },
+        {
+          "speaker": "shop_owner",
+          "text": "A tea stall taught me the trade. Small capital, a tenancy, and regulars who remember you.",
+          "condition": {
+            "band_min": "wary"
+          },
+          "effects": [
+            {
+              "type": "relationship_drift",
+              "trust": 1,
+              "affection": 0
+            }
+          ]
+        }
+      ],
+      "business_owner": [
+        {
+          "speaker": "business_owner",
+          "text": "A company office in Uptown, premises across the zones. The business grows or it doesn't — there's no standing still.",
+          "condition": {
+            "band_min": "wary"
+          },
+          "effects": [
+            {
+              "type": "relationship_drift",
+              "trust": 1,
+              "affection": 0
+            }
+          ]
+        },
+        {
+          "speaker": "business_owner",
+          "text": "Hiring well is the whole job. A good employee is worth more than a good month.",
+          "condition": {
+            "band_min": "wary"
+          },
+          "effects": [
+            {
+              "type": "relationship_drift",
+              "trust": 1,
+              "affection": 0
+            }
+          ]
+        }
+      ],
+      "pilot": [
+        {
+          "speaker": "pilot",
+          "text": "The regional airport is my workplace — no airport in District 1, so I commute out. The sky's the office; the district is home.",
+          "condition": {
+            "band_min": "wary"
+          },
+          "effects": [
+            {
+              "type": "relationship_drift",
+              "trust": 1,
+              "affection": 0
+            }
+          ]
+        },
+        {
+          "speaker": "pilot",
+          "text": "Flying is mostly navigation and patience. The licence took years; the view is worth it.",
+          "condition": {
+            "band_min": "wary"
+          },
+          "effects": [
+            {
+              "type": "relationship_drift",
+              "trust": 1,
+              "affection": 0
+            }
+          ]
+        }
+      ]
+    },
+    "by_zone": {
+      "d1_market": [
+        {
+          "speaker": "npc",
+          "text": "Boro Bazar on a busy day — you can hear the whole district in one street.",
+          "condition": {
+            "zone": "d1_market"
+          },
+          "effects": [
+            {
+              "type": "relationship_drift",
+              "trust": 1,
+              "affection": 0
+            }
+          ]
+        },
+        {
+          "speaker": "npc",
+          "text": "Six tea stalls and a market hall. If it's sold anywhere in Rupsha, it's sold here.",
+          "condition": {
+            "zone": "d1_market"
+          },
+          "effects": [
+            {
+              "type": "relationship_drift",
+              "trust": 1,
+              "affection": 0
+            }
+          ]
+        }
+      ],
+      "d1_oldtown": [
+        {
+          "speaker": "npc",
+          "text": "The lanes here are older than the rest of the district put together.",
+          "condition": {
+            "zone": "d1_oldtown"
+          },
+          "effects": [
+            {
+              "type": "relationship_drift",
+              "trust": 1,
+              "affection": 0
+            }
+          ]
+        },
+        {
+          "speaker": "npc",
+          "text": "Repair workshops and walk-up housing — the oldest part of the district, and it shows in the best way.",
+          "condition": {
+            "zone": "d1_oldtown"
+          },
+          "effects": [
+            {
+              "type": "relationship_drift",
+              "trust": 1,
+              "affection": 0
+            }
+          ]
+        }
+      ],
+      "d1_riverfront": [
+        {
+          "speaker": "npc",
+          "text": "The river does something to the air here. Even on a bad day, the promenade helps.",
+          "condition": {
+            "zone": "d1_riverfront"
+          },
+          "effects": [
+            {
+              "type": "relationship_drift",
+              "trust": 1,
+              "affection": 0
+            }
+          ]
+        },
+        {
+          "speaker": "npc",
+          "text": "Watch the sunset from the promenade — the ghat steps, the launches, the whole city slowing down.",
+          "condition": {
+            "zone": "d1_riverfront"
+          },
+          "effects": [
+            {
+              "type": "relationship_drift",
+              "trust": 1,
+              "affection": 0
+            }
+          ]
+        }
+      ],
+      "d1_midtown": [
+        {
+          "speaker": "npc",
+          "text": "Six storeys of neighbours. You learn everyone's footsteps in a building like this.",
+          "condition": {
+            "zone": "d1_midtown"
+          },
+          "effects": [
+            {
+              "type": "relationship_drift",
+              "trust": 1,
+              "affection": 0
+            }
+          ]
+        },
+        {
+          "speaker": "npc",
+          "text": "Midtown is where the district lives — flats, families, and the starter building.",
+          "condition": {
+            "zone": "d1_midtown"
+          },
+          "effects": [
+            {
+              "type": "relationship_drift",
+              "trust": 1,
+              "affection": 0
+            }
+          ]
+        }
+      ],
+      "d1_civic": [
+        {
+          "speaker": "npc",
+          "text": "School, clinic, bank, police station — everything official, all in one quarter.",
+          "condition": {
+            "zone": "d1_civic"
+          },
+          "effects": [
+            {
+              "type": "relationship_drift",
+              "trust": 1,
+              "affection": 0
+            }
+          ]
+        },
+        {
+          "speaker": "npc",
+          "text": "The Civic Quarter runs on paperwork and patience, in that order.",
+          "condition": {
+            "zone": "d1_civic"
+          },
+          "effects": [
+            {
+              "type": "relationship_drift",
+              "trust": 1,
+              "affection": 0
+            }
+          ]
+        }
+      ],
+      "d1_education": [
+        {
+          "speaker": "npc",
+          "text": "College Para — students, bookshops, hostels. The whole quarter runs on exams and the food row.",
+          "condition": {
+            "zone": "d1_education"
+          },
+          "effects": [
+            {
+              "type": "relationship_drift",
+              "trust": 1,
+              "affection": 0
+            }
+          ]
+        },
+        {
+          "speaker": "npc",
+          "text": "The library reading room is the quietest place in the district. Students guard that silence like treasure.",
+          "condition": {
+            "zone": "d1_education"
+          },
+          "effects": [
+            {
+              "type": "relationship_drift",
+              "trust": 1,
+              "affection": 0
+            }
+          ]
+        }
+      ],
+      "d1_industry": [
+        {
+          "speaker": "npc",
+          "text": "Factories, the depot, the yard. The district's work happens here before the shops open.",
+          "condition": {
+            "zone": "d1_industry"
+          },
+          "effects": [
+            {
+              "type": "relationship_drift",
+              "trust": 1,
+              "affection": 0
+            }
+          ]
+        },
+        {
+          "speaker": "npc",
+          "text": "Three small factories and a construction yard — noisy, honest work.",
+          "condition": {
+            "zone": "d1_industry"
+          },
+          "effects": [
+            {
+              "type": "relationship_drift",
+              "trust": 1,
+              "affection": 0
+            }
+          ]
+        }
+      ],
+      "d1_park": [
+        {
+          "speaker": "npc",
+          "text": "The pond, the walking loop, the benches. Best seat in the district, and it's free.",
+          "condition": {
+            "zone": "d1_park"
+          },
+          "effects": [
+            {
+              "type": "relationship_drift",
+              "trust": 1,
+              "affection": 0
+            }
+          ]
+        },
+        {
+          "speaker": "npc",
+          "text": "Central Park in the morning — walkers, food carts, and the city waking up slowly.",
+          "condition": {
+            "zone": "d1_park"
+          },
+          "effects": [
+            {
+              "type": "relationship_drift",
+              "trust": 1,
+              "affection": 0
+            }
+          ]
+        }
+      ],
+      "d1_transport": [
+        {
+          "speaker": "npc",
+          "text": "Bus terminal, railway station, rickshaw stands. Everyone leaves from here eventually.",
+          "condition": {
+            "zone": "d1_transport"
+          },
+          "effects": [
+            {
+              "type": "relationship_drift",
+              "trust": 1,
+              "affection": 0
+            }
+          ]
+        },
+        {
+          "speaker": "npc",
+          "text": "Station Quarter — if you're going anywhere, you start here.",
+          "condition": {
+            "zone": "d1_transport"
+          },
+          "effects": [
+            {
+              "type": "relationship_drift",
+              "trust": 1,
+              "affection": 0
+            }
+          ]
+        }
+      ],
+      "d1_uptown": [
+        {
+          "speaker": "npc",
+          "text": "Uptown Heights — the office block, the premium shops, and the rooftop restaurant above it all.",
+          "condition": {
+            "zone": "d1_uptown"
+          },
+          "effects": [
+            {
+              "type": "relationship_drift",
+              "trust": 1,
+              "affection": 0
+            }
+          ]
+        },
+        {
+          "speaker": "npc",
+          "text": "The high end of the district. Even the air feels more expensive up here.",
+          "condition": {
+            "zone": "d1_uptown"
+          },
+          "effects": [
+            {
+              "type": "relationship_drift",
+              "trust": 1,
+              "affection": 0
+            }
+          ]
+        }
+      ]
+    }
+  }
+}
