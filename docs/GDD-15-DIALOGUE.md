@@ -330,13 +330,13 @@ These are inputs the binding needs that no source supplies. They are recorded he
 - **G1 — Mission-state mapping.** `data/dialogue-lines.json` conditions use six mission states (`available`, `not_started`, `offered`, `accepted`, `objective_complete`, `completed`); `data/schema.sql` `mission_progress.status` allows four (`available`, `active`, `completed`, `failed`). No source maps one vocabulary onto the other, and no source defines the `progress` JSONB keys the sub-states would need. Until the mapping is defined, the nodes that depend on `offered` (`dlg_1_3_accept`, `dlg_1_3_decline`, `dlg_2_4_accept`, `dlg_2_4_decline`), `accepted` (`dlg_1_3_reminder`, `dlg_1_3_reminder_exit`, `dlg_2_4_progress`) and `objective_complete` (`dlg_1_3_return`, `dlg_2_4_return`) cannot be evaluated against the schema as written. **Resolved by Queue 10, Unit BA (GDD-15 §13):** the mapping table, the four `progress` keys, and the 12 evaluable nodes are defined there. `offered` is snapshot-local by design; abandon stays a recommendation (§13.5).
 - **G2 — Favour availability.** `favour_available` is a condition in `data/dialogue-lines.json` (`dlg_topic_favour`, `dlg_topic_favour_none`) and GDD-04 §3 describes side-mission generation, but no `tools/sim` module generates side missions or reports whether one exists for an NPC. The favour topic cannot be evaluated from sim state. **Resolved by Queue 10, Unit BC (GDD-04 §3.1 + GDD-15 §15):** the generation contract and the `favour_available` evaluation rule are defined there. The favour offer/accept/complete nodes remain Phase 6 authoring work; find-a-lost-item and discovery favours are ungeneratable until their records are designed.
 - **G3 — Debt flags.** The flags `owes_player` and `player_owes` are dialogue vocabulary (GDD-15 §1, §4) and `set_flag()` can store them, but no sim function derives them from `economy_ledger` loan rows and no sim code ever sets them. Whether the runtime derives them from the ledger or the economy maintains them is undefined. **Resolved by Queue 10, Unit BB (GDD-15 §14):** the read-only derivation rule (schema reason codes `loan_disburse` / `loan_repay`, character↔character rows only, system accounts excluded), derive-at-conversation-time, and the clearing rule (repayment only) are defined there. The sim/server reason-code drift (§14.4) still needs a Phase 9 alignment, and no character↔character loan exists yet to derive from (§14.5).
-- **G4 — Which edge supplies the band.** `get_edge()` requires a `relation_type`, and GDD-01 §6.1 allows several directed edges between one pair (for example `spouse` and `colleague`). No source names which edge supplies the greeting band, `relationship_mean_min`, or `respect_min` when more than one exists.
+- **G4 — Which edge supplies the band.** `get_edge()` requires a `relation_type`, and GDD-01 §6.1 allows several directed edges between one pair (for example `spouse` and `colleague`). No source names which edge supplies the greeting band, `relationship_mean_min`, or `respect_min` when more than one exists. **Resolved by Queue 11, Unit BF (GDD-15 §17):** the priority table over all 13 types (spouse first, `ex_partner` last), the selected edge supplies band/mean/respect/drift target/flags, and the priority order is this unit's labelled decision. The flag-visibility limit (§17.3) stays open.
 - **G5 — `memory_write` is underspecified three ways.** `record_memory()` requires an `event_type` string and a `details` JSON object, but no source names the `event_type` for a conversation memory ("helped `<name>`", "met `<name>`"); no source gives the rule by which the runtime assigns a weight to a `memory_write` that carries none (only +40 for `dlg_1_3_return` is sourced); and no `memory_write` effect names whose memory it is — §12.4 assigns it to the speaking NPC, but the data carries no owner field. **Resolved by Queue 10, Unit BE (GDD-15 §16.3–§16.5):** the event-type table (2 sourced, 3 decided-here), the weight rule (weightless → 0, the schema default), and the `owner` field (`speaker` / `player`, default `speaker`) are specified there for the Phase 6 authoring pass.
 - **G6 — No weight reduction.** `memory_weight_reduce` (`dlg_apology_accepted`, `amount_ref` `runtime_rule`) has no number in any source and no sim function: `tools/sim/memory.py` can append, read, and prune, but cannot change a stored `emotional_weight`. The reduction step and its size are both undefined. **Resolved by Queue 10, Unit BE (GDD-15 §16.1):** the step rule (toward zero, never across zero, never delete) and the target (strongest negative memory about the player) are defined there; the amount stays a runtime-rule parameter by design — no number is decided.
 - **G7 — Goal proposal has no accept path.** `propose_goal` (`dlg_topic_goals_help`) may propose a stage goal, and `character_goals` supports `goal_kind` `stage` with status `active`, but no sim function proposes a goal or records the player's acceptance of one. The accept step is UE-side and undefined. **Resolved by Queue 10, Unit BE (GDD-15 §16.2):** the accept path (player-only choice, `character_goals` row write, stack-cap rule), the decline record (no row — effect `none`), and the required node restructure (the shipped node fires on entry with no choice) are defined there.
-- **G8 — Current zone has no sim accessor.** GDD-06 §3 resolves location tokens to anchors from the live schedule instantiation, but no source read for this unit names a sim function returning an NPC's current zone at a given game time. The binding reads the zone from live schedule state; the headless sim exposes no single call for it.
+- **G8 — Current zone has no sim accessor.** GDD-06 §3 resolves location tokens to anchors from the live schedule instantiation, but no source read for this unit names a sim function returning an NPC's current zone at a given game time. The binding reads the zone from live schedule state; the headless sim exposes no single call for it. **Resolved by Queue 11, Unit BG (GDD-15 §18):** the `current_zone_at()` contract reading the stored `instantiated_schedules` day, with the commute/`mobile` answers and the `tea_stall` store difference recorded. No sim function is added; the UE implements the same contract against live instantiation.
 - **G9 — Per-conversation drift cap.** GDD-15 §7 requires drift to be capped per conversation, but no source gives the cap's number. The shipped drift values are the only numbers the data carries (§12.4).
-- **G10 — No mission deadlines.** GDD-15 §4 lets an NPC lead with a time-sensitive mission (deadline within 3 days), but no mission in `data/missions.json` carries a deadline field. That lead trigger cannot be evaluated from mission data today.
+- **G10 — No mission deadlines.** GDD-15 §4 lets an NPC lead with a time-sensitive mission (deadline within 3 days), but no mission in `data/missions.json` carries a deadline field. That lead trigger cannot be evaluated from mission data today. **Resolved by Queue 11, Unit BH (GDD-04 §3.2 + GDD-15 §19):** the `deadline_days` field, the availability-based clock (`available_at_game_minutes`), the 3-day lead window, and the expiry-to-`failed` rule are defined there. Per-mission deadline values remain Phase 6 authoring work — no mission carries one today.
 
 ---
 
@@ -561,4 +561,153 @@ No shipped `memory_write` effect names whose memory it is; §12.4 assigns it to 
 
 *End of GDD-15 §16 — Unit BE, Queue 10.*
 
-*End of GDD-15 v1.0 + Unit AV §12 (Queue 9) + Queue 10 §§13–16.*
+---
+
+## 17. Edge Selection for the Greeting Band (AV gap G4 — resolved)
+
+**Unit BF · Queue 11 · Version 1.0 · 2026-11-22**
+**Status:** DESIGN ONLY. This section defines which relationship edge supplies the greeting band, `relationship_mean_min`, and `respect_min` when several directed edges exist between one NPC–player pair. It adds no table, no column, and no sim code change — the selection rule is the deliverable. The runtime (Phase 6) implements against it.
+
+### 17.1 The problem
+
+`get_edge(store, a, b, relation_type)` (`tools/sim/relationships.py`) requires a `relation_type`, and GDD-01 §6.1 allows several directed edges between one pair — a spouse who is also a colleague, a friend who is also an employer. §12.3 reads "the same edge" for the band, the mean, and respect without naming which one. The ambiguity is not theoretical: `adjust_scores()` called with no `relation_type` moves the scores on **every** edge from A to B, so an unscoped dialogue drift would warm the colleague edge when the greeting had read the spouse edge. Until this section, the binding had no edge to read and no edge to write.
+
+### 17.2 The rule — one edge, by priority
+
+At conversation open, the runtime selects exactly one NPC→player edge: the **highest-priority edge present**, by the table below. The table covers all 13 `relation_type` values GDD-01 §6.1 lists, so the selection is total — there is no pair of types the table cannot order, and no tie-break beyond the table is needed (one edge exists per (pair, type), so two edges never share a type).
+
+| Priority | `relation_type` | Why it outranks what follows |
+|---|---|---|
+| 1 | `spouse` | The household bond; the pair's primary social frame |
+| 2 | `partner` | The same household bond, unmarried |
+| 3 | `best_friend` | The closest non-kin bond |
+| 4 | `parent` | Kin — the family frame outranks work and acquaintance |
+| 5 | `child` | Kin (in one direction only one of `parent`/`child` can exist, so their relative order never decides a real selection; the table is total anyway) |
+| 6 | `sibling` | Kin — derived via shared parents, cached as an edge (GDD-01 §6.1) |
+| 7 | `friend` | A live personal tie |
+| 8 | `colleague` | A work tie |
+| 9 | `employer` | A work tie in the authority direction |
+| 10 | `employee` | A work tie in the subordinate direction |
+| 11 | `acquaintance` | The weakest live tie |
+| 12 | `rival` | Adversarial — never outranks a live bond, so a conflict does not reframe the pair |
+| 13 | `ex_partner` | A former bond — last; it is read only when nothing live exists |
+
+**The priority order is this unit's decision** (labelled as such): no source ranks the types. The principle behind it is the greeting's own nature (GDD-15 §3 — the first line is a read of the relationship, not a script): the greeting reads the relationship that defines the pair's primary social frame, most intimate first, adversarial ties last. A spouse who has become a rival after a conflict still greets as a spouse — the conflict lives in the spouse edge's scores, not in a switch of frame. The order is data, not code: it lives with the dialogue data so tuning it is a data edit, like the band thresholds (§3).
+
+### 17.3 What the selected edge supplies
+
+Everything §12.3 reads from "the same edge" now reads from the selected edge, and nothing else:
+
+| Read / write | Source |
+|---|---|
+| Greeting band (§3) | Mean of trust and affection on the selected edge |
+| `relationship_mean_min` (§12.3) | The selected edge's mean (e.g. 40 for `dlg_2_4_entry`) |
+| `respect_min` (§12.3) | The selected edge's `respect` |
+| Drift target (§12.4) | `adjust_scores()` is called with `relation_type` = the selected type — **never unscoped**. One conversation moves exactly the edge it read. Symmetric mirroring still applies: a symmetric selected type mirrors to the return edge of the same type, per `adjust_scores()` |
+| Semantic flags (§12.1, §12.3 `flag`) | Read from and written to the selected edge (`get_flag()` / `set_flag()` take a type) |
+
+**Honest limit — flags on a non-selected edge are invisible to dialogue.** Flags are pair facts, but the store holds them per edge, and the binding reads the selected edge only. A `met_player` written to the colleague edge while the spouse edge is selected is not seen by the next conversation. No sim code changes in this unit, so the flag home is not moved; the limit is recorded here rather than silently assumed away. (The debt flags are the exception: they are derived from the ledger at snapshot time per §14, not read from any edge.)
+
+### 17.4 No edge, no scores
+
+- **No NPC→player edge at all** → band `neutral` (§12.3), the first-meeting greeting. The greeting never fails (§12.6 rule 4).
+- **Selected edge exists with the sim's default scores** (an edge formed with 0/0/0) → `neutral`, exactly like no edge. A zero-score edge reads as a stranger's greeting, not as a special case.
+- **The return edge is never read for the greeting.** GDD-01 §6.2: behaviour reads the actor's outgoing scores; the actor here is the NPC, so the NPC→player edge governs. The player→NPC edge is the player's view of the pair, not the NPC's greeting.
+
+### 17.5 Worked examples
+
+- **Spouse + colleague** (married co-workers): the `spouse` edge is selected. The greeting is the spouse's greeting; the `colleague` edge's scores are untouched by the conversation's drift, and a `respect_min` check reads the spouse edge's respect, not the colleague's.
+- **Colleague + rival** (a workplace conflict, Session 02): the `colleague` edge is selected (priority 8 beats 12). The rivalry shows as low scores on the colleague edge — the band may read `wary` — but the pair is still framed as colleagues, and the apology tree (§12.3) still has its edge to work on.
+- **`ex_partner` only**: the `ex_partner` edge is selected (priority 13, but the only edge). Its scores govern the band; there is no livelier frame to prefer.
+- **No edge**: `neutral` greeting, then the introduction exchange (§5) writes `met_player` on the edge the next conversation selects — which, once formed, is the edge the formation event created (e.g. `acquaintance`).
+
+### 17.6 What this section does not do
+
+It does not merge scores across edges, create or delete edges, or change `adjust_scores()`'s unscoped behaviour for non-dialogue callers (the weekly drift and event writes keep their own rules — Session 02). It fixes only the dialogue binding's read and write target. **Gap G4 is resolved by this section** — §12.8 G4 now reads as defined, not undefined — with the priority order itself the one decision this unit makes, labelled in §17.2, and the flag-visibility limit of §17.3 kept open.
+
+*End of GDD-15 §17 — Unit BF, Queue 11.*
+
+---
+
+## 18. Current-Zone Accessor (AV gap G8 — resolved)
+
+**Unit BG · Queue 11 · Version 1.0 · 2026-11-22**
+**Status:** DESIGN ONLY. This section defines the accessor the binding reads for an NPC's current zone at a given game time — the input GDD-06 §3 leaves unnamed. It adds no sim function and no sim code change: the accessor is specified here against the schedule state the sim already stores, and the UE runtime (Phase 6) implements the same contract against live schedule instantiation. Where the stored state simplifies the truth, the simplification is recorded, not smoothed over.
+
+### 18.1 The accessor contract
+
+```
+current_zone_at(store, character_id, game_minutes) -> zone id | None
+```
+
+| Step | Rule |
+|---|---|
+| 1. Day | `day_index = game_minutes // 1440` (1440 game minutes per day; Day 1 is index 0, a Monday — `tools/sim/scheduler.py`). |
+| 2. Read the stored day | Read the `instantiated_schedules` row for (`character_id`, `day_index`) and parse its `blocks_json`. The engine writes one row per character per day it runs (`tools/sim/engine.py`), asserting the blocks cover exactly 1440 minutes. |
+| 3. Find the block | The block with `start <= game_minutes < end` (starts/ends are absolute game minutes). Return its `zone` field. |
+| 4. No row, no block | Return `None`. A day the engine has not run has no row, and a conversation at that time has no zone to read. |
+
+The accessor **reads stored state; it never re-instantiates and never recomputes jitter.** Re-instantiation would need the day's needs, traits, and weather effects as they were at the tick — inputs the conversation does not hold — and would risk disagreeing with the day the engine actually ran. The stored day is the truth about where the NPC was scheduled to be.
+
+### 18.2 Where the stored zone comes from
+
+`scheduler.instantiate()` assigns every block a `zone` before the engine stores the day:
+
+| Block `location` | Stored `zone` | Source |
+|---|---|---|
+| `home` | The NPC's `home_zone` (household property's district) | `scheduler.py` zone resolution; `engine.py` builds `home_zone` from the household's property |
+| `workplace` | The NPC's `workplace_zone` (profession's workplace zone, `data/professions.json`) | Same |
+| `riverfront` / `park` / `market` / `restaurant` / `college` / `school` / `college_para` | `d1_riverfront` / `d1_park` / `d1_market` / `d1_midtown` / `d1_education` / `d1_education` / `d1_education` | `scheduler.py` `LEISURE_ZONE` |
+| `transit`, `tea_stall`, `mobile` | The NPC's `home_zone` | `scheduler.py` fallback: "local to home/work path" |
+
+Two guarantees behind the accessor: `_normalise()` tiles the day — gaps become explicit `home`/`idle` blocks, so a block always contains the queried minute — and the engine asserts the day's blocks sum to 1440. A conversation therefore always finds a block for a stored day, and `None` means only "no stored day", never "a hole in the day".
+
+### 18.3 Between anchors — commute (`transit`)
+
+A `Commute` block (GDD-06 §2: the only state that moves an NPC between anchors) carries location `transit`, and its stored zone is the NPC's `home_zone` by the §18.2 fallback. The accessor returns that stored value — it does **not** substitute the commute's destination. Honest consequence: a commuting NPC reports the home zone, not the destination zone, so a `zone` condition on the destination is false mid-commute and the `ask_about_place` topic answers for the home zone. The commute's destination is not tracked as a position anywhere in the sim (a Scheduled NPC's position is derived from schedule + anchor graph on both sides — TECH-PERSISTENT-WORLD §2, "Never persisted"), so no truer answer exists to read. The UE runtime resolves `transit` the same way GDD-06 §3 specifies (nearest stop on the commute path) and reports that stop's zone; the sim's stored value and the UE's resolved value may differ for the same block, and the difference is a store difference, not a bug in either.
+
+### 18.4 `mobile` — work that is movement
+
+The taxi fare loop and the business owner's mobile block (GDD-06 §4.6, §4.10) carry location `mobile`, and the stored zone is again `home_zone` by the same fallback. The accessor returns it unchanged. No position is tracked mid-loop, so there is no zone to report beyond the stored one; a `zone` condition on any other zone is false while the NPC is mobile.
+
+### 18.5 The `tea_stall` discrepancy — recorded, not fixed
+
+The sim's fallback maps `tea_stall` to `home_zone`, but GDD-06 §3 resolves location tokens to anchors at spawn, and the authored line library places the tea stalls in Boro Bazar (`data/dialogue-lines.json`, `dlg_topic_place_market`: "the market hall, the shop units, the tea stalls"). Under the UE anchor resolution a tea-stall block would report `d1_market`; under the sim's stored blocks it reports `home_zone`. The accessor reports the stored value in the sim and the resolved anchor zone in the UE — the two stores answer differently for the same block, and this section records that rather than picking one silently. Practical consequence for the shipped data: `dlg_topic_place_market` fires for a tea-stall NPC in the sim only when that NPC's `home_zone` is `d1_market`. No sim code is changed by this unit, so the fallback stands as the sim's answer until a schedule change revisits it.
+
+### 18.6 Off-schedule — there is no such time in the sim
+
+"Off-schedule" has no meaning against stored days: blocks tile the day, gaps are explicit `home` blocks (§18.2), and the `OffDuty` state (GDD-06 §2 — a template with no block for the current time, e.g. the pilot, §4.11) resolves inside the schedule to `AtHome`/`Leisure` blocks the accessor reads normally. The only `None` case is §18.1 step 4: no stored row for the day. When the accessor returns `None`, every `zone` condition is false, no place node matches, and §12.6 rule 1 applies — the node contributes no line and control returns to the topic menu. The conversation never invents a zone.
+
+### 18.7 What becomes evaluable
+
+| Item | Now evaluable because |
+|---|---|
+| The `zone` condition (§12.3) | The accessor supplies the value it tests |
+| All 10 `dlg_topic_place_*` nodes (`data/dialogue-lines.json`, `topics.ask_about_place.nodes`) | Each conditions on one zone id, and the accessor returns exactly one zone per conversation: `dlg_topic_place_market` (`d1_market`), `dlg_topic_place_oldtown` (`d1_oldtown`), `dlg_topic_place_riverfront` (`d1_riverfront`), `dlg_topic_place_midtown` (`d1_midtown`), `dlg_topic_place_civic` (`d1_civic`), `dlg_topic_place_education` (`d1_education`), `dlg_topic_place_industry` (`d1_industry`), `dlg_topic_place_park` (`d1_park`), `dlg_topic_place_transport` (`d1_transport`), `dlg_topic_place_uptown` (`d1_uptown`) |
+| The `ask_about_place` topic (GDD-15 §4, unlock Always) | It now resolves to exactly one node — the current zone's — instead of being unevaluable. A `None` zone resolves to no node (§12.6 rule 1), not to a wrong one |
+| The `<zone_name>` placeholder (§12.2 step 6) | Fills from the display name of the accessor's zone (GDD-02 §2) |
+
+Small-talk lines are per profession, not per zone (`data/dialogue-lines.json` `small_talk.by_profession` / `by_zone` — the `by_zone` set is authored per zone, not selected by the accessor), so the accessor changes nothing there. The `zone` condition is the only condition this unit unlocks.
+
+### 18.8 What this section does not do
+
+It does not add a sim function, change `instantiate()`, or move the `tea_stall` fallback — those are sim changes for a later unit if the owner orders one. It does not give the accessor a memory: the zone is read fresh at conversation open into the §12.1 snapshot and is not re-read mid-conversation (the NPC's schedule state is suspended in `Converse`, GDD-06 §2). **Gap G8 is resolved by this section** as an accessor question — the function contract, the stored read path, and the between-anchors/off-schedule answers now exist — with the `tea_stall` store difference (§18.5) kept as a recorded limit.
+
+*End of GDD-15 §18 — Unit BG, Queue 11.*
+
+---
+
+## 19. Mission Deadlines — Dialogue Note (AV gap G10 — resolved)
+
+**Unit BH · Queue 11 · Version 1.0 · 2026-11-22**
+**Status:** DESIGN ONLY. The dialogue-side note for mission deadlines; the field itself is defined in `docs/GDD-04-MISSIONS-AND-PROGRESSION.md` §3.2 (Unit BH), which is the authoritative text. Nothing here duplicates it.
+
+**How the lead trigger evaluates.** GDD-15 §4 lets an NPC lead with a time-sensitive mission; §12.2 step 3 checks the three lead triggers in order (debt → memory → mission). The mission trigger fires when, at conversation open (§12.1 snapshot), the mission's state is `available` (per §13) **and** its deadline is set **and** `0 < remaining <= 4320` game minutes — the sourced "within 3 days" window (GDD-15 §4), 3 days × 1440 minutes. `remaining` is `available_at_game_minutes + deadline_days × 1440 − now`, per GDD-04 §3.2. The trigger opens the mission offer node (`dlg_1_3_offer`, `dlg_2_4_offer` pattern); after the led topic resolves, the menu opens, as §4 requires.
+
+**What happens on expiry.** When `remaining <= 0`, the mission system — not dialogue — sets the row to `failed` (GDD-04 §1; §13.4: dialogue never writes `failed`). A failed mission has no dialogue state (§13.2): every `mission` condition on it is false, and no node offers, reminds, or completes it. Retry after 7 in-game days returns the row to `available` with a fresh `available_at_game_minutes` — a new deadline window, not a continuation of the expired one. Dialogue plays no part in the retry.
+
+**Interaction with the §13 mapping.** The deadline adds no dialogue state: `available`, `accepted`, and `objective_complete` evaluate exactly as §13 defines, and the clock keeps running from availability whether the mission is accepted or not — accepting does not reset the client's deadline. A mission that expires while `accepted` fails the same way; its `accepted_at_game_minutes` stays on the row as the record of when it was taken up. Favours never carry a deadline (GDD-04 §3.1), so the lead trigger never fires for a favour. **Gap G10 is resolved by this note together with GDD-04 §3.2** — the field, the window, and the expiry now exist — while per-mission deadline values remain Phase 6 authoring work: no mission in `data/missions.json` carries a deadline today, and none is invented here.
+
+*End of GDD-15 §19 — Unit BH, Queue 11.*
+
+*End of GDD-15 v1.0 + Unit AV §12 (Queue 9) + Queue 10 §§13–16 + Queue 11 §§17–19.*
