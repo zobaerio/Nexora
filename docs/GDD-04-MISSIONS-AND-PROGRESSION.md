@@ -138,11 +138,11 @@ The exact amount inside a range (for example, where in 200-2,000 NCr an errand f
 |---|---|---|
 | Errands (`errands`) | The NPC has an open needs-driven want (GDD-01 §2.2) for a fetch, carry or fix — a want the needs/decision engines recorded, naming an existing target (a property, a person, a zone) | GDD-01 §2.2 (needs-driven wants); Session 01 needs engine (`tools/sim/needs.py`, `decisions.py`) |
 | Work shifts (`work_shifts`) | An open vacancy exists at a business the NPC works at or for, and the player meets its credential gate — or a colleague of the NPC is absent with an open health condition the shift would cover | Session 04 labour market (`tools/sim/labour.py` vacancies; credential gates); Session 06 health conditions (`tools/sim/health.py`) |
-| Favours — lend money (`favours`) | The NPC's household is in arrears, or the NPC has an active bank loan with at least one missed payment — and the loan the favour creates is a character↔character ledger loan (`loan_disburse` / `loan_repay`, GDD-15 §14), never a bank loan | Session 02 family economy (`tools/sim/family_economy.py` arrears); Session 04 banking (`tools/sim/banking.py` `missed_payments`) |
+| Favours — lend money (`favours`) | The NPC's household is in arrears, or the NPC has an active bank loan with at least one missed payment — and no outstanding character↔character loan already exists between this NPC and the player (one open loan per pair, GDD-15 §20.4) — and the loan the favour creates is a character↔character ledger loan (`loan_disburse` / `loan_repay`, GDD-15 §14), never a bank loan; the loan instance is defined in GDD-15 §20 (Unit BN) | Session 02 family economy (`tools/sim/family_economy.py` arrears); Session 04 banking (`tools/sim/banking.py` `missed_payments`); GDD-15 §20 |
 | Favours — mediate a dispute (`favours`) | An open conflict involves the NPC, and the player qualifies as a mediator for it (a friend of a party, or a community leader — the roles the conflict system already allows) | Session 02 conflicts (`tools/sim/conflicts.py` mediation by leader/friend/elder) |
-| Favours — find a lost item (`favours`) | **Ungeneratable.** No lost-item record exists in any merged system — no table, no event, no inventory of lost things. The generator must never offer a find-a-lost-item favour until such a record is designed. | — (absence recorded, not filled) |
+| Favours — find a lost item (`favours`) | A `lost_items` row exists with `owner_character_id` = the NPC and `status = 'lost'` — the record is defined in GDD-04 §3.3 (Unit BL). The favour's parameters are the row (`item_instance_id`, `lost_zone`, `lost_anchor` where set). No such row exists in any live world yet — no merged event writes a loss — so until a losing event is wired to the record, the check finds nothing and the generator offers nothing. | GDD-04 §3.3 (`lost_items`); `data/schema.sql` `inventory_items`; GDD-15 §18 (`current_zone_at`) |
 | Events (`events`) | A festival stands on the culture calendar, or a recorded storm/disaster impact in the NPC's zone needs clean-up (a festival stall to staff, storm debris to clear, a market day to run) | Session 02 culture (`tools/sim/culture.py` festival calendar; `tools/sim/events.py`); Session 07/08 environment (`tools/sim/environment.py` disaster impacts) |
-| Discovery (`discovery`) | **Ungeneratable.** The landmarks (GDD-02) and bus routes (GDD-07) exist, but no discovery-progress record exists — no table records which landmarks the player has found or which routes they have ridden — so the generator cannot tell a found landmark from an unfound one. The generator must never offer a discovery favour until a progress record is designed. | — (absence recorded, not filled) |
+| Discovery (`discovery`) | At least one discoverable in the §3.4 set has no `discovery_progress` row for the player's account — the record is defined in GDD-04 §3.4 (Unit BM): 8 landmarks (GDD-02 §4) + 1 bus route (`bus_route_terminal_loop`). The offered favour names the first unfound discoverable in set order. Photograph-the-district stays ungeneratable — no photo record exists (§3.4). | GDD-04 §3.4 (`discovery_progress`); GDD-02 §4; `data/district1-blockout.json`; GDD-07 §1 |
 
 **Common gates (all types).** The NPC must be Full or Scheduled tier (Ambient has no dialogue until promoted — GDD-15 §2) and interruptible (§2). No band gate is added: the favour topic in the shipped data conditions only on `favour_available`, and this contract does not invent a band requirement the data does not carry.
 
@@ -173,6 +173,77 @@ The exact amount inside a range (for example, where in 200-2,000 NCr an errand f
 **What never carries a deadline.** Favours never do (GDD-04 §3.1: "A favour has no deadline and no expiry"), so the lead trigger never fires for a favour. Side missions generated from the simulation carry no deadline field either — the field is a main-mission field, and the generator must not invent one.
 
 **Which missions carry one — none today.** No mission in `data/missions.json` carries `deadline_days` as this section is written (verified by the Queue 11 check script), and none is invented here: deadline values are Phase 6 authoring work, set mission by mission when the authoring pass decides which clients are impatient and by how much. A mission that gains a deadline in that pass gains it as a data edit, and the lead trigger, the expiry, and the retry follow from this section without further design. **Gap G10 is resolved by this section** as a field question — the field, the clock, the window, and the expiry now exist — while the values remain authoring work.
+
+### 3.3 Lost-Item Record (Unit BL · Queue 12 · 2026-11-22)
+
+**Status:** DESIGN ONLY. This section defines the record GDD-04 §3.1's find-a-lost-item row named as missing: no lost-item record existed in any merged system, so the generator could never offer the favour. The record is the deliverable — it adds no sim table, no schema change, and no sim code change; the Phase 6 generator and the sim event that creates losses implement against it. Where a number or a name would be needed and no source gives one, the section says so instead of inventing it.
+
+**The record.** One row per lost item, in a `lost_items` store the sim adds in Phase 6 (mirrored in the Phase 9 server schema by the same shape — the table does not exist in `data/schema.sql` today, and this unit does not add it):
+
+| Field | Type | Meaning |
+|---|---|---|
+| `lost_item_id` | text | Row id (`LI` + sequence, the sim's `next_id` pattern) |
+| `owner_character_id` | character id | The NPC who lost it — the favour's giver |
+| `item_instance_id` | UUID | The item itself: `inventory_items.item_instance_id` (`data/schema.sql`) — the row must resolve, so the item is always a thing the world already holds |
+| `lost_at_game_minutes` | integer | When the loss was recorded |
+| `lost_zone` | zone id | Where it was lost — one of the 10 GDD-02 §2 zones |
+| `lost_anchor` | text, nullable | The anchor token where it was lost (`market`, `tea_stall`, … — GDD-06 §3), when the creating event knows it; null when it does not |
+| `status` | `lost` \| `found` \| `returned` | Lifecycle below |
+| `found_by_character_id` | character id, nullable | Who found it — the player, when found |
+| `found_at_game_minutes` | integer, nullable | When it was found |
+| `returned_at_game_minutes` | integer, nullable | When it was handed back |
+
+**What can be lost — only what exists.** The item is identified by its `inventory_items` row, never by a name written for the favour: `item_type` is one of the schema's own vocabulary (`vehicle | furniture | tool | clothing | goods | document`) and `item_ref` is the catalogue id that row already carries. Money cannot be lost (the ledger holds money, not items); a property cannot be lost; business stock cannot be lost (it is not personal inventory). A favour never names an item with no inventory row — if the row does not exist, the loss does not exist, and the generator has nothing to offer.
+
+**Lifecycle.** `lost → found → returned`, and nothing else. The creating event writes the row `lost` (see below). The player finding the item — a world action in the `lost_zone` (at the `lost_anchor` where one is recorded), verified against world state like any mission objective (TECH-MULTIPLAYER §4) — writes `found` with `found_by_character_id` = the player. Handing it to the owner writes `returned` and completes the favour. There is no expiry: favours have no deadline (§3.1), so a lost item stays lost until it is found. A `found` row whose favour is abandoned stays `found` with `found_by_character_id` = the player — the item is in the player's hands, and no new favour is offered for it while its status is not `lost` (the eligibility check below requires `lost`).
+
+**How a loss is recorded — the honest limit.** No merged event writes a loss today: no sim module, life event, or schedule block records a dropped item, so no `lost_items` row exists in any live world as this section is written. The record defines the write contract for the Phase 6 event that will create losses — a commute incident, a storm-soaked market trip, a move-house event — which writes the row at the minute it happens, with `lost_zone` from the owner's `current_zone_at()` at that minute (GDD-15 §18) and `lost_anchor` from the block's anchor where the event knows it. Until such an event is wired to this record, the type is generatable *from the record* (the eligibility check below is defined) but no row exists to satisfy it — the generator must never offer a find-a-lost-item favour while the store holds no `lost` row for the giver. That is the same honesty as §3.1's "ungeneratable" row: the record removes the *design* gap; the *event* gap stays open and is named here, not filled.
+
+**Eligibility — the generator's check.** The type is eligible for an NPC iff a `lost_items` row exists with `owner_character_id` = the NPC and `status = 'lost'`. The offered favour's parameters are the row itself: `item_instance_id` (what), `lost_zone` (+ `lost_anchor` where set — where to look). The reward is the §3 pattern for the type — Relationship + small credits — set at generation inside the pattern and recorded on the instance, never stated as an amount in dialogue (amounts live in the ledger; GDD-15 §12.4). Completion is the `returned` write: the mission system sets `progress.objectives_complete` on the favour instance row when the hand-back is verified, and the dialogue complete node pays the recorded reward.
+
+**What the generator must never invent.** No item without an inventory row; no loss with no creating event (a row the generator invents for the sake of offering a favour is a generator bug, caught the same way §12.7's audit rule catches a forbidden dialogue write); no `lost_zone` outside the 10 GDD-02 zones; no expiry; no second favour for an item whose status is not `lost`.
+
+**§3.1 status change.** The §3.1 find-a-lost-item row now reads as defined, not ungeneratable — the record, the lifecycle, and the eligibility check exist in this section. The favour offer/accept/complete nodes for the type are a follow-up data unit's job (Unit BO covers the types generatable before BL/BM; the lost-item nodes follow on this record).
+
+### 3.4 Discovery Progress Record (Unit BM · Queue 12 · 2026-11-22)
+
+**Status:** DESIGN ONLY. This section defines the record GDD-04 §3.1's discovery row named as missing: the landmarks and the bus routes existed, but no table recorded which the player had found or ridden, so the generator could not tell a found landmark from an unfound one. The record is the deliverable — it adds no sim table, no schema change, and no sim code change; the Phase 6 generator and the visit/ride detection implement against it.
+
+**The record.** One row per discovered thing, in a `discovery_progress` store the sim adds in Phase 6 (mirrored in the Phase 9 server schema by the same shape — the table does not exist in `data/schema.sql` today, and this unit does not add it):
+
+| Field | Type | Meaning |
+|---|---|---|
+| `account_id` | UUID | Whose progress — `accounts.account_id` (`data/schema.sql`) |
+| `discoverable_type` | `landmark` \| `bus_route` | Which kind of thing |
+| `discoverable_id` | text | The landmark id (`lm_*`, below) or the route id (`bus_route_terminal_loop`, below) |
+| `discovered_at_game_minutes` | integer | When it was found or ridden |
+| `discovered_in_zone` | zone id | The zone the player was in when the row was written (audit, not a condition) |
+| PK `(account_id, discoverable_type, discoverable_id)` | — | One row per account per thing, ever |
+
+**Where it lives — account, not character.** Achievements are account-level (GDD-04 §5: a character dies, the account keeps the achievements), and discovery progress feeds the Explorer achievement progress, so it lives on the account too. **Recorded discrepancy:** `data/schema.sql`'s `achievements` table is keyed by `character_id`, not `account_id` — the schema and §5 disagree about where achievement data lives. This record follows §5 (account); aligning the `achievements` table's key is a Phase 9 schema question, not decided here. Rows are append-only: a discovery is never deleted, and a new character on the same account inherits the progress — the player does not re-find the Clock Tower because they started a new life.
+
+**The discoverable set — landmarks.** Exactly the 8 landmarks GDD-02 §4 lists, with the ids `data/district1-blockout.json` carries and the zone each one stands in:
+
+| `discoverable_id` | Landmark (GDD-02 §4) | Zone | Zone provenance |
+|---|---|---|---|
+| `lm_clock_tower` | The Clock Tower (§4.1) | `d1_market` | Assigned by description — the arterial crossing at the market's north edge; the point (0, −60) falls outside every `zone_boxes_m` box, so the box cannot verify it (decided here, labelled) |
+| `lm_bridge_approach` | Rupsha Bridge approach (§4.2) | `d1_riverfront` | Assigned by description — the south-east river edge; the point (500, 430) falls outside every box (decided here, labelled) |
+| `lm_launch_terminal` | Launch Terminal (§4.3) | `d1_riverfront` | Verified — inside the `d1_riverfront` box; building `b_d1_riverfront_launch_terminal` |
+| `lm_park_pond` | Central Park pond & banyan tree (§4.4) | `d1_park` | Verified — inside the `d1_park` box |
+| `lm_market_hall` | Boro Bazar market hall (§4.5) | `d1_market` | Verified — inside the `d1_market` box; building `b_d1_market_hall_units` |
+| `lm_rooftop_tower` | Uptown rooftop restaurant tower (§4.6) | `d1_uptown` | Verified — inside the `d1_uptown` box; building `b_d1_uptown_rooftop_restaurant` |
+| `lm_station` | Railway station clock frontage (§4.7) | `d1_transport` | Verified — inside the `d1_transport` box; building `b_d1_transport_station` |
+| `lm_water_tank` | The old water tank (§4.8) | `d1_oldtown` | Verified — inside the `d1_oldtown` box |
+
+**The discoverable set — bus routes.** No named bus route exists in any merged source: GDD-07 §1 runs buses on "fixed terminal loops" and `data/vehicles.json` describes the bus as "fixed loops between the `d1_transport` bus terminal and the district edge", but no route id, no stop list, and no route count is given anywhere. **Decided here (labelled as this unit's decision):** the route set holds exactly one route — `bus_route_terminal_loop`, the terminal ↔ district-edge loop the two sources describe — until Phase 5 authors named routes, when the set gains an entry per route. The id is this unit's; the route is the sources'. A route the traffic system has not authored is not in the set, and the generator never offers it.
+
+**How a discovery is recorded.** A landmark row is written when the player character is present in the landmark's zone — zone presence, checked against the player's current zone (GDD-15 §18's accessor, read for the player): the zone is the landmark's own small ground, and presence in it is the visit. A bus-route row is written when the player completes a ride on that route — boards at the `d1_transport` terminal and alights at the district edge (the ride is a trip the transport system records; the route id is the bus's route). Both writes are made by the world systems that observe them, never by dialogue and never by the generator: the generator reads the record, it does not write it.
+
+**Eligibility — the generator's check.** The type is eligible for an NPC iff at least one discoverable in the set has no `discovery_progress` row for the player's account. The offered favour names one unfound discoverable — the first in set order (landmarks in GDD-02 §4 order, then routes), deterministic, no random pick (GDD-15 §12.6 rule 6). The favour's parameters are `discoverable_type` + `discoverable_id`. Completion is the row appearing: the mission system sets `progress.objectives_complete` on the favour instance row when the discovery is recorded, and the dialogue complete node pays the recorded reward — 500 NCr each + Explorer progress, the §3 pattern verbatim.
+
+**What this record does not cover.** The §3 discovery examples list three things — "Find all landmarks, photograph the district, ride every bus route" — and this record covers two of them. Photographing has no record: no photo mechanic, no camera roll, and no photograph table is designed anywhere in the merged sources, so a photograph-the-district favour stays ungeneratable and the generator must never offer it. The record also covers District 1 only: District 2 and Shibnagar have their own landmarks (TECH-DISTRICT2-BLOCKOUT, `data/city2-shibnagar.json`), and their discoverables join the set when their data is authored — this section does not invent them.
+
+**§3.1 status change.** The §3.1 discovery row now reads as defined, not ungeneratable — the record, the set, and the eligibility check exist in this section. The favour offer/accept/complete nodes for the type are a follow-up data unit's job (Unit BO covers the types generatable before BL/BM; the discovery nodes follow on this record).
 
 ## 4. Free-Roam Rules
 

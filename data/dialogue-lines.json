@@ -36,15 +36,18 @@
     "profession": "profession:<profession id>",
     "memory": "memory:harming_episodic_memory, exists:true",
     "tier": "tier:<full|child>",
-    "favour_available": "favour_available:true|false — the side-mission generator has a favour for this NPC (GDD-04 §3)"
+    "favour_available": "favour_available:true|false — the side-mission generator has a favour for this NPC (GDD-04 §3)",
+    "favour_type": "favour_type:<errands|work_shifts|favours_lend|favours_mediate|events> — the type of the favour the generator offered this conversation (GDD-04 §3.1; GDD-15 §15.1)",
+    "favour_state": "favour_state:<none|accepted|objective_complete|completed> — the state of this NPC's most recent favour instance with the player (GDD-15 §13 mapping, read through the instance row; GDD-15 §15.1)",
+    "goals_full": "goals_full:true|false — the player already holds 2 active stage goals (GDD-01 §2.2 stack cap; GDD-15 §16.2)"
   },
   "effect_vocabulary": {
     "relationship_drift": "type:relationship_drift, trust/affection/respect n — small drift per GDD-01 §4 step 4; big changes come only from events",
     "set_flag": "type:set_flag, flag:<flag>, value:true|false",
     "memory_write": "type:memory_write, text:<...>, weight:<number, only when a source gives one>, tier:full — appends to character_memories (Full tier only)",
     "memory_weight_reduce": "type:memory_weight_reduce, target:harming_episodic_memory, amount_ref:runtime_rule — weight reduced, never deleted (GDD-15 §4)",
-    "mission_progress": "type:mission_progress, mission_id:<id>, state:<accepted|objective_complete>",
-    "mission_complete": "type:mission_complete, mission_id:<id>, rewards:<verbatim missions.json rewards object>",
+    "mission_progress": "type:mission_progress, mission_id:<id>, state:<accepted|objective_complete> — or mission_id_ref:favour_instance, in which case the runtime substitutes the GDD-04 §3.1 instance key (side:<type>:<giver>:<generated_at_game_minutes>)",
+    "mission_complete": "type:mission_complete, mission_id:<id>, rewards:<verbatim missions.json rewards object> — or mission_id_ref:favour_instance with rewards_ref:favour_instance, in which case the reward paid is the one recorded on the favour instance (GDD-04 §3.1)",
     "ledger_settlement": "type:ledger_settlement, reason:repayment, amount_ref:ledger_debt_amount — settles an existing debt through the ledger's own functions only",
     "propose_goal": "type:propose_goal, goal_ref:npc_life_goal — proposes a stage goal; the player accepts it or not, never silently applied",
     "none": "type:none — explicitly no write (a decline, a refusal, a waiting answer)"
@@ -1696,7 +1699,50 @@
           "lines": [
             {
               "speaker": "npc",
-              "text": "Maybe. Ask me again when the time's right — I'll know it when I see it.",
+              "text": "Take it on as one of your own? My goal is <life_goal> — having you in it would mean a lot.",
+              "condition": {
+                "band_min": "warm"
+              },
+              "effects": [
+                {
+                  "type": "none"
+                }
+              ]
+            }
+          ],
+          "choices": [
+            {
+              "text": "I'll take it on.",
+              "condition": {
+                "goals_full": false
+              },
+              "next": "dlg_topic_goals_accepted"
+            },
+            {
+              "text": "Not right now.",
+              "condition": {
+                "always": true
+              },
+              "next": "dlg_topic_goals_declined"
+            }
+          ],
+          "effects": [
+            {
+              "type": "none"
+            }
+          ],
+          "ends": false
+        },
+        {
+          "node_id": "dlg_topic_goals_accepted",
+          "speaker": "npc",
+          "condition": {
+            "band_min": "warm"
+          },
+          "lines": [
+            {
+              "speaker": "npc",
+              "text": "Then it's ours. Thank you — I'll hold you to it, and I'll hold myself to it too.",
               "condition": {
                 "band_min": "warm"
               },
@@ -1713,6 +1759,34 @@
             {
               "type": "propose_goal",
               "goal_ref": "npc_life_goal"
+            }
+          ],
+          "ends": false
+        },
+        {
+          "node_id": "dlg_topic_goals_declined",
+          "speaker": "npc",
+          "condition": {
+            "band_min": "warm"
+          },
+          "lines": [
+            {
+              "speaker": "npc",
+              "text": "No trouble — it's mine to carry. Ask me again sometime, if you like.",
+              "condition": {
+                "band_min": "warm"
+              },
+              "effects": [
+                {
+                  "type": "none"
+                }
+              ]
+            }
+          ],
+          "choices": [],
+          "effects": [
+            {
+              "type": "none"
             }
           ],
           "ends": false
@@ -2173,6 +2247,691 @@
       "notes": "The errand reward pattern is quoted verbatim from missions.json side_mission_types ('200-2,000 NCr + relationship') as a pattern, never as a promise for a specific favour.",
       "nodes": [
         {
+          "node_id": "dlg_favour_complete_errands",
+          "speaker": "npc",
+          "condition": {
+            "favour_type": "errands",
+            "favour_state": "objective_complete"
+          },
+          "lines": [
+            {
+              "speaker": "npc",
+              "text": "That's done, and done well. What's agreed is yours — the pattern holds.",
+              "condition": {
+                "favour_type": "errands",
+                "favour_state": "objective_complete"
+              },
+              "effects": [
+                {
+                  "type": "mission_complete",
+                  "mission_id_ref": "favour_instance",
+                  "rewards_ref": "favour_instance"
+                },
+                {
+                  "type": "relationship_drift",
+                  "trust": 1,
+                  "affection": 1
+                }
+              ]
+            }
+          ],
+          "choices": [],
+          "effects": [
+            {
+              "type": "mission_complete",
+              "mission_id_ref": "favour_instance",
+              "rewards_ref": "favour_instance"
+            },
+            {
+              "type": "relationship_drift",
+              "trust": 1,
+              "affection": 1
+            }
+          ],
+          "ends": false
+        },
+        {
+          "node_id": "dlg_favour_complete_work_shifts",
+          "speaker": "npc",
+          "condition": {
+            "favour_type": "work_shifts",
+            "favour_state": "objective_complete"
+          },
+          "lines": [
+            {
+              "speaker": "npc",
+              "text": "The shift is covered, and covered well. Your wage and reputation are yours.",
+              "condition": {
+                "favour_type": "work_shifts",
+                "favour_state": "objective_complete"
+              },
+              "effects": [
+                {
+                  "type": "mission_complete",
+                  "mission_id_ref": "favour_instance",
+                  "rewards_ref": "favour_instance"
+                },
+                {
+                  "type": "relationship_drift",
+                  "trust": 1,
+                  "affection": 1
+                }
+              ]
+            }
+          ],
+          "choices": [],
+          "effects": [
+            {
+              "type": "mission_complete",
+              "mission_id_ref": "favour_instance",
+              "rewards_ref": "favour_instance"
+            },
+            {
+              "type": "relationship_drift",
+              "trust": 1,
+              "affection": 1
+            }
+          ],
+          "ends": false
+        },
+        {
+          "node_id": "dlg_favour_complete_favours_lend",
+          "speaker": "npc",
+          "condition": {
+            "favour_type": "favours_lend",
+            "favour_state": "objective_complete"
+          },
+          "lines": [
+            {
+              "speaker": "npc",
+              "text": "It's repaid — every credit. Thank you for trusting me when the bank wouldn't.",
+              "condition": {
+                "favour_type": "favours_lend",
+                "favour_state": "objective_complete"
+              },
+              "effects": [
+                {
+                  "type": "mission_complete",
+                  "mission_id_ref": "favour_instance",
+                  "rewards_ref": "favour_instance"
+                },
+                {
+                  "type": "relationship_drift",
+                  "trust": 1,
+                  "affection": 1
+                }
+              ]
+            }
+          ],
+          "choices": [],
+          "effects": [
+            {
+              "type": "mission_complete",
+              "mission_id_ref": "favour_instance",
+              "rewards_ref": "favour_instance"
+            },
+            {
+              "type": "relationship_drift",
+              "trust": 1,
+              "affection": 1
+            }
+          ],
+          "ends": false
+        },
+        {
+          "node_id": "dlg_favour_complete_favours_mediate",
+          "speaker": "npc",
+          "condition": {
+            "favour_type": "favours_mediate",
+            "favour_state": "objective_complete"
+          },
+          "lines": [
+            {
+              "speaker": "npc",
+              "text": "It's settled — both sides shook on it. Thank you for standing between us.",
+              "condition": {
+                "favour_type": "favours_mediate",
+                "favour_state": "objective_complete"
+              },
+              "effects": [
+                {
+                  "type": "mission_complete",
+                  "mission_id_ref": "favour_instance",
+                  "rewards_ref": "favour_instance"
+                },
+                {
+                  "type": "relationship_drift",
+                  "trust": 1,
+                  "affection": 1
+                }
+              ]
+            }
+          ],
+          "choices": [],
+          "effects": [
+            {
+              "type": "mission_complete",
+              "mission_id_ref": "favour_instance",
+              "rewards_ref": "favour_instance"
+            },
+            {
+              "type": "relationship_drift",
+              "trust": 1,
+              "affection": 1
+            }
+          ],
+          "ends": false
+        },
+        {
+          "node_id": "dlg_favour_complete_events",
+          "speaker": "npc",
+          "condition": {
+            "favour_type": "events",
+            "favour_state": "objective_complete"
+          },
+          "lines": [
+            {
+              "speaker": "npc",
+              "text": "The stall ran, the day went well. The district remembers who helped.",
+              "condition": {
+                "favour_type": "events",
+                "favour_state": "objective_complete"
+              },
+              "effects": [
+                {
+                  "type": "mission_complete",
+                  "mission_id_ref": "favour_instance",
+                  "rewards_ref": "favour_instance"
+                },
+                {
+                  "type": "relationship_drift",
+                  "trust": 1,
+                  "affection": 1
+                }
+              ]
+            }
+          ],
+          "choices": [],
+          "effects": [
+            {
+              "type": "mission_complete",
+              "mission_id_ref": "favour_instance",
+              "rewards_ref": "favour_instance"
+            },
+            {
+              "type": "relationship_drift",
+              "trust": 1,
+              "affection": 1
+            }
+          ],
+          "ends": false
+        },
+        {
+          "node_id": "dlg_favour_progress",
+          "speaker": "npc",
+          "condition": {
+            "favour_state": "accepted"
+          },
+          "lines": [
+            {
+              "speaker": "npc",
+              "text": "Still working on it? Take your time — I'll be here.",
+              "condition": {
+                "favour_state": "accepted"
+              },
+              "effects": [
+                {
+                  "type": "relationship_drift",
+                  "trust": 1,
+                  "affection": 0
+                }
+              ]
+            }
+          ],
+          "choices": [],
+          "effects": [
+            {
+              "type": "relationship_drift",
+              "trust": 1,
+              "affection": 0
+            }
+          ],
+          "ends": false
+        },
+        {
+          "node_id": "dlg_favour_offer_errands",
+          "speaker": "npc",
+          "condition": {
+            "favour_available": true,
+            "favour_type": "errands"
+          },
+          "lines": [
+            {
+              "speaker": "npc",
+              "text": "I could use a hand — a fetch, a carry, a fix. The going pattern for errands is 200-2,000 NCr + relationship, and I'll hold to it.",
+              "condition": {
+                "favour_available": true,
+                "favour_type": "errands"
+              },
+              "effects": [
+                {
+                  "type": "relationship_drift",
+                  "trust": 1,
+                  "affection": 0
+                }
+              ]
+            }
+          ],
+          "choices": [
+            {
+              "text": "I'll take it on.",
+              "condition": {
+                "always": true
+              },
+              "next": "dlg_favour_accept_errands"
+            },
+            {
+              "text": "Not now.",
+              "condition": {
+                "always": true
+              },
+              "next": "dlg_favour_decline"
+            }
+          ],
+          "effects": [
+            {
+              "type": "relationship_drift",
+              "trust": 1,
+              "affection": 0
+            }
+          ],
+          "ends": false
+        },
+        {
+          "node_id": "dlg_favour_accept_errands",
+          "speaker": "npc",
+          "condition": {
+            "favour_type": "errands"
+          },
+          "lines": [
+            {
+              "speaker": "npc",
+              "text": "Thank you — I'll wait here. Bring it when it's done.",
+              "condition": {
+                "favour_type": "errands"
+              },
+              "effects": [
+                {
+                  "type": "mission_progress",
+                  "mission_id_ref": "favour_instance",
+                  "state": "accepted"
+                }
+              ]
+            }
+          ],
+          "choices": [],
+          "effects": [
+            {
+              "type": "mission_progress",
+              "mission_id_ref": "favour_instance",
+              "state": "accepted"
+            }
+          ],
+          "ends": false
+        },
+        {
+          "node_id": "dlg_favour_offer_work_shifts",
+          "speaker": "npc",
+          "condition": {
+            "favour_available": true,
+            "favour_type": "work_shifts"
+          },
+          "lines": [
+            {
+              "speaker": "npc",
+              "text": "We're short-handed — an extra shift, or cover for a sick colleague. An extra shift pays Wage + reputation — that's the pattern, and I'll hold to it.",
+              "condition": {
+                "favour_available": true,
+                "favour_type": "work_shifts"
+              },
+              "effects": [
+                {
+                  "type": "relationship_drift",
+                  "trust": 1,
+                  "affection": 0
+                }
+              ]
+            }
+          ],
+          "choices": [
+            {
+              "text": "I'll take it on.",
+              "condition": {
+                "always": true
+              },
+              "next": "dlg_favour_accept_work_shifts"
+            },
+            {
+              "text": "Not now.",
+              "condition": {
+                "always": true
+              },
+              "next": "dlg_favour_decline"
+            }
+          ],
+          "effects": [
+            {
+              "type": "relationship_drift",
+              "trust": 1,
+              "affection": 0
+            }
+          ],
+          "ends": false
+        },
+        {
+          "node_id": "dlg_favour_accept_work_shifts",
+          "speaker": "npc",
+          "condition": {
+            "favour_type": "work_shifts"
+          },
+          "lines": [
+            {
+              "speaker": "npc",
+              "text": "Thank you — the shift is yours. Don't be late.",
+              "condition": {
+                "favour_type": "work_shifts"
+              },
+              "effects": [
+                {
+                  "type": "mission_progress",
+                  "mission_id_ref": "favour_instance",
+                  "state": "accepted"
+                }
+              ]
+            }
+          ],
+          "choices": [],
+          "effects": [
+            {
+              "type": "mission_progress",
+              "mission_id_ref": "favour_instance",
+              "state": "accepted"
+            }
+          ],
+          "ends": false
+        },
+        {
+          "node_id": "dlg_favour_offer_favours_lend",
+          "speaker": "npc",
+          "condition": {
+            "favour_available": true,
+            "favour_type": "favours_lend"
+          },
+          "lines": [
+            {
+              "speaker": "npc",
+              "text": "I need to borrow a little — my household is behind, and the bank won't help. The pattern is Relationship + small credits; the amount is between us and the ledger.",
+              "condition": {
+                "favour_available": true,
+                "favour_type": "favours_lend"
+              },
+              "effects": [
+                {
+                  "type": "relationship_drift",
+                  "trust": 1,
+                  "affection": 0
+                }
+              ]
+            }
+          ],
+          "choices": [
+            {
+              "text": "I'll take it on.",
+              "condition": {
+                "always": true
+              },
+              "next": "dlg_favour_accept_favours_lend"
+            },
+            {
+              "text": "Not now.",
+              "condition": {
+                "always": true
+              },
+              "next": "dlg_favour_decline"
+            }
+          ],
+          "effects": [
+            {
+              "type": "relationship_drift",
+              "trust": 1,
+              "affection": 0
+            }
+          ],
+          "ends": false
+        },
+        {
+          "node_id": "dlg_favour_accept_favours_lend",
+          "speaker": "npc",
+          "condition": {
+            "favour_type": "favours_lend"
+          },
+          "lines": [
+            {
+              "speaker": "npc",
+              "text": "Thank you. The ledger will hold it, and so will I — I'll pay it back.",
+              "condition": {
+                "favour_type": "favours_lend"
+              },
+              "effects": [
+                {
+                  "type": "mission_progress",
+                  "mission_id_ref": "favour_instance",
+                  "state": "accepted"
+                }
+              ]
+            }
+          ],
+          "choices": [],
+          "effects": [
+            {
+              "type": "mission_progress",
+              "mission_id_ref": "favour_instance",
+              "state": "accepted"
+            }
+          ],
+          "ends": false
+        },
+        {
+          "node_id": "dlg_favour_offer_favours_mediate",
+          "speaker": "npc",
+          "condition": {
+            "favour_available": true,
+            "favour_type": "favours_mediate"
+          },
+          "lines": [
+            {
+              "speaker": "npc",
+              "text": "There's a dispute I can't settle alone — I need someone both sides trust. The pattern is Relationship + small credits; no money changes hands over the dispute itself.",
+              "condition": {
+                "favour_available": true,
+                "favour_type": "favours_mediate"
+              },
+              "effects": [
+                {
+                  "type": "relationship_drift",
+                  "trust": 1,
+                  "affection": 0
+                }
+              ]
+            }
+          ],
+          "choices": [
+            {
+              "text": "I'll take it on.",
+              "condition": {
+                "always": true
+              },
+              "next": "dlg_favour_accept_favours_mediate"
+            },
+            {
+              "text": "Not now.",
+              "condition": {
+                "always": true
+              },
+              "next": "dlg_favour_decline"
+            }
+          ],
+          "effects": [
+            {
+              "type": "relationship_drift",
+              "trust": 1,
+              "affection": 0
+            }
+          ],
+          "ends": false
+        },
+        {
+          "node_id": "dlg_favour_accept_favours_mediate",
+          "speaker": "npc",
+          "condition": {
+            "favour_type": "favours_mediate"
+          },
+          "lines": [
+            {
+              "speaker": "npc",
+              "text": "Thank you. Both sides will listen to you — I'll tell them you're coming.",
+              "condition": {
+                "favour_type": "favours_mediate"
+              },
+              "effects": [
+                {
+                  "type": "mission_progress",
+                  "mission_id_ref": "favour_instance",
+                  "state": "accepted"
+                }
+              ]
+            }
+          ],
+          "choices": [],
+          "effects": [
+            {
+              "type": "mission_progress",
+              "mission_id_ref": "favour_instance",
+              "state": "accepted"
+            }
+          ],
+          "ends": false
+        },
+        {
+          "node_id": "dlg_favour_offer_events",
+          "speaker": "npc",
+          "condition": {
+            "favour_available": true,
+            "favour_type": "events"
+          },
+          "lines": [
+            {
+              "speaker": "npc",
+              "text": "The festival needs hands — a stall to staff, a market day to run. The pattern is Reputation + memory events; the district remembers who helped.",
+              "condition": {
+                "favour_available": true,
+                "favour_type": "events"
+              },
+              "effects": [
+                {
+                  "type": "relationship_drift",
+                  "trust": 1,
+                  "affection": 0
+                }
+              ]
+            }
+          ],
+          "choices": [
+            {
+              "text": "I'll take it on.",
+              "condition": {
+                "always": true
+              },
+              "next": "dlg_favour_accept_events"
+            },
+            {
+              "text": "Not now.",
+              "condition": {
+                "always": true
+              },
+              "next": "dlg_favour_decline"
+            }
+          ],
+          "effects": [
+            {
+              "type": "relationship_drift",
+              "trust": 1,
+              "affection": 0
+            }
+          ],
+          "ends": false
+        },
+        {
+          "node_id": "dlg_favour_accept_events",
+          "speaker": "npc",
+          "condition": {
+            "favour_type": "events"
+          },
+          "lines": [
+            {
+              "speaker": "npc",
+              "text": "Thank you — the stall will be ready. The district will remember.",
+              "condition": {
+                "favour_type": "events"
+              },
+              "effects": [
+                {
+                  "type": "mission_progress",
+                  "mission_id_ref": "favour_instance",
+                  "state": "accepted"
+                }
+              ]
+            }
+          ],
+          "choices": [],
+          "effects": [
+            {
+              "type": "mission_progress",
+              "mission_id_ref": "favour_instance",
+              "state": "accepted"
+            }
+          ],
+          "ends": false
+        },
+        {
+          "node_id": "dlg_favour_decline",
+          "speaker": "npc",
+          "condition": {
+            "favour_available": true
+          },
+          "lines": [
+            {
+              "speaker": "npc",
+              "text": "No trouble — the offer stands if you change your mind.",
+              "condition": {
+                "favour_available": true
+              },
+              "effects": [
+                {
+                  "type": "none"
+                }
+              ]
+            }
+          ],
+          "choices": [],
+          "effects": [
+            {
+              "type": "none"
+            }
+          ],
+          "ends": false
+        },
+        {
           "node_id": "dlg_topic_favour",
           "speaker": "npc",
           "condition": {
@@ -2194,7 +2953,43 @@
               ]
             }
           ],
-          "choices": [],
+          "choices": [
+            {
+              "text": "Tell me about the errand.",
+              "condition": {
+                "favour_type": "errands"
+              },
+              "next": "dlg_favour_offer_errands"
+            },
+            {
+              "text": "Tell me about the shift.",
+              "condition": {
+                "favour_type": "work_shifts"
+              },
+              "next": "dlg_favour_offer_work_shifts"
+            },
+            {
+              "text": "Tell me about the loan.",
+              "condition": {
+                "favour_type": "favours_lend"
+              },
+              "next": "dlg_favour_offer_favours_lend"
+            },
+            {
+              "text": "Tell me about the dispute.",
+              "condition": {
+                "favour_type": "favours_mediate"
+              },
+              "next": "dlg_favour_offer_favours_mediate"
+            },
+            {
+              "text": "Tell me about the event.",
+              "condition": {
+                "favour_type": "events"
+              },
+              "next": "dlg_favour_offer_events"
+            }
+          ],
           "effects": [
             {
               "type": "relationship_drift",

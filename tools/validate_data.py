@@ -140,7 +140,8 @@ def check_dialogue_lines_references(dlg, data):
                  "value", "mission", "state", "relationship_mean_min",
                  "respect_min", "employed", "has_household", "zone",
                  "profession", "memory", "exists", "tier",
-                 "favour_available"}
+                 "favour_available", "favour_type", "favour_state",
+                 "goals_full"}
     bands = {"close", "warm", "neutral", "wary", "hostile"}
     flags = {"met_player", "owes_player", "player_owes",
              "worked_with_player", "employs_player",
@@ -149,7 +150,7 @@ def check_dialogue_lines_references(dlg, data):
     seen_missions, seen_profs, seen_zones = set(), set(), set()
 
     def scan_cond(c, where):
-        if set(c) > cond_keys:
+        if set(c) - cond_keys:
             bad.append((where, "cond keys", sorted(set(c) - cond_keys)))
         for k in ("band", "band_min", "band_max"):
             if k in c and c[k] not in bands:
@@ -315,6 +316,132 @@ def check_dialogue_lines_rewards_verbatim(dlg, data):
           f"bad={bad_amounts[:2]}")
     check(any(pattern in t for t in texts),
           "favour topic quotes the errand reward pattern verbatim")
+
+
+def check_favour_flow_nodes(dlg, data):
+    """Queue 12 Unit BO — the favour topic carries offer / accept /
+    complete nodes for every type the GDD-04 §3.1 contract makes
+    generatable before BL/BM (errands, work shifts, lend-money and
+    mediate favours, events), and none for the types whose records
+    only just landed (find-a-lost-item, discovery — a follow-up
+    unit's nodes, GDD-15 §15.1). Offer lines quote the §3 reward
+    pattern verbatim; accept writes mission_progress under the
+    favour instance key; complete pays the instance's recorded
+    reward."""
+    favour = dlg["topics"]["favour"]["nodes"]
+    by_id = {n["node_id"]: n for n in favour}
+    types = ["errands", "work_shifts", "favours_lend",
+             "favours_mediate", "events"]
+    patterns = {s["type"]: s["reward_pattern"] for s in
+                data["missions.json"]["side_mission_types"]}
+    bad = []
+    for t in types:
+        for kind in ("offer", "accept", "complete"):
+            if f"dlg_favour_{kind}_{t}" not in by_id:
+                bad.append((t, "missing " + kind))
+    for t in ("find_a_lost_item", "discovery"):
+        for n in favour:
+            if t in n["node_id"]:
+                bad.append((t, "offer node exists before its follow-up"))
+            if n.get("condition", {}).get("favour_type") == t:
+                bad.append((t, "condition names it"))
+    for t in types:
+        offer = by_id.get(f"dlg_favour_offer_{t}")
+        if offer is not None:
+            text = " ".join(ln["text"] for ln in offer["lines"])
+            pat = patterns["errands" if t == "errands"
+                          else "work_shifts" if t == "work_shifts"
+                          else "favours" if t.startswith("favours_")
+                          else "events"]
+            if pat not in text:
+                bad.append((t, "offer omits its §3 pattern"))
+            accept_next = [c["next"] for c in offer["choices"]
+                           if c["next"] == f"dlg_favour_accept_{t}"]
+            if not accept_next:
+                bad.append((t, "offer has no accept choice"))
+            if "dlg_favour_decline" not in [c["next"]
+                                            for c in offer["choices"]]:
+                bad.append((t, "offer has no decline choice"))
+        accept = by_id.get(f"dlg_favour_accept_{t}")
+        if accept is not None:
+            effs = accept.get("effects", []) + [
+                e for ln in accept["lines"] for e in ln.get("effects", [])]
+            if not any(e.get("type") == "mission_progress"
+                       and e.get("mission_id_ref") == "favour_instance"
+                       and e.get("state") == "accepted" for e in effs):
+                bad.append((t, "accept lacks instance-key mission_progress"))
+        complete = by_id.get(f"dlg_favour_complete_{t}")
+        if complete is not None:
+            effs = complete.get("effects", []) + [
+                e for ln in complete["lines"]
+                for e in ln.get("effects", [])]
+            if not any(e.get("type") == "mission_complete"
+                       and e.get("mission_id_ref") == "favour_instance"
+                       and e.get("rewards_ref") == "favour_instance"
+                       for e in effs):
+                bad.append((t, "complete lacks instance-key mission_complete"))
+    stub = by_id.get("dlg_topic_favour")
+    if stub is not None:
+        got = {c["condition"].get("favour_type") for c in stub["choices"]}
+        if got != set(types):
+            bad.append(("stub", "choices do not cover the five types",
+                        sorted(got)))
+    if "dlg_favour_progress" not in by_id:
+        bad.append(("progress", "missing reminder node"))
+    if "dlg_favour_decline" not in by_id:
+        bad.append(("decline", "missing shared decline node"))
+    check(not bad, "favour offer/accept/complete nodes exist per "
+          "generatable type and quote the §3 patterns", f"bad={bad[:8]}")
+
+
+def check_goals_help_restructure(dlg):
+    """Queue 12 Unit BP — dlg_topic_goals_help no longer fires
+    propose_goal on entry (GDD-15 §16.2): the proposal is a line
+    with no effect, the accept choice (hidden when the goal stack
+    is full) leads to a node carrying propose_goal, and the decline
+    choice leads to a node with effect none."""
+    goals = dlg["topics"]["ask_about_goals"]["nodes"]
+    by_id = {n["node_id"]: n for n in goals}
+    bad = []
+    help_node = by_id.get("dlg_topic_goals_help")
+    if help_node is None:
+        bad.append(("goals_help", "node missing"))
+        check(False, "goals-help restructure per GDD-15 §16.2",
+              f"bad={bad}")
+        return
+    for e in help_node.get("effects", []) + [
+            e for ln in help_node["lines"] for e in ln.get("effects", [])]:
+        if e.get("type") == "propose_goal":
+            bad.append(("goals_help", "propose_goal still fires on entry"))
+    choices = {c["next"]: c for c in help_node["choices"]}
+    if len(choices) < 2:
+        bad.append(("goals_help", "fewer than two choices"))
+    accept = by_id.get("dlg_topic_goals_accepted")
+    if accept is None:
+        bad.append(("accept", "node missing"))
+    else:
+        if "dlg_topic_goals_accepted" not in choices:
+            bad.append(("accept", "no choice leads to it"))
+        else:
+            c = choices["dlg_topic_goals_accepted"]
+            if c.get("condition", {}).get("goals_full") is not False:
+                bad.append(("accept", "choice lacks goals_full:false"))
+        effs = accept.get("effects", []) + [
+            e for ln in accept["lines"] for e in ln.get("effects", [])]
+        if not any(e.get("type") == "propose_goal" for e in effs):
+            bad.append(("accept", "node lacks propose_goal"))
+    decline = by_id.get("dlg_topic_goals_declined")
+    if decline is None:
+        bad.append(("decline", "node missing"))
+    else:
+        if "dlg_topic_goals_declined" not in choices:
+            bad.append(("decline", "no choice leads to it"))
+        effs = decline.get("effects", []) + [
+            e for ln in decline["lines"] for e in ln.get("effects", [])]
+        if any(e.get("type") != "none" for e in effs):
+            bad.append(("decline", "node writes something"))
+    check(not bad, "goals-help restructure per GDD-15 §16.2",
+          f"bad={bad[:8]}")
 
 
 # -- Queue 8: Unit AR — District 2 blockout -----------------------
@@ -1483,6 +1610,8 @@ def main():
             check_dialogue_lines_references(dlg, data)
             check_dialogue_lines_effects(dlg)
             check_dialogue_lines_rewards_verbatim(dlg, data)
+            check_favour_flow_nodes(dlg, data)
+            check_goals_help_restructure(dlg)
     if "district2-blockout.json" in data \
             and "district1-blockout.json" in data:
         d2 = data["district2-blockout.json"]
