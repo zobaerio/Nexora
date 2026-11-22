@@ -1,7 +1,25 @@
 # NEXORA — Development Status
 
 **Continuous development:** RUNNING — **the 10-session programme is COMPLETE**: Session 10 "Global Virtual Universe Integration" finished 2026-11-21 and merged on GitHub main 2026-11-22 (PR #21, main `ba79597d`; see the Session 10 section below). Queues 1–5 + Sessions 01–10 ALL merged on GitHub main. Full suite 438 tests, all passing (re-verified 2026-11-22: 32/32 Session 10 tests, validate_data green). The remaining milestone is owner-side: Phase 1 on the owner's PC (UE 5.8.x test scene; owner still owes Step 0: PC specs). Note: PR #4 was a duplicate of PR #3 created by a late scheduled run; closed 2026-11-21, no content difference.
-**Repo:** https://github.com/zobaerio/Nexora · main after PR #22: `19d4378a`
+**Repo:** https://github.com/zobaerio/Nexora · main after PR #23: `08d520e4`
+
+## Queue 7 — "Recorded Follow-ups + Phase 4/6/9 Design Gaps" (drafted 2026-11-22; AJ + AK merged, AL/AM/AN remain)
+
+| Unit | State | PR |
+|---|---|---|
+| AJ — Economy Simulator v4: Medical Line in Base Table | ✅ Merged + blob-verified on main (economy_sim.py `0821ebbe`, report `61635b69`) — medical line charged in the base table; new pinned baseline md5 `318c6114`; life-sim reconciliation kept; police/entry + renting-cab TIGHT in base, pilot/entry 0.8% | #23 |
+| AK — Phase 4 Seasons Visual Design | ✅ Merged + blob-verified on main (TECH-SEASONS `bc2a749f`) — 85 cross-ref checks, 0 failures; TECH-CLOCK-WEATHER §6 corrected | #23 |
+| AL — Dialogue & Conversation Design | ⬜ Not started | — |
+| AM — Persistent World → UE Server Mapping | ⬜ Not started | — |
+| AN — Full NPC Cast Data | ⬜ Not started | — |
+
+## Queue 7 partial-delivery summary (2026-11-22)
+
+- **AJ + AK merged in PR #23** (branch `feat/queue7-aj-ak`, head `0ea29255`, squash-merged to main `08d520e4`). Every unit's key files were read back on `refs/heads/main` and blob-matched to the locally validated tree (economy_sim.py `0821ebbe`, ECONOMY-SIM-REPORT-V4 `61635b69`, TECH-SEASONS `bc2a749f`).
+- **What AJ did:** closed the v3 report §5 open item — the household medical budget line (300/500/800 by band) is now charged in the simulator's 34-row base table (`tools/economy_sim.py` v4) instead of living behind the `--v3` flag, and the life-sim settlement charges the same line so the one-adult reconciliation still passes (acceptance test ±2). The pinned baseline md5 moved to `318c6114c143a81a579e70b39ccca8f8` with the v2 md5 kept in a comment as history. No wage band moved, no rent tier moved. Honest cost: police/entry is now TIGHT in the base table (8.3%, net +1,500), pilot/entry stays 0.8% (net +350), and the renting-cab variant crosses under 10% (9.3%, net +1,300) — all reported, not tuned. No SURVIVAL FAIL, no BRIDGE FAIL (worst month-1: pilot +9,530). The `--v3`/`--v4` scenarios dropped the four medical scenarios (they would double-charge) and keep the five tutoring/part-time scenarios.
+- **What AK did:** the Phase 4 UE visual layer for the six-season Bangladeshi calendar the sim already simulates — sun/daylight arcs, sky/cloud/fog envelopes, rain/wetness, foliage/crop treatments, 3-day season blends, panel + save/load rules (`docs/TECH-SEASONS.md`, design only). It corrects TECH-CLOCK-WEATHER §6 ("seasons arrive with Phase 10"): the six-season calendar is Bangladeshi, already sim-modelled in Session 08, and the Phase 4 visuals are designed here. Snow stays refused in District 1.
+- **Verification incident (environment, not the code):** the single aggregate suite run hit a `/tmp` disk-full cascade — the 512 MB tmpfs filled with leftover test SQLite files and the last 43 tests errored with `sqlite3.OperationalError: database or disk is full` at Store init, none of them a test failure. After clearing `/tmp`, the two-half per-module sweep ran green: **438 tests (243 + 195), all passing**; Godot `PLAYER_TEST_PASS` 8/8. Lesson recorded: split the suite and clean `/tmp` between halves on this VM.
+- **Remaining:** Units AL, AM, AN for later runs; the next honest milestone is unchanged (Phase 1 on the owner's PC; owner still owes Step 0: PC specs).
 
 ## Queue 6 — "Phase 7–10 Design + Recorded Economy Open Items" (drafted 2026-11-22 under the owner's standing continuous-development order, "improve as much as possible")
 
