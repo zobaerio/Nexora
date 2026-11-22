@@ -156,6 +156,68 @@ def main():
     NOTES.append("wage bands are stored twice (audit §4.2); this check "
                  "guards the duplication until Unit AE single-sources it")
 
+    # -- Queue 6: Units AH + AI — priced tutoring / part-time work,
+    #    medicine table + sited pharmacy --------------------------
+    # Tutoring must reconcile (rate x sessions = monthly typical) and
+    # stay a side-income: below the teacher's own entry wage.
+    tut = prices.get("tutoring", {})
+    check(tut.get("per_session_ncr", 0) > 0
+          and tut.get("monthly_typical_ncr")
+          == tut.get("per_session_ncr", 0)
+          * tut.get("sessions_per_month_typical", 0),
+          "tutoring rate positive and monthly typical reconciles",
+          f"tutoring={tut}")
+    teacher_entry = next(p["income_band_monthly"]["entry"]
+                         for p in professions if p["id"] == "teacher")
+    check(tut.get("monthly_typical_ncr", 0) < teacher_entry,
+          "tutoring typical monthly stays a side-income (< teacher entry)",
+          f"monthly={tut.get('monthly_typical_ncr')} teacher_entry={teacher_entry}")
+    # Part-time work must reconcile (rate x blocks/week x 4 = monthly)
+    # and stay below the lowest full profession entry band.
+    pt = prices.get("part_time_student_work", {})
+    lowest_entry = min(p["income_band_monthly"]["entry"]
+                       for p in professions)
+    check(pt.get("monthly_typical_ncr")
+          == pt.get("per_block_ncr", 0)
+          * pt.get("blocks_per_week_typical", 0) * 4
+          and pt.get("monthly_typical_ncr", 0) < lowest_entry,
+          "part-time monthly reconciles and stays below lowest entry band",
+          f"monthly={pt.get('monthly_typical_ncr')} lowest_entry={lowest_entry}")
+    # Medicine: unique ids, positive prices, band-tied uses; the
+    # pharmacy must sit in an existing commercial (shop) property and
+    # be recorded as one of its tenants; the medical budget line must
+    # be positive and ordered by band.
+    med = prices.get("medicine", {})
+    med_items = med.get("items", [])
+    check(len({m["id"] for m in med_items}) == len(med_items)
+          and all(m["price_ncr"] > 0 for m in med_items),
+          "medicine ids unique and prices positive",
+          f"ids={[m['id'] for m in med_items]}")
+    check(all(set(m.get("used_for_bands", [])) <= {"unwell", "injured",
+                                                  "serious"}
+              for m in med_items),
+          "medicine uses reference GDD-12 care bands",
+          f"bad={[m['id'] for m in med_items if set(m.get('used_for_bands', [])) - {'unwell', 'injured', 'serious'}]}")
+    pharm = next((b for b in buildings
+                  if b["id"] == med.get("pharmacy_property_id")), None)
+    check(pharm is not None and pharm.get("property_type") == "shop",
+          "pharmacy sits in an existing commercial (shop) property",
+          f"pharmacy_property_id={med.get('pharmacy_property_id')}")
+    check(pharm is not None
+          and any(t.get("trade") == "pharmacy"
+                  for t in pharm.get("tenants", [])),
+          "pharmacy is recorded as a tenant of its sited property",
+          f"tenants={pharm.get('tenants') if pharm else None}")
+    med_monthly = prices.get("living_costs_monthly", {}).get(
+        "medical_monthly", {})
+    check(all(med_monthly.get(b, 0) > 0 for b in
+              ("lower", "mid", "upper"))
+          and med_monthly.get("lower", 0)
+          <= med_monthly.get("mid", 0)
+          <= med_monthly.get("upper", 0),
+          "medical monthly budget positive and ordered by band",
+          f"medical_monthly={med_monthly}")
+
     acts, locs = set(), set()
     for s in schedules["schedules"]:
         for b in s["template"]:

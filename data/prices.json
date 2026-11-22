@@ -1,7 +1,7 @@
 {
   "business_model": {
     "business_owner": {
-      "notes": "A firm/factory-scale business behind the §2 draw. Revenue is the business's monthly turnover; profit must land on the canonical band (the draw is capped by actual profit, §5). Entry revenue is rounded to the nearest 100, so entry/mid profit lands within 20 NCr of the band — the simulator prints the reconciliation.",
+      "notes": "A firm/factory-scale business behind the \u00a72 draw. Revenue is the business's monthly turnover; profit must land on the canonical band (the draw is capped by actual profit, \u00a75). Entry revenue is rounded to the nearest 100, so entry/mid profit lands within 20 NCr of the band \u2014 the simulator prints the reconciliation.",
       "stock_percent_of_revenue": 40,
       "tiers": {
         "entry": {
@@ -24,9 +24,9 @@
         }
       }
     },
-    "notes": "Full business P&L behind the two business professions (Queue 4 / Unit X, sim Finding 6). The §2 bands are PROFIT — revenue minus stock, premises, staff and other costs (GDD-03 §2 'Profit, not wage'; data/professions.json income_note) — and revenues here are set so the P&L reproduces those bands. The owner is taxed 8% of profit (business tax, §4.2), not personal income tax, and lives on profit minus tax. v1 of the simulator skipped this entirely and printed the bands as pre-cost upper bounds.",
+    "notes": "Full business P&L behind the two business professions (Queue 4 / Unit X, sim Finding 6). The \u00a72 bands are PROFIT \u2014 revenue minus stock, premises, staff and other costs (GDD-03 \u00a72 'Profit, not wage'; data/professions.json income_note) \u2014 and revenues here are set so the P&L reproduces those bands. The owner is taxed 8% of profit (business tax, \u00a74.2), not personal income tax, and lives on profit minus tax. v1 of the simulator skipped this entirely and printed the bands as pre-cost upper bounds.",
     "shop_owner": {
-      "notes": "Entry premises (800) is the pitch-scale rent — the park food-cart pitch in buildings-district1.json rents at 800/month, and the entry tier is a tea stall (professions.json progression tier 1). Staff: none at entry (owner-run), one assistant at mid, two at senior.",
+      "notes": "Entry premises (800) is the pitch-scale rent \u2014 the park food-cart pitch in buildings-district1.json rents at 800/month, and the entry tier is a tea stall (professions.json progression tier 1). Staff: none at entry (owner-run), one assistant at mid, two at senior.",
       "stock_percent_of_revenue": 50,
       "tiers": {
         "entry": {
@@ -270,13 +270,13 @@
         "slot": "uniform_set"
       }
     ],
-    "notes": "Itemised clothing prices (Queue 5 / Unit Y). Until now prices.json carried only the monthly clothing_personal budget lines in living_costs_monthly; this table prices the actual garments catalogued in data/clothing.json, whose entries point here via price_ref — if the two ever disagree, this table wins and clothing.json is fixed. Prices are set so a band's normal replacement cycle stays inside its clothing_personal monthly budget (lower 600 / mid 1,500 / upper 5,000 NCr). ppe_set_construction is priced as the sum of its parts (helmet 750 + vest 600 + boots 1,800 + gloves 200). Uniform sets are employer-issued at hiring (GDD-09 §5); the price here is the replacement cost. All integer NCr (GDD-01 §8)."
+    "notes": "Itemised clothing prices (Queue 5 / Unit Y). Until now prices.json carried only the monthly clothing_personal budget lines in living_costs_monthly; this table prices the actual garments catalogued in data/clothing.json, whose entries point here via price_ref \u2014 if the two ever disagree, this table wins and clothing.json is fixed. Prices are set so a band's normal replacement cycle stays inside its clothing_personal monthly budget (lower 600 / mid 1,500 / upper 5,000 NCr). ppe_set_construction is priced as the sum of its parts (helmet 750 + vest 600 + boots 1,800 + gloves 200). Uniform sets are employer-issued at hiring (GDD-09 \u00a75); the price here is the replacement cost. All integer NCr (GDD-01 \u00a78)."
   },
   "construction_materials": [
     {
       "id": "cement_bag_50kg",
       "name": "Cement",
-      "notes": "Price index moves ±15% with the market (GDD-03 §5/§3.4).",
+      "notes": "Price index moves \u00b115% with the market (GDD-03 \u00a75/\u00a73.4).",
       "price_ncr": 550,
       "unit": "50 kg bag"
     },
@@ -324,8 +324,8 @@
     "upper": 900
   },
   "lifestyle_uplift": {
-    "applies_to": "Each tier above entry: the household's living costs rise by this percent of the raise (tier wage minus entry wage). Models lifestyle creep — better food and eating out, household help and services, family support, better transport — without band cliffs.",
-    "notes": "Queue 4 / Unit V (sim Finding 2): v1 living costs were flat bands while senior wages run 3–7x entry, so senior tiers saved 71–84% and the property ladder's top-end pacing broke. The uplift is the single tuning knob: raise it to compress senior savings further, lower it to loosen. Implemented by tools/economy_sim.py v2; GDD-03 §11 owns the reasoning.",
+    "applies_to": "Each tier above entry: the household's living costs rise by this percent of the raise (tier wage minus entry wage). Models lifestyle creep \u2014 better food and eating out, household help and services, family support, better transport \u2014 without band cliffs.",
+    "notes": "Queue 4 / Unit V (sim Finding 2): v1 living costs were flat bands while senior wages run 3\u20137x entry, so senior tiers saved 71\u201384% and the property ladder's top-end pacing broke. The uplift is the single tuning knob: raise it to compress senior savings further, lower it to loosen. Implemented by tools/economy_sim.py v2; GDD-03 \u00a711 owns the reasoning.",
     "percent_of_raise_consumed": 35
   },
   "living_costs_monthly": {
@@ -348,8 +348,14 @@
     "household_services_monthly": {
       "lower": 0,
       "mid": 800,
-      "notes": "Household help, laundry, subscriptions and family support (Queue 4 / Unit V). Zero at the lower band by design — those households do this work themselves; it is one of the first things a rising wage buys.",
+      "notes": "Household help, laundry, subscriptions and family support (Queue 4 / Unit V). Zero at the lower band by design \u2014 those households do this work themselves; it is one of the first things a rising wage buys.",
       "upper": 2500
+    },
+    "medical_monthly": {
+      "lower": 300,
+      "mid": 500,
+      "notes": "Household pharmacy budget, monthly average (Queue 6 / Unit AI): covers a typical minor-illness episode \u2014 e.g. one fever/pain strip (60) + rehydration salts (40) + cough syrup (180) = 280 at the lower band. Clinic treatment itself stays free at point of use (GDD-12 \u00a76); this line buys medicine at the pharmacy only. Read by tools/economy_sim.py v3 scenarios; the pinned v2 base table does not yet charge it (see docs/ECONOMY-SIM-REPORT-V3.md \u00a75).",
+      "upper": 800
     },
     "transport_own_car_fuel_upkeep": {
       "lower": null,
@@ -378,17 +384,79 @@
       "deposit_percent": 20,
       "max_term_years": 20
     },
-    "notes": "The bank lends only what it holds; no payday lenders, no hidden fees (GDD-03 §4.3-§4.4).",
+    "notes": "The bank lends only what it holds; no payday lenders, no hidden fees (GDD-03 \u00a74.3-\u00a74.4).",
     "savings_annual_interest_percent": 4
   },
-  "notes": "All values are v1 tuning in integer NCr (GDD-01 §8: no floats near money). Zone note: GDD-03 §1 calls the starter apartment's zone 'd1_residential'; that zone id does not exist in GDD-02, whose canonical id for the starter apartment building is 'd1_midtown' — all data files use d1_midtown.",
+  "medicine": {
+    "items": [
+      {
+        "id": "fever_pain_relief_strip",
+        "name": "Fever / pain relief tablets (10-tablet strip)",
+        "price_ncr": 60,
+        "used_for_bands": [
+          "unwell"
+        ]
+      },
+      {
+        "id": "oral_rehydration_salts",
+        "name": "Oral rehydration salts (pack)",
+        "price_ncr": 40,
+        "used_for_bands": [
+          "unwell"
+        ]
+      },
+      {
+        "id": "cough_syrup_bottle",
+        "name": "Cough syrup (bottle)",
+        "price_ncr": 180,
+        "used_for_bands": [
+          "unwell"
+        ]
+      },
+      {
+        "id": "antiseptic_solution",
+        "name": "Antiseptic solution (bottle)",
+        "price_ncr": 120,
+        "used_for_bands": [
+          "injured"
+        ]
+      },
+      {
+        "id": "dressing_pack",
+        "name": "Dressing / bandage pack",
+        "price_ncr": 80,
+        "used_for_bands": [
+          "injured"
+        ]
+      },
+      {
+        "id": "first_aid_kit",
+        "name": "First-aid kit (household)",
+        "price_ncr": 450,
+        "used_for_bands": [
+          "injured"
+        ]
+      }
+    ],
+    "notes": "Queue 6 / Unit AI (GDD-12 \u00a76): retail prices for over-the-counter household basics at Boro Bazar Pharmacy (b_d1_market_hall_units, unit 1). Clinic treatment is FREE at point of use (civic) \u2014 this table prices household pharmacy purchases ONLY, never treatment, consultation or diagnosis. Items are generic band-tied basics, not named diseases (GDD-12 \u00a72: conditions are bands and causes). Distinct from data/education-health-config.json medications (sim_* ids): those are the clinic's fictional procurement inventory for the life-sim, never charged to a patient. All integer NCr (GDD-01 \u00a78).",
+    "pharmacy_name": "Boro Bazar Pharmacy",
+    "pharmacy_property_id": "b_d1_market_hall_units",
+    "pharmacy_unit": "Unit 1 of the hall's 24 shop units (one of the 5 units listed for rent at siting; see buildings-district1.json tenants)"
+  },
+  "notes": "All values are v1 tuning in integer NCr (GDD-01 \u00a78: no floats near money). Zone note: GDD-03 \u00a71 calls the starter apartment's zone 'd1_residential'; that zone id does not exist in GDD-02, whose canonical id for the starter apartment building is 'd1_midtown' \u2014 all data files use d1_midtown.",
   "owner_start_reference": {
     "monthly_outgoings_ncr": 12500,
     "monthly_surplus_approx_ncr": 9500,
-    "notes": "GDD-03 §1 reference household: rent 6000 + food 4500 + transport 1200 + utilities 800 = 12500.",
+    "notes": "GDD-03 \u00a71 reference household: rent 6000 + food 4500 + transport 1200 + utilities 800 = 12500.",
     "profession_id": "civil_engineer",
     "rent_tier": 3,
     "starting_balance_ncr": 25000
+  },
+  "part_time_student_work": {
+    "blocks_per_week_typical": 4,
+    "monthly_typical_ncr": 2400,
+    "notes": "Queue 6 / Unit AH (GDD-11 \u00a72): a teen (13-17) or student work block in the afternoon leisure slot at a market/shop anchor. Earnings flow into the household pool, not a personal wage. Typical 4 blocks/week x 4 weeks = 16 blocks/month x 150 = 2,400 NCr \u2014 below the lowest full profession entry band (construction_worker 9,000). No part-time wage band exists in professions.json and none is created.",
+    "per_block_ncr": 150
   },
   "rent_monthly_by_tier": [
     {
@@ -427,7 +495,7 @@
       "type": "Riverfront house / rooftop flat"
     }
   ],
-  "source_doc": "docs/GDD-03-ECONOMY-AND-PROFESSIONS.md §2 (wages), §3 (prices), §4 (tax/loans/savings), §8 (taxi fares). Wage bands are copied from data/professions.json, the canonical file (GDD-03 §2: if the two ever disagree, the JSON bands win and the GDD is fixed).",
+  "source_doc": "docs/GDD-03-ECONOMY-AND-PROFESSIONS.md \u00a72 (wages), \u00a73 (prices), \u00a74 (tax/loans/savings), \u00a78 (taxi fares). Wage bands are copied from data/professions.json, the canonical file (GDD-03 \u00a72: if the two ever disagree, the JSON bands win and the GDD is fixed).",
   "tax": {
     "business_monthly_percent_of_profit": 8,
     "income_monthly_brackets": [
@@ -447,19 +515,25 @@
         "to_ncr": null
       }
     ],
-    "notes": "Deducted at pay time to the city account; amounts shown before the player commits (GDD-03 §4.2).",
+    "notes": "Deducted at pay time to the city account; amounts shown before the player commits (GDD-03 \u00a74.2).",
     "property_annual_percent_of_value": 0.5
   },
   "taxi_fares": {
     "base_ncr": 60,
     "cab_rental_ncr_per_day": 200,
-    "notes": "GDD-03 §8. Surge is the one float in the file by design: fares are computed then rounded to integer NCr before any ledger row is written.",
+    "notes": "GDD-03 \u00a78. Surge is the one float in the file by design: fares are computed then rounded to integer NCr before any ledger row is written.",
     "per_km_ncr": 25,
     "surge_conditions": [
       "rain",
       "night"
     ],
     "surge_multiplier": 1.5
+  },
+  "tutoring": {
+    "monthly_typical_ncr": 2400,
+    "notes": "Queue 6 / Unit AH (GDD-11 \u00a77): a tutoring session is one 18:00-19:30 homework block (GDD-11 \u00a72) made full-weight for the tutored child, taught in the teacher's 16:30-18:30 study block. The household pays per session; the teacher keeps it as side-income. Typical 8 sessions/month = 2,400 NCr \u2014 16% of a teacher's 15,000 entry wage, a side-income by design, never a second wage band. All integer NCr (GDD-01 \u00a78).",
+    "per_session_ncr": 300,
+    "sessions_per_month_typical": 8
   },
   "vehicles": [
     {
@@ -495,12 +569,12 @@
     {
       "id": "taxi_licensed",
       "name": "Taxi (licensed cab)",
-      "notes": "Needed for the taxi loop at scale; rentable first at 200 NCr/day (Queue 4 / Unit U: cut from 800 — at 800/day the entry rental path lost ~13,700/month and the designed rent-before-you-buy on-ramp was unusable; 200/day ≈ the 650,000 price recovered over ~10 rental-years, a sustainable depot margin).",
+      "notes": "Needed for the taxi loop at scale; rentable first at 200 NCr/day (Queue 4 / Unit U: cut from 800 \u2014 at 800/day the entry rental path lost ~13,700/month and the designed rent-before-you-buy on-ramp was unusable; 200/day \u2248 the 650,000 price recovered over ~10 rental-years, a sustainable depot margin).",
       "price_ncr": 650000,
       "rental_ncr_per_day": 200
     }
   ],
-  "version": "1.2",
+  "version": "1.3",
   "wages_monthly": [
     {
       "entry": 9000,
