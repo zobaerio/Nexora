@@ -61,7 +61,7 @@ def main():
              "buildings-district1.json", "district1-blockout.json",
              "prices.json", "weather-presets.json", "missions.json",
              "clothing.json", "vehicles.json", "planets.json",
-             "city2-shibnagar.json"]
+             "city2-shibnagar.json", "npc-cast.json"]
     data = {}
     for n in names:
         try:
@@ -670,6 +670,106 @@ def main():
         check(0 < r["food_shortage_min_months_cover"] <= 1
               and 0 < r["water_stress_max_groundwater_index"] < 1,
               "integration resource flag bases are sane")
+
+    # -- Queue 7: Unit AN — full NPC cast -------------------------
+    # 25 fictional Full-tier NPCs (docs/GDD-06-NPC-BEHAVIOUR.md
+    # §11): every profession/home/workplace/schedule reference must
+    # resolve; ages must sit in their life_stage's GDD-01 §3 band;
+    # relationship edges must be typed from GDD-01 §6.1, scored in
+    # range, and reciprocated (spouse/partner/sibling mirrored,
+    # parent <-> child); the graph must be one component.
+    if "npc-cast.json" in data:
+        cast = data["npc-cast.json"]["cast"]
+        cast_ids = [c["id"] for c in cast]
+        check(len(cast) == 25 and len(set(cast_ids)) == 25,
+              "npc cast is 25 unique ids", f"n={len(cast)}")
+        bldg_ids = {b["id"] for b in buildings}
+        res_ids = {b["id"] for b in buildings
+                   if b["property_type"] in ("apartment", "house")}
+        sched_all = set(sched_ids) | set(
+            schedules["life_stage_templates"].keys())
+        rel_types = {"parent", "child", "sibling", "partner", "spouse",
+                     "ex_partner", "friend", "best_friend", "colleague",
+                     "employer", "employee", "rival", "acquaintance"}
+        bands = {"child": (3, 12), "teen": (13, 17),
+                 "young_adult": (18, 29), "adult": (30, 49),
+                 "middle_aged": (50, 64), "elder": (65, 200)}
+        bad = []
+        profs_seen = set()
+        for c in cast:
+            if c["profession_id"] not in prof_ids:
+                bad.append((c["id"], "profession", c["profession_id"]))
+            profs_seen.add(c["profession_id"])
+            if c["schedule_template_id"] not in sched_all:
+                bad.append((c["id"], "schedule",
+                            c["schedule_template_id"]))
+            if c["home_property_id"] not in res_ids:
+                bad.append((c["id"], "home", c["home_property_id"]))
+            w = c.get("workplace_property_id")
+            if w is not None and w not in bldg_ids:
+                bad.append((c["id"], "workplace", w))
+            if w is None and not (
+                    c["profession_id"] == "pilot"
+                    or c["schedule_template_id"] == "elder_day"):
+                bad.append((c["id"], "workplace", "null without reason"))
+            lo, hi = bands.get(c["life_stage"], (0, 0))
+            if not (lo <= c["age"] <= hi):
+                bad.append((c["id"], "age/stage",
+                            (c["age"], c["life_stage"])))
+            if c.get("tier") != "full":
+                bad.append((c["id"], "tier", c.get("tier")))
+        check(not bad, "npc cast refs resolve (profession/home/"
+              "workplace/schedule/age-band/tier)", f"bad={bad}")
+        check(profs_seen == set(prof_ids),
+              "npc cast covers all 11 professions",
+              f"missing={set(prof_ids) - profs_seen}")
+        by_id = {c["id"]: c for c in cast}
+        mirror = {"spouse": "spouse", "partner": "partner",
+                  "sibling": "sibling", "parent": "child",
+                  "child": "parent", "colleague": "colleague",
+                  "friend": "friend", "best_friend": "best_friend",
+                  "rival": "rival", "acquaintance": "acquaintance"}
+        bad = []
+        for c in cast:
+            seen = set()
+            for e in c.get("relationships", []):
+                if e["to"] not in by_id:
+                    bad.append((c["id"], "edge to", e["to"]))
+                elif e["to"] == c["id"]:
+                    bad.append((c["id"], "self edge", e["to"]))
+                elif e["to"] in seen:
+                    bad.append((c["id"], "dup edge", e["to"]))
+                seen.add(e["to"])
+                if e["type"] not in rel_types:
+                    bad.append((c["id"], "rel type", e["type"]))
+                if any(not (-100 <= e[k] <= 100)
+                       for k in ("trust", "affection", "respect")):
+                    bad.append((c["id"], "score range", e["to"]))
+                back = [x for x in by_id.get(e["to"], {}).get(
+                    "relationships", []) if x["to"] == c["id"]]
+                if not back or back[0]["type"] != mirror.get(e["type"]):
+                    bad.append((c["id"], "unmirrored", e["to"],
+                                e["type"]))
+            if not c.get("relationships"):
+                bad.append((c["id"], "no edges", ""))
+        check(not bad, "npc cast relationship edges resolve, score, "
+              "and reciprocate", f"bad={bad[:8]}")
+        adj = {cid: set() for cid in cast_ids}
+        for c in cast:
+            for e in c.get("relationships", []):
+                if e["to"] in adj:
+                    adj[c["id"]].add(e["to"])
+                    adj[e["to"]].add(c["id"])
+        seen, stack = set(), [cast_ids[0]]
+        while stack:
+            n = stack.pop()
+            if n in seen:
+                continue
+            seen.add(n)
+            stack.extend(adj[n] - seen)
+        check(seen == set(cast_ids),
+              "npc cast relationship graph is one component",
+              f"reached={len(seen)}/25")
 
     return finish()
 

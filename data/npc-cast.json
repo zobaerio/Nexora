@@ -1,0 +1,852 @@
+{
+  "version": "1.0",
+  "source_doc": "docs/GDD-06-NPC-BEHAVIOUR.md §11 (Unit AN addendum)",
+  "notes": "The Phase 6 full tier: 25 fictional named NPCs for Rupsha City District 1. Every character is invented for the game; no real person is depicted. profession_id resolves to data/professions.json; home_property_id and workplace_property_id resolve to data/buildings-district1.json (homes are residential apartment/house properties); schedule_template_id resolves to data/npc-schedules.json (a profession template, or the elder_day life-stage template for the one retired cast member). Relationship types and score ranges follow GDD-01 §6.1/§6.2; spouse/partner/sibling edges are mirrored and parent/child edges are mirrored as child/parent. workplace_property_id is null only for the pilot (District 1 has no airport, GDD-06 §4.11) and the retired elder. life_stage follows the GDD-01 §3 age bands.",
+  "cast": [
+    {
+      "id": "npc_01",
+      "name": "Arif Hasan",
+      "sex": "male",
+      "age": 38,
+      "life_stage": "adult",
+      "tier": "full",
+      "district": "rupsha_d1",
+      "profession_id": "civil_engineer",
+      "home_property_id": "b_d1_riverfront_houses",
+      "workplace_property_id": "b_d1_industry_staged_plot",
+      "schedule_template_id": "civil_engineer",
+      "life_goal": "Own a construction company",
+      "note": "Site supervisor on the staged build plot; the reference civil engineer.",
+      "relationships": [
+        {
+          "to": "npc_02",
+          "type": "spouse",
+          "trust": 85,
+          "affection": 90,
+          "respect": 80
+        },
+        {
+          "to": "npc_05",
+          "type": "colleague",
+          "trust": 50,
+          "affection": 45,
+          "respect": 60
+        },
+        {
+          "to": "npc_18",
+          "type": "friend",
+          "trust": 65,
+          "affection": 70,
+          "respect": 60
+        },
+        {
+          "to": "npc_20",
+          "type": "friend",
+          "trust": 65,
+          "affection": 70,
+          "respect": 60
+        },
+        {
+          "to": "npc_21",
+          "type": "colleague",
+          "trust": 50,
+          "affection": 45,
+          "respect": 60
+        }
+      ]
+    },
+    {
+      "id": "npc_02",
+      "name": "Nusrat Hasan",
+      "sex": "female",
+      "age": 35,
+      "life_stage": "adult",
+      "tier": "full",
+      "district": "rupsha_d1",
+      "profession_id": "teacher",
+      "home_property_id": "b_d1_riverfront_houses",
+      "workplace_property_id": "b_d1_civic_school",
+      "schedule_template_id": "teacher",
+      "life_goal": "Become head teacher of the district school",
+      "note": "Teaches at the district school; married to Arif Hasan.",
+      "relationships": [
+        {
+          "to": "npc_01",
+          "type": "spouse",
+          "trust": 85,
+          "affection": 90,
+          "respect": 80
+        },
+        {
+          "to": "npc_06",
+          "type": "colleague",
+          "trust": 50,
+          "affection": 45,
+          "respect": 60
+        },
+        {
+          "to": "npc_23",
+          "type": "colleague",
+          "trust": 50,
+          "affection": 45,
+          "respect": 60
+        },
+        {
+          "to": "npc_25",
+          "type": "child",
+          "trust": 70,
+          "affection": 80,
+          "respect": 75
+        }
+      ]
+    },
+    {
+      "id": "npc_03",
+      "name": "Farhana Akter",
+      "sex": "female",
+      "age": 41,
+      "life_stage": "adult",
+      "tier": "full",
+      "district": "rupsha_d1",
+      "profession_id": "doctor",
+      "home_property_id": "b_d1_uptown_luxury_apts",
+      "workplace_property_id": "b_d1_civic_clinic",
+      "schedule_template_id": "doctor",
+      "life_goal": "Open a second clinic in Shibnagar",
+      "note": "Senior doctor at the district clinic.",
+      "relationships": [
+        {
+          "to": "npc_04",
+          "type": "colleague",
+          "trust": 50,
+          "affection": 45,
+          "respect": 60
+        },
+        {
+          "to": "npc_07",
+          "type": "acquaintance",
+          "trust": 20,
+          "affection": 15,
+          "respect": 30
+        }
+      ]
+    },
+    {
+      "id": "npc_04",
+      "name": "Tanvir Ahmed",
+      "sex": "male",
+      "age": 45,
+      "life_stage": "adult",
+      "tier": "full",
+      "district": "rupsha_d1",
+      "profession_id": "doctor",
+      "home_property_id": "b_d1_uptown_tier4_houses",
+      "workplace_property_id": "b_d1_civic_clinic",
+      "schedule_template_id": "doctor",
+      "life_goal": "Become the district's chief doctor",
+      "note": "Doctor at the district clinic; regular at the Boro Bazar restaurant.",
+      "relationships": [
+        {
+          "to": "npc_03",
+          "type": "colleague",
+          "trust": 50,
+          "affection": 45,
+          "respect": 60
+        },
+        {
+          "to": "npc_12",
+          "type": "acquaintance",
+          "trust": 20,
+          "affection": 15,
+          "respect": 30
+        }
+      ]
+    },
+    {
+      "id": "npc_05",
+      "name": "Rahim Uddin",
+      "sex": "male",
+      "age": 29,
+      "life_stage": "young_adult",
+      "tier": "full",
+      "district": "rupsha_d1",
+      "profession_id": "construction_worker",
+      "home_property_id": "b_d1_oldtown_walkups",
+      "workplace_property_id": "b_d1_industry_staged_plot",
+      "schedule_template_id": "construction_worker",
+      "life_goal": "Save enough to buy a flat",
+      "note": "Works Arif Hasan's site; younger brother of Karim Uddin.",
+      "relationships": [
+        {
+          "to": "npc_01",
+          "type": "colleague",
+          "trust": 50,
+          "affection": 45,
+          "respect": 60
+        },
+        {
+          "to": "npc_22",
+          "type": "sibling",
+          "trust": 60,
+          "affection": 70,
+          "respect": 65
+        }
+      ]
+    },
+    {
+      "id": "npc_06",
+      "name": "Selina Begum",
+      "sex": "female",
+      "age": 33,
+      "life_stage": "adult",
+      "tier": "full",
+      "district": "rupsha_d1",
+      "profession_id": "teacher",
+      "home_property_id": "b_d1_midtown_block_b",
+      "workplace_property_id": "b_d1_education_college",
+      "schedule_template_id": "teacher",
+      "life_goal": "Publish a teaching guide for new teachers",
+      "note": "Lecturer at the district college.",
+      "relationships": [
+        {
+          "to": "npc_02",
+          "type": "colleague",
+          "trust": 50,
+          "affection": 45,
+          "respect": 60
+        },
+        {
+          "to": "npc_23",
+          "type": "colleague",
+          "trust": 50,
+          "affection": 45,
+          "respect": 60
+        },
+        {
+          "to": "npc_25",
+          "type": "colleague",
+          "trust": 50,
+          "affection": 45,
+          "respect": 60
+        }
+      ]
+    },
+    {
+      "id": "npc_07",
+      "name": "Kamal Hossain",
+      "sex": "male",
+      "age": 47,
+      "life_stage": "adult",
+      "tier": "full",
+      "district": "rupsha_d1",
+      "profession_id": "police_officer",
+      "home_property_id": "b_d1_oldtown_tier2",
+      "workplace_property_id": "b_d1_civic_police",
+      "schedule_template_id": "police_officer",
+      "life_goal": "Keep the old town safe",
+      "note": "Senior officer at the police station; patrols the old town.",
+      "relationships": [
+        {
+          "to": "npc_03",
+          "type": "acquaintance",
+          "trust": 20,
+          "affection": 15,
+          "respect": 30
+        },
+        {
+          "to": "npc_08",
+          "type": "colleague",
+          "trust": 50,
+          "affection": 45,
+          "respect": 60
+        }
+      ]
+    },
+    {
+      "id": "npc_08",
+      "name": "Rashed Khan",
+      "sex": "male",
+      "age": 26,
+      "life_stage": "young_adult",
+      "tier": "full",
+      "district": "rupsha_d1",
+      "profession_id": "police_officer",
+      "home_property_id": "b_d1_midtown_tier2_block",
+      "workplace_property_id": "b_d1_civic_police",
+      "schedule_template_id": "police_officer",
+      "life_goal": "Make inspector rank",
+      "note": "Junior constable; walks the beat with Kamal Hossain.",
+      "relationships": [
+        {
+          "to": "npc_07",
+          "type": "colleague",
+          "trust": 50,
+          "affection": 45,
+          "respect": 60
+        }
+      ]
+    },
+    {
+      "id": "npc_09",
+      "name": "Jamal Mia",
+      "sex": "male",
+      "age": 31,
+      "life_stage": "adult",
+      "tier": "full",
+      "district": "rupsha_d1",
+      "profession_id": "taxi_driver",
+      "home_property_id": "b_d1_oldtown_walkups",
+      "workplace_property_id": "b_d1_industry_depot",
+      "schedule_template_id": "taxi_driver",
+      "life_goal": "Own his own taxi",
+      "note": "Rents his cab from the transport depot; drives the old-town loop.",
+      "relationships": [
+        {
+          "to": "npc_10",
+          "type": "colleague",
+          "trust": 50,
+          "affection": 45,
+          "respect": 60
+        },
+        {
+          "to": "npc_11",
+          "type": "colleague",
+          "trust": 50,
+          "affection": 45,
+          "respect": 60
+        },
+        {
+          "to": "npc_24",
+          "type": "friend",
+          "trust": 65,
+          "affection": 70,
+          "respect": 60
+        }
+      ]
+    },
+    {
+      "id": "npc_10",
+      "name": "Shafiq Alam",
+      "sex": "male",
+      "age": 36,
+      "life_stage": "adult",
+      "tier": "full",
+      "district": "rupsha_d1",
+      "profession_id": "taxi_driver",
+      "home_property_id": "b_d1_midtown_starter_block",
+      "workplace_property_id": "b_d1_industry_depot",
+      "schedule_template_id": "taxi_driver",
+      "life_goal": "Buy a house for his family",
+      "note": "Taxi driver; married to Ayesha Siddiqua.",
+      "relationships": [
+        {
+          "to": "npc_09",
+          "type": "colleague",
+          "trust": 50,
+          "affection": 45,
+          "respect": 60
+        },
+        {
+          "to": "npc_12",
+          "type": "spouse",
+          "trust": 85,
+          "affection": 90,
+          "respect": 80
+        }
+      ]
+    },
+    {
+      "id": "npc_11",
+      "name": "Nasrin Akter",
+      "sex": "female",
+      "age": 28,
+      "life_stage": "young_adult",
+      "tier": "full",
+      "district": "rupsha_d1",
+      "profession_id": "taxi_driver",
+      "home_property_id": "b_d1_midtown_block_b",
+      "workplace_property_id": "b_d1_industry_depot",
+      "schedule_template_id": "taxi_driver",
+      "life_goal": "Become the depot's senior driver",
+      "note": "The depot's youngest driver; friends with Priya Das.",
+      "relationships": [
+        {
+          "to": "npc_09",
+          "type": "colleague",
+          "trust": 50,
+          "affection": 45,
+          "respect": 60
+        },
+        {
+          "to": "npc_15",
+          "type": "friend",
+          "trust": 65,
+          "affection": 70,
+          "respect": 60
+        }
+      ]
+    },
+    {
+      "id": "npc_12",
+      "name": "Ayesha Siddiqua",
+      "sex": "female",
+      "age": 34,
+      "life_stage": "adult",
+      "tier": "full",
+      "district": "rupsha_d1",
+      "profession_id": "chef",
+      "home_property_id": "b_d1_midtown_starter_block",
+      "workplace_property_id": "b_d1_market_restaurant",
+      "schedule_template_id": "chef",
+      "life_goal": "Open her own restaurant",
+      "note": "Cook at the Boro Bazar restaurant; married to Shafiq Alam.",
+      "relationships": [
+        {
+          "to": "npc_04",
+          "type": "acquaintance",
+          "trust": 20,
+          "affection": 15,
+          "respect": 30
+        },
+        {
+          "to": "npc_10",
+          "type": "spouse",
+          "trust": 85,
+          "affection": 90,
+          "respect": 80
+        },
+        {
+          "to": "npc_13",
+          "type": "colleague",
+          "trust": 50,
+          "affection": 45,
+          "respect": 60
+        },
+        {
+          "to": "npc_17",
+          "type": "colleague",
+          "trust": 50,
+          "affection": 45,
+          "respect": 60
+        }
+      ]
+    },
+    {
+      "id": "npc_13",
+      "name": "Imran Chowdhury",
+      "sex": "male",
+      "age": 39,
+      "life_stage": "adult",
+      "tier": "full",
+      "district": "rupsha_d1",
+      "profession_id": "chef",
+      "home_property_id": "b_d1_oldtown_rowhouses",
+      "workplace_property_id": "b_d1_market_restaurant",
+      "schedule_template_id": "chef",
+      "life_goal": "Become head chef of Boro Bazar",
+      "note": "Head chef at the Boro Bazar restaurant.",
+      "relationships": [
+        {
+          "to": "npc_12",
+          "type": "colleague",
+          "trust": 50,
+          "affection": 45,
+          "respect": 60
+        },
+        {
+          "to": "npc_19",
+          "type": "partner",
+          "trust": 70,
+          "affection": 80,
+          "respect": 70
+        }
+      ]
+    },
+    {
+      "id": "npc_14",
+      "name": "Mehedi Hasan",
+      "sex": "male",
+      "age": 27,
+      "life_stage": "young_adult",
+      "tier": "full",
+      "district": "rupsha_d1",
+      "profession_id": "software_developer",
+      "home_property_id": "b_d1_uptown_rooftop_flat",
+      "workplace_property_id": "b_d1_uptown_offices",
+      "schedule_template_id": "software_developer",
+      "life_goal": "Ship a game of his own",
+      "note": "Developer in the uptown offices; best friends with Rakibul Islam.",
+      "relationships": [
+        {
+          "to": "npc_15",
+          "type": "colleague",
+          "trust": 50,
+          "affection": 45,
+          "respect": 60
+        },
+        {
+          "to": "npc_20",
+          "type": "best_friend",
+          "trust": 85,
+          "affection": 90,
+          "respect": 75
+        }
+      ]
+    },
+    {
+      "id": "npc_15",
+      "name": "Priya Das",
+      "sex": "female",
+      "age": 25,
+      "life_stage": "young_adult",
+      "tier": "full",
+      "district": "rupsha_d1",
+      "profession_id": "software_developer",
+      "home_property_id": "b_d1_education_hostels",
+      "workplace_property_id": "b_d1_uptown_offices",
+      "schedule_template_id": "software_developer",
+      "life_goal": "Lead a software team",
+      "note": "Junior developer; newest arrival in the district.",
+      "relationships": [
+        {
+          "to": "npc_11",
+          "type": "friend",
+          "trust": 65,
+          "affection": 70,
+          "respect": 60
+        },
+        {
+          "to": "npc_14",
+          "type": "colleague",
+          "trust": 50,
+          "affection": 45,
+          "respect": 60
+        }
+      ]
+    },
+    {
+      "id": "npc_16",
+      "name": "Abdul Karim",
+      "sex": "male",
+      "age": 52,
+      "life_stage": "middle_aged",
+      "tier": "full",
+      "district": "rupsha_d1",
+      "profession_id": "shop_owner",
+      "home_property_id": "b_d1_oldtown_rowhouses",
+      "workplace_property_id": "b_d1_market_hall_units",
+      "schedule_template_id": "shop_owner",
+      "life_goal": "Expand his shop to a second unit",
+      "note": "Runs a shop in the Boro Bazar market hall; rivals Rina Akter.",
+      "relationships": [
+        {
+          "to": "npc_17",
+          "type": "rival",
+          "trust": -40,
+          "affection": -30,
+          "respect": 45
+        },
+        {
+          "to": "npc_18",
+          "type": "acquaintance",
+          "trust": 20,
+          "affection": 15,
+          "respect": 30
+        }
+      ]
+    },
+    {
+      "id": "npc_17",
+      "name": "Rina Akter",
+      "sex": "female",
+      "age": 44,
+      "life_stage": "adult",
+      "tier": "full",
+      "district": "rupsha_d1",
+      "profession_id": "shop_owner",
+      "home_property_id": "b_d1_midtown_tier2_block",
+      "workplace_property_id": "b_d1_market_hall_units",
+      "schedule_template_id": "shop_owner",
+      "life_goal": "Make her stall the market's busiest",
+      "note": "Runs a shop in the Boro Bazar market hall; rivals Abdul Karim.",
+      "relationships": [
+        {
+          "to": "npc_12",
+          "type": "colleague",
+          "trust": 50,
+          "affection": 45,
+          "respect": 60
+        },
+        {
+          "to": "npc_16",
+          "type": "rival",
+          "trust": -40,
+          "affection": -30,
+          "respect": 45
+        }
+      ]
+    },
+    {
+      "id": "npc_18",
+      "name": "Faruk Ahmed",
+      "sex": "male",
+      "age": 49,
+      "life_stage": "adult",
+      "tier": "full",
+      "district": "rupsha_d1",
+      "profession_id": "business_owner",
+      "home_property_id": "b_d1_uptown_tier4_houses",
+      "workplace_property_id": "b_d1_uptown_offices",
+      "schedule_template_id": "business_owner",
+      "life_goal": "Grow his business to ten employees",
+      "note": "Owns a business run from the uptown offices.",
+      "relationships": [
+        {
+          "to": "npc_01",
+          "type": "friend",
+          "trust": 65,
+          "affection": 70,
+          "respect": 60
+        },
+        {
+          "to": "npc_16",
+          "type": "acquaintance",
+          "trust": 20,
+          "affection": 15,
+          "respect": 30
+        },
+        {
+          "to": "npc_19",
+          "type": "colleague",
+          "trust": 50,
+          "affection": 45,
+          "respect": 60
+        }
+      ]
+    },
+    {
+      "id": "npc_19",
+      "name": "Sharmin Sultana",
+      "sex": "female",
+      "age": 37,
+      "life_stage": "adult",
+      "tier": "full",
+      "district": "rupsha_d1",
+      "profession_id": "business_owner",
+      "home_property_id": "b_d1_uptown_luxury_apts",
+      "workplace_property_id": "b_d1_uptown_offices",
+      "schedule_template_id": "business_owner",
+      "life_goal": "Open a branch in Shibnagar",
+      "note": "Owns a business run from the uptown offices; partner of Imran Chowdhury.",
+      "relationships": [
+        {
+          "to": "npc_13",
+          "type": "partner",
+          "trust": 70,
+          "affection": 80,
+          "respect": 70
+        },
+        {
+          "to": "npc_18",
+          "type": "colleague",
+          "trust": 50,
+          "affection": 45,
+          "respect": 60
+        }
+      ]
+    },
+    {
+      "id": "npc_20",
+      "name": "Rakibul Islam",
+      "sex": "male",
+      "age": 30,
+      "life_stage": "adult",
+      "tier": "full",
+      "district": "rupsha_d1",
+      "profession_id": "pilot",
+      "home_property_id": "b_d1_oldtown_tier2",
+      "workplace_property_id": null,
+      "schedule_template_id": "pilot",
+      "life_goal": "Fly the first Nexora-7 mission",
+      "note": "Pilot on rest days between off-district rotations; District 1 has no airport, so he has no district workplace (GDD-06 §4.11).",
+      "relationships": [
+        {
+          "to": "npc_01",
+          "type": "friend",
+          "trust": 65,
+          "affection": 70,
+          "respect": 60
+        },
+        {
+          "to": "npc_14",
+          "type": "best_friend",
+          "trust": 85,
+          "affection": 90,
+          "respect": 75
+        }
+      ]
+    },
+    {
+      "id": "npc_21",
+      "name": "Sadia Rahman",
+      "sex": "female",
+      "age": 32,
+      "life_stage": "adult",
+      "tier": "full",
+      "district": "rupsha_d1",
+      "profession_id": "civil_engineer",
+      "home_property_id": "b_d1_midtown_block_b",
+      "workplace_property_id": "b_d1_industry_construction_yard",
+      "schedule_template_id": "civil_engineer",
+      "life_goal": "Design the riverfront bridge",
+      "note": "Junior civil engineer; works from the construction yard.",
+      "relationships": [
+        {
+          "to": "npc_01",
+          "type": "colleague",
+          "trust": 50,
+          "affection": 45,
+          "respect": 60
+        },
+        {
+          "to": "npc_22",
+          "type": "colleague",
+          "trust": 50,
+          "affection": 45,
+          "respect": 60
+        },
+        {
+          "to": "npc_24",
+          "type": "colleague",
+          "trust": 50,
+          "affection": 45,
+          "respect": 60
+        }
+      ]
+    },
+    {
+      "id": "npc_22",
+      "name": "Karim Uddin",
+      "sex": "male",
+      "age": 24,
+      "life_stage": "young_adult",
+      "tier": "full",
+      "district": "rupsha_d1",
+      "profession_id": "construction_worker",
+      "home_property_id": "b_d1_oldtown_walkups",
+      "workplace_property_id": "b_d1_industry_staged_plot",
+      "schedule_template_id": "construction_worker",
+      "life_goal": "Learn the trade and become a foreman",
+      "note": "Construction worker; elder brother of Rahim Uddin.",
+      "relationships": [
+        {
+          "to": "npc_05",
+          "type": "sibling",
+          "trust": 60,
+          "affection": 70,
+          "respect": 65
+        },
+        {
+          "to": "npc_21",
+          "type": "colleague",
+          "trust": 50,
+          "affection": 45,
+          "respect": 60
+        }
+      ]
+    },
+    {
+      "id": "npc_23",
+      "name": "Monir Hossain",
+      "sex": "male",
+      "age": 55,
+      "life_stage": "middle_aged",
+      "tier": "full",
+      "district": "rupsha_d1",
+      "profession_id": "teacher",
+      "home_property_id": "b_d1_oldtown_tier2",
+      "workplace_property_id": "b_d1_civic_school",
+      "schedule_template_id": "teacher",
+      "life_goal": "See every student pass their exams",
+      "note": "Senior teacher at the district school.",
+      "relationships": [
+        {
+          "to": "npc_02",
+          "type": "colleague",
+          "trust": 50,
+          "affection": 45,
+          "respect": 60
+        },
+        {
+          "to": "npc_06",
+          "type": "colleague",
+          "trust": 50,
+          "affection": 45,
+          "respect": 60
+        }
+      ]
+    },
+    {
+      "id": "npc_24",
+      "name": "Bilkis Begum",
+      "sex": "female",
+      "age": 48,
+      "life_stage": "adult",
+      "tier": "full",
+      "district": "rupsha_d1",
+      "profession_id": "construction_worker",
+      "home_property_id": "b_d1_oldtown_walkups",
+      "workplace_property_id": "b_d1_industry_construction_yard",
+      "schedule_template_id": "construction_worker",
+      "life_goal": "Save enough to buy a flat of her own",
+      "note": "Construction worker; friends with Jamal Mia.",
+      "relationships": [
+        {
+          "to": "npc_09",
+          "type": "friend",
+          "trust": 65,
+          "affection": 70,
+          "respect": 60
+        },
+        {
+          "to": "npc_21",
+          "type": "colleague",
+          "trust": 50,
+          "affection": 45,
+          "respect": 60
+        }
+      ]
+    },
+    {
+      "id": "npc_25",
+      "name": "Rehana Begum",
+      "sex": "female",
+      "age": 68,
+      "life_stage": "elder",
+      "tier": "full",
+      "district": "rupsha_d1",
+      "profession_id": "civil_engineer",
+      "home_property_id": "b_d1_riverfront_houses",
+      "workplace_property_id": null,
+      "schedule_template_id": "elder_day",
+      "life_goal": "Write down the district's old stories",
+      "note": "Retired civil engineer; mother of Nusrat Hasan. Her schedule is the elder_day life-stage template, not a profession template.",
+      "relationships": [
+        {
+          "to": "npc_02",
+          "type": "parent",
+          "trust": 75,
+          "affection": 85,
+          "respect": 80
+        },
+        {
+          "to": "npc_06",
+          "type": "colleague",
+          "trust": 50,
+          "affection": 45,
+          "respect": 60
+        }
+      ]
+    }
+  ]
+}
