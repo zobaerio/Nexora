@@ -1,17 +1,26 @@
 # NEXORA — Development Status
 
-**Continuous development:** RUNNING — **the 10-session programme is COMPLETE**: Session 10 "Global Virtual Universe Integration" finished 2026-11-21 and merged on GitHub main 2026-11-22 (PR #21, main `ba79597d`; see the Session 10 section below). Queues 1–5 + Sessions 01–10 ALL merged on GitHub main. Full suite 438 tests, all passing (re-verified 2026-11-22: 32/32 Session 10 tests, validate_data green). The remaining milestone is owner-side: Phase 1 on the owner's PC (UE 5.8.x test scene; owner still owes Step 0: PC specs). Note: PR #4 was a duplicate of PR #3 created by a late scheduled run; closed 2026-11-21, no content difference.
-**Repo:** https://github.com/zobaerio/Nexora · main after PR #23: `08d520e4`
+**Continuous development:** RUNNING — **the 10-session programme is COMPLETE**: Session 10 "Global Virtual Universe Integration" finished 2026-11-21 and merged on GitHub main 2026-11-22 (PR #21, main `ba79597d`; see the Session 10 section below). Queues 1–7 + Sessions 01–10 ALL merged on GitHub main. Full suite 438 tests, all passing (re-verified 2026-11-22: 32/32 Session 10 tests, validate_data green). The remaining milestone is owner-side: Phase 1 on the owner's PC (UE 5.8.x test scene; owner still owes Step 0: PC specs). Note: PR #4 was a duplicate of PR #3 created by a late scheduled run; closed 2026-11-21, no content difference.
+**Repo:** https://github.com/zobaerio/Nexora · main after PR #24: `0bb795d4`
 
-## Queue 7 — "Recorded Follow-ups + Phase 4/6/9 Design Gaps" (drafted 2026-11-22; AJ + AK merged, AL/AM/AN remain)
+## Queue 7 — "Recorded Follow-ups + Phase 4/6/9 Design Gaps" (drafted 2026-11-22; COMPLETE — all 5 units merged, PRs #23 + #24)
 
 | Unit | State | PR |
 |---|---|---|
 | AJ — Economy Simulator v4: Medical Line in Base Table | ✅ Merged + blob-verified on main (economy_sim.py `0821ebbe`, report `61635b69`) — medical line charged in the base table; new pinned baseline md5 `318c6114`; life-sim reconciliation kept; police/entry + renting-cab TIGHT in base, pilot/entry 0.8% | #23 |
 | AK — Phase 4 Seasons Visual Design | ✅ Merged + blob-verified on main (TECH-SEASONS `bc2a749f`) — 85 cross-ref checks, 0 failures; TECH-CLOCK-WEATHER §6 corrected | #23 |
-| AL — Dialogue & Conversation Design | ⬜ Not started | — |
-| AM — Persistent World → UE Server Mapping | ⬜ Not started | — |
-| AN — Full NPC Cast Data | ⬜ Not started | — |
+| AL — Dialogue & Conversation Design | ✅ Merged + blob-verified on main (GDD-15 `a38f0260`) — rule/State-Tree dialogue, 5 greeting bands, topic menu, authored trees (mission 1.3 worked), LLM bounded in §9; 32/32 cross-ref checks | #24 |
+| AM — Persistent World → UE Server Mapping | ✅ Merged + blob-verified on main (TECH-PERSISTENT-WORLD `ff4ce9c6`) — Session 10 persistence → Phase 9 server: per-tick vs per-checkpoint, manifest → save_slots/world_state, digest as integrity check; 36/36 cross-ref checks | #24 |
+| AN — Full NPC Cast Data | ✅ Merged + blob-verified on main (npc-cast.json `d8a12d20`, GDD-06 `c6931d8d`) — 25 fictional Full-tier NPCs, all 11 professions, 30 relationship pairs / 60 directed edges, one component; validate_data green incl. 5 new cast checks | #24 |
+
+## Queue 7 completion summary (2026-11-22)
+
+- **Queue 7 is COMPLETE and fully merged:** PR #23 (AJ+AK, main `08d520e4`) + PR #24 (AL+AM+AN, branch `feat/queue7-al-am-an` head `f72f766c`, squash-merged to main `0bb795d4`). Every unit's key files were read back on `refs/heads/main` and blob-matched to the locally validated tree (GDD-15 `a38f0260`, TECH-PERSISTENT-WORLD `ff4ce9c6`, npc-cast.json `d8a12d20`, GDD-06 `c6931d8d`, validate_data.py `16b58d23`, WORK-QUEUE.md `b4873c3b`).
+- **What AL did:** the dialogue system the plan's Part C #17 defers — rule/State-Tree authored branching on memory, never generated text. Tiered initiation (Full/Scheduled talk, Ambient promotes first, children route to a guardian), five greeting bands from relationship scores (thresholds are this doc's data decision), a topic menu gated by relationship + memory + mission state, authored trees driven by `missions.json` (mission `1.3` worked end-to-end), the never-changes table (no currency/property from dialogue — server authority), and the LLM question answered once in §9 (rephrase-only, rephrase_ok nodes, Full tier only, offline-identical without it).
+- **What AM did:** maps Session 10's *proven* headless persistence onto the Phase 9 dedicated-server design — per-tick (ledger appends, once-per-day clock write as the day's commit marker, end-of-day registry sync) vs per-checkpoint (day-boundary named snapshots), the checkpoint manifest field-mapped onto `save_slots`/`world_state`, the content digest (characters + ledger + clock) as the server's start-up/refusal integrity check, crash recovery via WAL + the clock write, and the time modes carried over honestly (no real-time server claimed). Carries the Session 10 naming correction: no `game_clock` table; PostgreSQL `world_state` has no `day_index` — the day derives from `game_minutes`.
+- **What AN did:** the Phase 6 full tier as data — 25 fictional named NPCs (all 11 professions; 3 civil engineers, 3 teachers, 3 construction workers, 3 taxi drivers, 2 each of doctor/police/chef/software/shop/business, 1 pilot), homes and workplaces resolving to the merged buildings, schedules resolving to profession templates (plus `elder_day` for the one retired 68-year-old), and 30 relationship pairs / 60 directed edges in one connected component (spouses share homes; the pilot has no workplace by the GDD-06 §4.11 honest gap). GDD-06 §11 records the cast; the 5 new validator checks guard it.
+- **Queue 8 drafted** in WORK-QUEUE.md for later runs (AO dialogue line library, AP snapshot/digest schema, AQ history archival design, AR District 2 concept/blockout v1, AS Shibnagar cast) under the standing continuous-development order. No Session 11: no owner spec exists, and the gate rule requires the owner's order.
+- **Remaining:** the next honest milestone is unchanged (Phase 1 on the owner's PC; owner still owes Step 0: PC specs).
 
 ## Queue 7 partial-delivery summary (2026-11-22)
 
