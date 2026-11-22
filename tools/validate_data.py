@@ -295,11 +295,17 @@ def check_dialogue_lines_rewards_verbatim(dlg, data):
             bad.append((tname, "offer omits 'no credits'"))
     check(not bad, "dialogue mission rewards/objectives/unlocks "
           "match missions.json verbatim", f"bad={bad}")
-    # No invented NCr amount in any line (the favour line quotes
-    # the side_mission_types pattern verbatim).
-    pattern = next(s["reward_pattern"] for s in
-                   data["missions.json"]["side_mission_types"]
-                   if s["type"] == "errands")
+    # No invented NCr amount in any line (the favour lines quote the
+    # side_mission_types patterns verbatim: the errand pattern and,
+    # since Queue 13 Unit BR, the discovery pattern).
+    patterns_allowed = [
+        next(s["reward_pattern"] for s in
+             data["missions.json"]["side_mission_types"]
+             if s["type"] == "errands"),
+        next(s["reward_pattern"] for s in
+             data["missions.json"]["side_mission_types"]
+             if s["type"] == "discovery"),
+    ]
     texts = []
     for tree in dlg["trees"].values():
         texts.extend(ln["text"] for n in tree["nodes"] for ln in n["lines"])
@@ -310,28 +316,30 @@ def check_dialogue_lines_rewards_verbatim(dlg, data):
             texts.extend(ln["text"] for ln in lines)
     bad_amounts = [t for t in texts
                    if re.search(r"\b\d[\d,]*\s*NCr\b", t)
-                   and pattern not in t]
+                   and not any(p in t for p in patterns_allowed)]
     check(not bad_amounts,
           "no dialogue line states an invented NCr amount",
           f"bad={bad_amounts[:2]}")
-    check(any(pattern in t for t in texts),
+    check(any(patterns_allowed[0] in t for t in texts),
           "favour topic quotes the errand reward pattern verbatim")
+    check(any(patterns_allowed[1] in t for t in texts),
+          "favour topic quotes the discovery reward pattern verbatim")
 
 
 def check_favour_flow_nodes(dlg, data):
     """Queue 12 Unit BO — the favour topic carries offer / accept /
     complete nodes for every type the GDD-04 §3.1 contract makes
     generatable before BL/BM (errands, work shifts, lend-money and
-    mediate favours, events), and none for the types whose records
-    only just landed (find-a-lost-item, discovery — a follow-up
-    unit's nodes, GDD-15 §15.1). Offer lines quote the §3 reward
-    pattern verbatim; accept writes mission_progress under the
-    favour instance key; complete pays the instance's recorded
-    reward."""
+    mediate favours, events). Queue 13 Unit BR extends it to the two
+    types whose records landed in BL/BM (find-a-lost-item, discovery
+    — GDD-15 §15.2). Offer lines quote the §3 reward pattern
+    verbatim; accept writes mission_progress under the favour
+    instance key; complete pays the instance's recorded reward."""
     favour = dlg["topics"]["favour"]["nodes"]
     by_id = {n["node_id"]: n for n in favour}
     types = ["errands", "work_shifts", "favours_lend",
-             "favours_mediate", "events"]
+             "favours_mediate", "find_a_lost_item", "events",
+             "discovery"]
     patterns = {s["type"]: s["reward_pattern"] for s in
                 data["missions.json"]["side_mission_types"]}
     bad = []
@@ -339,12 +347,6 @@ def check_favour_flow_nodes(dlg, data):
         for kind in ("offer", "accept", "complete"):
             if f"dlg_favour_{kind}_{t}" not in by_id:
                 bad.append((t, "missing " + kind))
-    for t in ("find_a_lost_item", "discovery"):
-        for n in favour:
-            if t in n["node_id"]:
-                bad.append((t, "offer node exists before its follow-up"))
-            if n.get("condition", {}).get("favour_type") == t:
-                bad.append((t, "condition names it"))
     for t in types:
         offer = by_id.get(f"dlg_favour_offer_{t}")
         if offer is not None:
@@ -352,6 +354,8 @@ def check_favour_flow_nodes(dlg, data):
             pat = patterns["errands" if t == "errands"
                           else "work_shifts" if t == "work_shifts"
                           else "favours" if t.startswith("favours_")
+                          or t == "find_a_lost_item"
+                          else "discovery" if t == "discovery"
                           else "events"]
             if pat not in text:
                 bad.append((t, "offer omits its §3 pattern"))
@@ -384,7 +388,7 @@ def check_favour_flow_nodes(dlg, data):
     if stub is not None:
         got = {c["condition"].get("favour_type") for c in stub["choices"]}
         if got != set(types):
-            bad.append(("stub", "choices do not cover the five types",
+            bad.append(("stub", "choices do not cover the seven types",
                         sorted(got)))
     if "dlg_favour_progress" not in by_id:
         bad.append(("progress", "missing reminder node"))
@@ -441,6 +445,31 @@ def check_goals_help_restructure(dlg):
         if any(e.get("type") != "none" for e in effs):
             bad.append(("decline", "node writes something"))
     check(not bad, "goals-help restructure per GDD-15 §16.2",
+          f"bad={bad[:8]}")
+
+
+def check_mission_deadlines(data):
+    """Queue 13 Unit BW — deadline_days values are exactly the three
+    GDD-04 §3.2 authorises (4.2 -> 30, 6.2 -> 45, 7.4 -> 60): an
+    optional integer, minimum 1, on main missions only. No other
+    mission carries one, and no side mission / favour carries one
+    (favours never have deadlines, GDD-04 §3.1)."""
+    expected = {"4.2": 30, "6.2": 45, "7.4": 60}
+    bad = []
+    for m in data["missions.json"]["missions"]:
+        v = m.get("deadline_days")
+        if v is None:
+            continue
+        if not isinstance(v, int) or isinstance(v, bool) or v < 1:
+            bad.append((m["id"], "deadline_days not a positive integer", v))
+        elif expected.get(m["id"]) != v:
+            bad.append((m["id"], "deadline_days not the §3.2 value", v))
+    got = {m["id"] for m in data["missions.json"]["missions"]
+           if "deadline_days" in m}
+    if got != set(expected):
+        bad.append(("set", "deadline carriers are not exactly 4.2/6.2/7.4",
+                    sorted(got)))
+    check(not bad, "mission deadline_days values match GDD-04 §3.2",
           f"bad={bad[:8]}")
 
 
@@ -951,6 +980,7 @@ def main():
                 bad.append((m["id"], p))
     check(not bad, "mission zone_refs/profession_refs resolve",
           f"bad={bad}")
+    check_mission_deadlines(data)
 
     wages = {w["profession_id"]: w for w in prices["wages_monthly"]}
     drift = []

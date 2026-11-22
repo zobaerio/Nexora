@@ -466,7 +466,8 @@
       "unlocks": [
         "Large contracts"
       ],
-      "zone_refs": []
+      "zone_refs": [],
+      "deadline_days": 30
     },
     {
       "id": "4.3",
@@ -647,7 +648,8 @@
       ],
       "zone_refs": [
         "d1_civic"
-      ]
+      ],
+      "deadline_days": 45
     },
     {
       "id": "6.3",
@@ -786,7 +788,8 @@
       "unlocks": [
         "Cross-city contracts"
       ],
-      "zone_refs": []
+      "zone_refs": [],
+      "deadline_days": 60
     },
     {
       "id": "8.1",

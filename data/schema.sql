@@ -288,6 +288,15 @@ CREATE TABLE achievements (
     unlocked_at_game_minutes BIGINT NOT NULL DEFAULT 0,
     PRIMARY KEY (character_id, achievement_id)
 );
+-- KEYING DECISION (Unit BT · Queue 13 · 2026-11-22 — GDD-04 §5.1):
+-- the character_id key above is WRONG against GDD-04 §5 + GDD-01 §1
+-- (achievement data lives on the account and survives character death).
+-- The account wins: the Phase 9 forward-only migration adds account_id,
+-- backfills it from characters.account_id, and re-keys the primary key
+-- to (account_id, achievement_id). No DDL is applied by this unit and
+-- no live rows exist to migrate (the sim has no achievements table;
+-- this schema is the Phase 9 draft). discovery_progress (GDD-04 §3.4)
+-- is already account-keyed and is unchanged by the decision.
 
 -- Account-level friendships between players (Phase 9 social list).
 -- In-world character relationships live in `relationships`; this table is

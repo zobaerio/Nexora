@@ -19,7 +19,8 @@
     "The apology weight reduction has no number in any source: GDD-15 §4 says only that the harming memory's weight is reduced, not deleted. The memory_weight_reduce effect therefore carries amount_ref runtime_rule and no invented number.",
     "Memory weights are given only where a source gives one: +40 for the mission 1.3 completion memory (GDD-15 §5 worked example / §10 check 4). Other memory_write effects carry no weight; the runtime assigns it.",
     "Speaker tokens: 'player' = the player; 'npc' = the speaking NPC, resolved at runtime to that NPC's cast id (trees are per situation, GDD-15 §5 rule 4); a profession id = an NPC of that profession template speaking a small-talk line.",
-    "Line counts: a node holds 1-3 lines (GDD-15 §5). Every line object and every node carries its own condition and effects fields per the §5 node contract."
+    "Line counts: a node holds 1-3 lines (GDD-15 §5). Every line object and every node carries its own condition and effects fields per the §5 node contract.",
+    "Two favour placeholders are filled from the favour instance, never invented: <lost_place_name> = where the lost item went missing — the anchor name + zone display name when lost_anchor is set, the zone display name alone when it is not (GDD-04 §3.3); <discoverable_name> = the display name of the unfound discoverable — a GDD-02 §4 landmark name, or the terminal loop bus route (GDD-04 §3.4)."
   ],
   "condition_vocabulary": {
     "always": "always:true — no gate",
@@ -37,7 +38,7 @@
     "memory": "memory:harming_episodic_memory, exists:true",
     "tier": "tier:<full|child>",
     "favour_available": "favour_available:true|false — the side-mission generator has a favour for this NPC (GDD-04 §3)",
-    "favour_type": "favour_type:<errands|work_shifts|favours_lend|favours_mediate|events> — the type of the favour the generator offered this conversation (GDD-04 §3.1; GDD-15 §15.1)",
+    "favour_type": "favour_type:<errands|work_shifts|favours_lend|favours_mediate|events|find_a_lost_item|discovery> — the type of the favour the generator offered this conversation (GDD-04 §3.1; GDD-15 §15.1/§15.2)",
     "favour_state": "favour_state:<none|accepted|objective_complete|completed> — the state of this NPC's most recent favour instance with the player (GDD-15 §13 mapping, read through the instance row; GDD-15 §15.1)",
     "goals_full": "goals_full:true|false — the player already holds 2 active stage goals (GDD-01 §2.2 stack cap; GDD-15 §16.2)"
   },
@@ -2244,7 +2245,7 @@
     },
     "favour": {
       "unlock": "Side-mission generator has one for this NPC (GDD-04 §3)",
-      "notes": "The errand reward pattern is quoted verbatim from missions.json side_mission_types ('200-2,000 NCr + relationship') as a pattern, never as a promise for a specific favour.",
+      "notes": "The errand reward pattern is quoted verbatim from missions.json side_mission_types ('200-2,000 NCr + relationship') as a pattern, never as a promise for a specific favour. The lost-item and discovery favour nodes (Unit BR, Queue 13) quote their own §3 patterns verbatim: 'Relationship + small credits' and '500 NCr each + Explorer progress'.",
       "nodes": [
         {
           "node_id": "dlg_favour_complete_errands",
@@ -2423,6 +2424,50 @@
           "ends": false
         },
         {
+          "node_id": "dlg_favour_complete_find_a_lost_item",
+          "speaker": "npc",
+          "condition": {
+            "favour_type": "find_a_lost_item",
+            "favour_state": "objective_complete"
+          },
+          "lines": [
+            {
+              "speaker": "npc",
+              "text": "That's it — that's what I lost. Thank you for bringing it back.",
+              "condition": {
+                "favour_type": "find_a_lost_item",
+                "favour_state": "objective_complete"
+              },
+              "effects": [
+                {
+                  "type": "mission_complete",
+                  "mission_id_ref": "favour_instance",
+                  "rewards_ref": "favour_instance"
+                },
+                {
+                  "type": "relationship_drift",
+                  "trust": 1,
+                  "affection": 1
+                }
+              ]
+            }
+          ],
+          "choices": [],
+          "effects": [
+            {
+              "type": "mission_complete",
+              "mission_id_ref": "favour_instance",
+              "rewards_ref": "favour_instance"
+            },
+            {
+              "type": "relationship_drift",
+              "trust": 1,
+              "affection": 1
+            }
+          ],
+          "ends": false
+        },
+        {
           "node_id": "dlg_favour_complete_events",
           "speaker": "npc",
           "condition": {
@@ -2435,6 +2480,50 @@
               "text": "The stall ran, the day went well. The district remembers who helped.",
               "condition": {
                 "favour_type": "events",
+                "favour_state": "objective_complete"
+              },
+              "effects": [
+                {
+                  "type": "mission_complete",
+                  "mission_id_ref": "favour_instance",
+                  "rewards_ref": "favour_instance"
+                },
+                {
+                  "type": "relationship_drift",
+                  "trust": 1,
+                  "affection": 1
+                }
+              ]
+            }
+          ],
+          "choices": [],
+          "effects": [
+            {
+              "type": "mission_complete",
+              "mission_id_ref": "favour_instance",
+              "rewards_ref": "favour_instance"
+            },
+            {
+              "type": "relationship_drift",
+              "trust": 1,
+              "affection": 1
+            }
+          ],
+          "ends": false
+        },
+        {
+          "node_id": "dlg_favour_complete_discovery",
+          "speaker": "npc",
+          "condition": {
+            "favour_type": "discovery",
+            "favour_state": "objective_complete"
+          },
+          "lines": [
+            {
+              "speaker": "npc",
+              "text": "You found <discoverable_name>. The district is a little more yours now.",
+              "condition": {
+                "favour_type": "discovery",
                 "favour_state": "objective_complete"
               },
               "effects": [
@@ -2823,6 +2912,87 @@
           "ends": false
         },
         {
+          "node_id": "dlg_favour_offer_find_a_lost_item",
+          "speaker": "npc",
+          "condition": {
+            "favour_available": true,
+            "favour_type": "find_a_lost_item"
+          },
+          "lines": [
+            {
+              "speaker": "npc",
+              "text": "I lost something — it went missing in <lost_place_name>. If you find it and bring it back, the pattern holds: Relationship + small credits.",
+              "condition": {
+                "favour_available": true,
+                "favour_type": "find_a_lost_item"
+              },
+              "effects": [
+                {
+                  "type": "relationship_drift",
+                  "trust": 1,
+                  "affection": 0
+                }
+              ]
+            }
+          ],
+          "choices": [
+            {
+              "text": "I'll take it on.",
+              "condition": {
+                "always": true
+              },
+              "next": "dlg_favour_accept_find_a_lost_item"
+            },
+            {
+              "text": "Not now.",
+              "condition": {
+                "always": true
+              },
+              "next": "dlg_favour_decline"
+            }
+          ],
+          "effects": [
+            {
+              "type": "relationship_drift",
+              "trust": 1,
+              "affection": 0
+            }
+          ],
+          "ends": false
+        },
+        {
+          "node_id": "dlg_favour_accept_find_a_lost_item",
+          "speaker": "npc",
+          "condition": {
+            "favour_type": "find_a_lost_item"
+          },
+          "lines": [
+            {
+              "speaker": "npc",
+              "text": "Thank you — it's somewhere in <lost_place_name>. Bring it back when you find it.",
+              "condition": {
+                "favour_type": "find_a_lost_item"
+              },
+              "effects": [
+                {
+                  "type": "mission_progress",
+                  "mission_id_ref": "favour_instance",
+                  "state": "accepted"
+                }
+              ]
+            }
+          ],
+          "choices": [],
+          "effects": [
+            {
+              "type": "mission_progress",
+              "mission_id_ref": "favour_instance",
+              "state": "accepted"
+            }
+          ],
+          "ends": false
+        },
+        {
           "node_id": "dlg_favour_offer_events",
           "speaker": "npc",
           "condition": {
@@ -2883,6 +3053,87 @@
               "text": "Thank you — the stall will be ready. The district will remember.",
               "condition": {
                 "favour_type": "events"
+              },
+              "effects": [
+                {
+                  "type": "mission_progress",
+                  "mission_id_ref": "favour_instance",
+                  "state": "accepted"
+                }
+              ]
+            }
+          ],
+          "choices": [],
+          "effects": [
+            {
+              "type": "mission_progress",
+              "mission_id_ref": "favour_instance",
+              "state": "accepted"
+            }
+          ],
+          "ends": false
+        },
+        {
+          "node_id": "dlg_favour_offer_discovery",
+          "speaker": "npc",
+          "condition": {
+            "favour_available": true,
+            "favour_type": "discovery"
+          },
+          "lines": [
+            {
+              "speaker": "npc",
+              "text": "You haven't seen <discoverable_name> yet — go and find it, and the pattern holds: 500 NCr each + Explorer progress.",
+              "condition": {
+                "favour_available": true,
+                "favour_type": "discovery"
+              },
+              "effects": [
+                {
+                  "type": "relationship_drift",
+                  "trust": 1,
+                  "affection": 0
+                }
+              ]
+            }
+          ],
+          "choices": [
+            {
+              "text": "I'll take it on.",
+              "condition": {
+                "always": true
+              },
+              "next": "dlg_favour_accept_discovery"
+            },
+            {
+              "text": "Not now.",
+              "condition": {
+                "always": true
+              },
+              "next": "dlg_favour_decline"
+            }
+          ],
+          "effects": [
+            {
+              "type": "relationship_drift",
+              "trust": 1,
+              "affection": 0
+            }
+          ],
+          "ends": false
+        },
+        {
+          "node_id": "dlg_favour_accept_discovery",
+          "speaker": "npc",
+          "condition": {
+            "favour_type": "discovery"
+          },
+          "lines": [
+            {
+              "speaker": "npc",
+              "text": "Good — <discoverable_name> is worth the walk. Come back when you've found it.",
+              "condition": {
+                "favour_type": "discovery"
               },
               "effects": [
                 {
@@ -2983,11 +3234,25 @@
               "next": "dlg_favour_offer_favours_mediate"
             },
             {
+              "text": "Tell me about the lost item.",
+              "condition": {
+                "favour_type": "find_a_lost_item"
+              },
+              "next": "dlg_favour_offer_find_a_lost_item"
+            },
+            {
               "text": "Tell me about the event.",
               "condition": {
                 "favour_type": "events"
               },
               "next": "dlg_favour_offer_events"
+            },
+            {
+              "text": "Tell me about the discovery.",
+              "condition": {
+                "favour_type": "discovery"
+              },
+              "next": "dlg_favour_offer_discovery"
             }
           ],
           "effects": [
