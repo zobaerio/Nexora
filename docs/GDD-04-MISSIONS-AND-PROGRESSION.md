@@ -114,6 +114,44 @@
 
 Side missions are generated from the simulation (an NPC with a need, a business short-staffed, a weather event) — they are the world asking, not a checklist the designers wrote once.
 
+### 3.1 Favour Generation Contract (Unit BC · Queue 10 · 2026-11-22)
+
+**Status:** DESIGN ONLY. This contract defines the side-mission generator gap AV G2 named: what a generated favour is, how `favour_available` is evaluated, and what the generator must never invent. It adds no sim module and no data file — the contract is the deliverable. The generator (Phase 6) implements against it; dialogue delivers the offer (GDD-15 §15).
+
+**What a generated favour is.** An *instance* of one of the five §3 types, generated from live state at conversation time. It is not a `missions.json` entry and never receives a `missions.json` id: the 32 ids in `data/missions.json` (`1.1`–`8.4`) are the main missions, and a favour is none of them. An accepted favour is recorded in `mission_progress` (`data/schema.sql`: `mission_id TEXT NOT NULL`, no foreign key) under a runtime instance key of the form `side:<type>:<giver_character_id>:<generated_at_game_minutes>` — a runtime key format defined by this contract, not a mission id. The instance carries: `favour_type` (one of the five §3 types), `giver` (the NPC's character id), `parameters` (the existing ids the favour concerns — a property id, a character id, a business id, a zone id — never an invented entity), and `reward` (within the §3 pattern for the type, set at generation and recorded on the instance). A favour has **no deadline and no expiry**: no source gives one (AV gap G10 — no mission in `missions.json` carries a deadline field), and the generator must not invent one.
+
+**Reward rule.** The reward is chosen by the generator at generation time, inside the §3 pattern for the type, and recorded on the instance; it is never negotiated in dialogue (GDD-15 §4) and never outside the pattern. The patterns, verbatim from §3:
+
+| Type | Reward pattern (§3) |
+|---|---|
+| Errands (`errands`) | 200-2,000 NCr + relationship |
+| Work shifts (`work_shifts`) | Wage + reputation |
+| Favours (`favours`) | Relationship + small credits |
+| Events (`events`) | Reputation + memory events |
+| Discovery (`discovery`) | 500 NCr each + Explorer progress |
+
+The exact amount inside a range (for example, where in 200-2,000 NCr an errand falls) is **not decided here** — no source gives the pick rule, and this contract does not invent one. The Phase 6 generator records its pick rule when it is built; until then the bound is the pattern. "Small credits" for the favour type is likewise the pattern's own wording: the generator must stay inside it, and the amount is set at generation, never haggled in dialogue.
+
+**Eligibility — per type, from live state.** A type is eligible for an NPC only when the live-state input in its row exists. Every input is a record a merged system already writes; where no such record exists, the type is ungeneratable and the generator must not offer it (see the last two rows).
+
+| Type | Eligible when (live-state input) | Source of the input |
+|---|---|---|
+| Errands (`errands`) | The NPC has an open needs-driven want (GDD-01 §2.2) for a fetch, carry or fix — a want the needs/decision engines recorded, naming an existing target (a property, a person, a zone) | GDD-01 §2.2 (needs-driven wants); Session 01 needs engine (`tools/sim/needs.py`, `decisions.py`) |
+| Work shifts (`work_shifts`) | An open vacancy exists at a business the NPC works at or for, and the player meets its credential gate — or a colleague of the NPC is absent with an open health condition the shift would cover | Session 04 labour market (`tools/sim/labour.py` vacancies; credential gates); Session 06 health conditions (`tools/sim/health.py`) |
+| Favours — lend money (`favours`) | The NPC's household is in arrears, or the NPC has an active bank loan with at least one missed payment — and the loan the favour creates is a character↔character ledger loan (`loan_disburse` / `loan_repay`, GDD-15 §14), never a bank loan | Session 02 family economy (`tools/sim/family_economy.py` arrears); Session 04 banking (`tools/sim/banking.py` `missed_payments`) |
+| Favours — mediate a dispute (`favours`) | An open conflict involves the NPC, and the player qualifies as a mediator for it (a friend of a party, or a community leader — the roles the conflict system already allows) | Session 02 conflicts (`tools/sim/conflicts.py` mediation by leader/friend/elder) |
+| Favours — find a lost item (`favours`) | **Ungeneratable.** No lost-item record exists in any merged system — no table, no event, no inventory of lost things. The generator must never offer a find-a-lost-item favour until such a record is designed. | — (absence recorded, not filled) |
+| Events (`events`) | A festival stands on the culture calendar, or a recorded storm/disaster impact in the NPC's zone needs clean-up (a festival stall to staff, storm debris to clear, a market day to run) | Session 02 culture (`tools/sim/culture.py` festival calendar; `tools/sim/events.py`); Session 07/08 environment (`tools/sim/environment.py` disaster impacts) |
+| Discovery (`discovery`) | **Ungeneratable.** The landmarks (GDD-02) and bus routes (GDD-07) exist, but no discovery-progress record exists — no table records which landmarks the player has found or which routes they have ridden — so the generator cannot tell a found landmark from an unfound one. The generator must never offer a discovery favour until a progress record is designed. | — (absence recorded, not filled) |
+
+**Common gates (all types).** The NPC must be Full or Scheduled tier (Ambient has no dialogue until promoted — GDD-15 §2) and interruptible (§2). No band gate is added: the favour topic in the shipped data conditions only on `favour_available`, and this contract does not invent a band requirement the data does not carry.
+
+**`favour_available` evaluation.** At conversation open (§12.1 snapshot, GDD-15 §12), the runtime runs the eligibility checks for this NPC **in §3 table order** — errands, work shifts, favours, events, discovery — a deterministic priority decided by this contract. `favour_available` is true iff at least one type is eligible. The offered favour is the first eligible type in that order; there is no random pick (GDD-15 §12.6 rule 6: no randomness anywhere). One favour per conversation: the topic leads to one offer, and re-engagement re-evaluates from the then-current state — a changed world may offer a different favour next time. The player's ability to pay (for a lend-money favour) is checked at **accept** time, when the transaction validates funds — not at offer time, when the offer is only words.
+
+**What the generator must never invent.** No new `missions.json` id; no reward outside the §3 patterns; no target entity that does not exist as a row; no deadline or expiry; no lost-item favour; no discovery favour; no favour for an Ambient NPC; no favour whose eligibility input is a feeling the data does not hold. A generated favour that fails any of these is a generator bug, caught the same way §12.7's audit rule catches a forbidden dialogue write.
+
+**Shipped-data note (honest limit).** The favour topic exists in `data/dialogue-lines.json` (`dlg_topic_favour` / `dlg_topic_favour_none`, conditions `favour_available` true/false) and evaluates under this contract — but the topic's lines and effects carry only a +1/0 relationship drift. There is **no favour offer / accept / complete node** in the shipped data: the accept writes `mission_progress` with the instance key and completion is verified against world state like any mission (TECH-MULTIPLAYER §4), but those nodes are a Phase 6 data addition built on this contract, not a claim made here. **Gap G2 is resolved by this section** as a contract question — the evaluation rule and the generator's inputs now exist — while the favour *flow* (offer/accept/complete nodes) remains Phase 6 authoring work.
+
 ## 4. Free-Roam Rules
 
 1. **The whole district is open from Level 1.** No area is locked behind a level; levels unlock *tools, contracts and systems*, not geography. A Level 1 player can walk the riverfront, enter the market, and ride to the edge of District 1.

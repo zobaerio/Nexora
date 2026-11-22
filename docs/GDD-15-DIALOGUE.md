@@ -327,15 +327,238 @@ Restated from GDD-15 §7 and §9, because the binding must enforce it, not just 
 
 These are inputs the binding needs that no source supplies. They are recorded here so Phase 6 does not invent them silently. None of them blocks this design; each blocks the nodes that depend on it until it is resolved by data or by an owner decision.
 
-- **G1 — Mission-state mapping.** `data/dialogue-lines.json` conditions use six mission states (`available`, `not_started`, `offered`, `accepted`, `objective_complete`, `completed`); `data/schema.sql` `mission_progress.status` allows four (`available`, `active`, `completed`, `failed`). No source maps one vocabulary onto the other, and no source defines the `progress` JSONB keys the sub-states would need. Until the mapping is defined, the nodes that depend on `offered` (`dlg_1_3_accept`, `dlg_1_3_decline`, `dlg_2_4_accept`, `dlg_2_4_decline`), `accepted` (`dlg_1_3_reminder`, `dlg_1_3_reminder_exit`, `dlg_2_4_progress`) and `objective_complete` (`dlg_1_3_return`, `dlg_2_4_return`) cannot be evaluated against the schema as written.
-- **G2 — Favour availability.** `favour_available` is a condition in `data/dialogue-lines.json` (`dlg_topic_favour`, `dlg_topic_favour_none`) and GDD-04 §3 describes side-mission generation, but no `tools/sim` module generates side missions or reports whether one exists for an NPC. The favour topic cannot be evaluated from sim state.
-- **G3 — Debt flags.** The flags `owes_player` and `player_owes` are dialogue vocabulary (GDD-15 §1, §4) and `set_flag()` can store them, but no sim function derives them from `economy_ledger` loan rows and no sim code ever sets them. Whether the runtime derives them from the ledger or the economy maintains them is undefined.
+- **G1 — Mission-state mapping.** `data/dialogue-lines.json` conditions use six mission states (`available`, `not_started`, `offered`, `accepted`, `objective_complete`, `completed`); `data/schema.sql` `mission_progress.status` allows four (`available`, `active`, `completed`, `failed`). No source maps one vocabulary onto the other, and no source defines the `progress` JSONB keys the sub-states would need. Until the mapping is defined, the nodes that depend on `offered` (`dlg_1_3_accept`, `dlg_1_3_decline`, `dlg_2_4_accept`, `dlg_2_4_decline`), `accepted` (`dlg_1_3_reminder`, `dlg_1_3_reminder_exit`, `dlg_2_4_progress`) and `objective_complete` (`dlg_1_3_return`, `dlg_2_4_return`) cannot be evaluated against the schema as written. **Resolved by Queue 10, Unit BA (GDD-15 §13):** the mapping table, the four `progress` keys, and the 12 evaluable nodes are defined there. `offered` is snapshot-local by design; abandon stays a recommendation (§13.5).
+- **G2 — Favour availability.** `favour_available` is a condition in `data/dialogue-lines.json` (`dlg_topic_favour`, `dlg_topic_favour_none`) and GDD-04 §3 describes side-mission generation, but no `tools/sim` module generates side missions or reports whether one exists for an NPC. The favour topic cannot be evaluated from sim state. **Resolved by Queue 10, Unit BC (GDD-04 §3.1 + GDD-15 §15):** the generation contract and the `favour_available` evaluation rule are defined there. The favour offer/accept/complete nodes remain Phase 6 authoring work; find-a-lost-item and discovery favours are ungeneratable until their records are designed.
+- **G3 — Debt flags.** The flags `owes_player` and `player_owes` are dialogue vocabulary (GDD-15 §1, §4) and `set_flag()` can store them, but no sim function derives them from `economy_ledger` loan rows and no sim code ever sets them. Whether the runtime derives them from the ledger or the economy maintains them is undefined. **Resolved by Queue 10, Unit BB (GDD-15 §14):** the read-only derivation rule (schema reason codes `loan_disburse` / `loan_repay`, character↔character rows only, system accounts excluded), derive-at-conversation-time, and the clearing rule (repayment only) are defined there. The sim/server reason-code drift (§14.4) still needs a Phase 9 alignment, and no character↔character loan exists yet to derive from (§14.5).
 - **G4 — Which edge supplies the band.** `get_edge()` requires a `relation_type`, and GDD-01 §6.1 allows several directed edges between one pair (for example `spouse` and `colleague`). No source names which edge supplies the greeting band, `relationship_mean_min`, or `respect_min` when more than one exists.
-- **G5 — `memory_write` is underspecified three ways.** `record_memory()` requires an `event_type` string and a `details` JSON object, but no source names the `event_type` for a conversation memory ("helped `<name>`", "met `<name>`"); no source gives the rule by which the runtime assigns a weight to a `memory_write` that carries none (only +40 for `dlg_1_3_return` is sourced); and no `memory_write` effect names whose memory it is — §12.4 assigns it to the speaking NPC, but the data carries no owner field.
-- **G6 — No weight reduction.** `memory_weight_reduce` (`dlg_apology_accepted`, `amount_ref` `runtime_rule`) has no number in any source and no sim function: `tools/sim/memory.py` can append, read, and prune, but cannot change a stored `emotional_weight`. The reduction step and its size are both undefined.
-- **G7 — Goal proposal has no accept path.** `propose_goal` (`dlg_topic_goals_help`) may propose a stage goal, and `character_goals` supports `goal_kind` `stage` with status `active`, but no sim function proposes a goal or records the player's acceptance of one. The accept step is UE-side and undefined.
+- **G5 — `memory_write` is underspecified three ways.** `record_memory()` requires an `event_type` string and a `details` JSON object, but no source names the `event_type` for a conversation memory ("helped `<name>`", "met `<name>`"); no source gives the rule by which the runtime assigns a weight to a `memory_write` that carries none (only +40 for `dlg_1_3_return` is sourced); and no `memory_write` effect names whose memory it is — §12.4 assigns it to the speaking NPC, but the data carries no owner field. **Resolved by Queue 10, Unit BE (GDD-15 §16.3–§16.5):** the event-type table (2 sourced, 3 decided-here), the weight rule (weightless → 0, the schema default), and the `owner` field (`speaker` / `player`, default `speaker`) are specified there for the Phase 6 authoring pass.
+- **G6 — No weight reduction.** `memory_weight_reduce` (`dlg_apology_accepted`, `amount_ref` `runtime_rule`) has no number in any source and no sim function: `tools/sim/memory.py` can append, read, and prune, but cannot change a stored `emotional_weight`. The reduction step and its size are both undefined. **Resolved by Queue 10, Unit BE (GDD-15 §16.1):** the step rule (toward zero, never across zero, never delete) and the target (strongest negative memory about the player) are defined there; the amount stays a runtime-rule parameter by design — no number is decided.
+- **G7 — Goal proposal has no accept path.** `propose_goal` (`dlg_topic_goals_help`) may propose a stage goal, and `character_goals` supports `goal_kind` `stage` with status `active`, but no sim function proposes a goal or records the player's acceptance of one. The accept step is UE-side and undefined. **Resolved by Queue 10, Unit BE (GDD-15 §16.2):** the accept path (player-only choice, `character_goals` row write, stack-cap rule), the decline record (no row — effect `none`), and the required node restructure (the shipped node fires on entry with no choice) are defined there.
 - **G8 — Current zone has no sim accessor.** GDD-06 §3 resolves location tokens to anchors from the live schedule instantiation, but no source read for this unit names a sim function returning an NPC's current zone at a given game time. The binding reads the zone from live schedule state; the headless sim exposes no single call for it.
 - **G9 — Per-conversation drift cap.** GDD-15 §7 requires drift to be capped per conversation, but no source gives the cap's number. The shipped drift values are the only numbers the data carries (§12.4).
 - **G10 — No mission deadlines.** GDD-15 §4 lets an NPC lead with a time-sensitive mission (deadline within 3 days), but no mission in `data/missions.json` carries a deadline field. That lead trigger cannot be evaluated from mission data today.
 
-*End of GDD-15 v1.0 + Unit AV §12 (Queue 9).*
+---
+
+## 13. Mission-State Mapping (AV gap G1 — resolved)
+
+**Unit BA · Queue 10 · Version 1.0 · 2026-11-22**
+**Status:** DESIGN ONLY. This section defines the mapping gap G1 named: the six mission states `data/dialogue-lines.json` conditions use against the four `data/schema.sql` `mission_progress.status` allows. It adds no new state, no new table, and no schema change — the mapping is the deliverable. The mission system (Phase 6) implements against it; dialogue reads through it.
+
+### 13.1 The two vocabularies
+
+| Vocabulary | States | Source |
+|---|---|---|
+| Dialogue (`condition_vocabulary`, `mission`) | `available`, `not_started`, `offered`, `accepted`, `objective_complete`, `completed` | `data/dialogue-lines.json` `condition_vocabulary.mission` |
+| Schema (`mission_progress.status`) | `available`, `active`, `completed`, `failed` | `data/schema.sql`, `CHECK (status IN ('available','active','completed','failed'))` |
+
+The shipped data uses four of the six dialogue states (`available`, `offered`, `accepted`, `objective_complete` — 12 mission-condition nodes across the `1.3` and `2.4` trees). No shipped node conditions on `not_started` or `completed`; the mapping defines them anyway, so future trees can use the full vocabulary without re-opening this gap.
+
+### 13.2 The mapping table
+
+A dialogue state is evaluated from the `mission_progress` row for (player, mission id) — exactly the row §12.3 reads — plus the conversation snapshot (§12.1) for the one transient state. `progress` is the row's `JSONB` column (`data/schema.sql`, default `'{}'`).
+
+| Dialogue state | Row state | Evaluation rule |
+|---|---|---|
+| `not_started` | **No row** | No `mission_progress` row exists for (player, mission). This defines §12.6 rule 5's exception: "no row" is a real state with a name, not an undefined case. A mission whose level is not yet reached has no row (GDD-15 §6: level gating is mission data), so it reads `not_started`. |
+| `available` | `status = 'available'` | The row exists and its status is `available`. The mission may be offered. |
+| `offered` | `status = 'available'` **+ snapshot-local `offered` flag** | The offer was shown in this conversation. `offered` is **not a stored key** — it lives only in the §12.1 snapshot. It becomes true when the offer node is entered (`dlg_1_3_offer`, `dlg_2_4_offer`) and is false again when the conversation closes. The accept/decline nodes are reachable only through the offer node's choices in the same conversation, so the snapshot flag is always set when their conditions are tested. Nothing persists the offer: the offer node's effects are `none` (`dialogue-lines.json`), and no stored flag may be invented for it. |
+| `accepted` | `status = 'active'` **+** `progress.accepted_at_game_minutes` set **+** `progress.objectives_complete` is not `true` | The accept effect wrote the row to `active` (see §13.3). The mission is in progress and its objectives are not yet verified complete. |
+| `objective_complete` | `status = 'active'` **+** `progress.objectives_complete = true` | The mission system verified the objectives against world state it owns (TECH-MULTIPLAYER §4) and set the flag. Dialogue never sets it: no shipped dialogue effect writes `objectives_complete`, and a dialogue line may not claim an objective is done. |
+| `completed` | `status = 'completed'` | The `mission_complete` effect wrote the row to `completed` (§13.3). |
+| *(no dialogue state)* | `status = 'failed'` | Failed missions have **no dialogue state**: every `mission` condition on a failed mission is false, and no node offers, reminds, or completes it. Retry returns the row to `available` through the mission system (GDD-04 §1: a failed mission can be retried after 7 in-game days); dialogue plays no part in the retry. |
+
+### 13.3 The `progress` JSONB keys the sub-states need
+
+Exactly four keys. No other `progress` key is defined by this mapping, and none may be added by improvisation — a key the mission system needs for another purpose is that system's own design, recorded where it is defined.
+
+| Key | Type | Written by | When |
+|---|---|---|---|
+| `accepted_at_game_minutes` | integer | The mission system, on the accept effect | The player accepts (`mission_progress` effect, state `accepted` — see below). Absent means the mission was never accepted. |
+| `objectives_complete` | boolean | The mission system, on objective verification | Set `true` when the mission system verifies the objectives against world state. Absent means `false`. Dialogue reads it, never writes it. |
+| `completed_at_game_minutes` | integer | The mission system, on the `mission_complete` effect | The mission completes. Absent means the mission never completed. |
+| `abandoned` | boolean | The mission system, on abandon — **recommendation only** (see §13.5) | Set `true` only if the abandon recommendation is adopted. Absent means `false`. |
+
+There is deliberately **no `offered` key** (snapshot-local, §13.2) and **no per-objective array**: objectives are verified against world state (TECH-MULTIPLAYER §4), and a per-objective list in `progress` would be a second copy of world state that can disagree with it. The mission system may keep its own verification record elsewhere; it is not part of this mapping.
+
+### 13.4 Effect mapping — what the dialogue effects write
+
+The data's `mission_progress` effects use dialogue states as targets (`effect_vocabulary`: `state:<accepted|objective_complete>`). Each maps to a row write:
+
+| Effect in the data | Row write |
+|---|---|
+| `mission_progress`, state `accepted` (shipped: `dlg_1_3_accept`, `dlg_2_4_accept`) | `status` → `'active'`; `progress.accepted_at_game_minutes` → current `game_minutes`. This is the only dialogue write that changes `status`. |
+| `mission_progress`, state `objective_complete` (no shipped effect uses this target today) | `progress.objectives_complete` → `true`; `status` stays `'active'`. Defined here so future data can target it; the objective check itself stays the mission system's (TECH-MULTIPLAYER §4). |
+| `mission_complete` (shipped: `dlg_1_3_return`, `dlg_2_4_return`) | `status` → `'completed'`; `progress.completed_at_game_minutes` → current `game_minutes`; rewards paid verbatim from `data/missions.json` (§12.4). A `null` credit reward means no credit reward — never invent one. |
+| Decline (shipped: `dlg_1_3_decline`, `dlg_2_4_decline`, effects `none`) | **No row write.** `status` stays `'available'`; the offer stays open (GDD-15 §5 worked example). |
+
+Dialogue never writes `status = 'failed'` and never writes `status = 'available'`: failure and availability are the mission system's, not the conversation's.
+
+### 13.5 Abandon — a recommendation, not a sourced rule
+
+GDD-04 §1 says a mission can be abandoned for a reputation cost, but no source gives abandon a status: the schema has no `abandoned` status and dialogue has no abandon state. This section **recommends** (it does not claim a source for) the handling the mission system should adopt: abandon sets `status = 'failed'` with `progress.abandoned = true`, the reputation cost is applied by the mission system per GDD-04 §1, and retry after 7 in-game days returns the row to `'available'`. Until the mission system adopts it, abandon is undefined behaviour and no dialogue node may offer it.
+
+### 13.6 Which nodes become evaluable
+
+With this mapping, all 12 mission-condition nodes in the shipped data evaluate against the schema as written (node → dialogue state → row state):
+
+| Node | Mission | State | Row state |
+|---|---|---|---|
+| `dlg_1_3_offer` | `1.3` | `available` | `status = 'available'` |
+| `dlg_1_3_accept` | `1.3` | `offered` | `status = 'available'` + snapshot `offered` |
+| `dlg_1_3_decline` | `1.3` | `offered` | `status = 'available'` + snapshot `offered` |
+| `dlg_1_3_reminder`, `dlg_1_3_reminder_exit` | `1.3` | `accepted` | `status = 'active'`, `objectives_complete` not `true` |
+| `dlg_1_3_return` | `1.3` | `objective_complete` | `status = 'active'`, `objectives_complete = true` |
+| `dlg_2_4_offer` | `2.4` | `available` | `status = 'available'` |
+| `dlg_2_4_accept` | `2.4` | `offered` | `status = 'available'` + snapshot `offered` |
+| `dlg_2_4_decline` | `2.4` | `offered` | `status = 'available'` + snapshot `offered` |
+| `dlg_2_4_progress` | `2.4` | `accepted` | `status = 'active'`, `objectives_complete` not `true` |
+| `dlg_2_4_return` | `2.4` | `objective_complete` | `status = 'active'`, `objectives_complete = true` |
+
+Missions `1.3` ("Know Your Neighbours") and `2.4` ("A Friend in the City") both exist in `data/missions.json` with the objectives, rewards and unlocks the §12.2 worked traces quote. **Gap G1 is resolved by this section** — §12.8 G1 now reads as defined, not undefined — with two deliberate limits kept: the `offered` state is snapshot-local by design (it is never persisted), and abandon stays a recommendation (§13.5) until the mission system adopts it.
+
+*End of GDD-15 §13 — Unit BA, Queue 10.*
+
+---
+
+## 14. Debt-Flag Derivation (AV gap G3 — resolved)
+
+**Unit BB · Queue 10 · Version 1.0 · 2026-11-22**
+**Status:** DESIGN ONLY. This section defines the derivation gap G3 named: how the dialogue flags `owes_player` / `player_owes` are derived from `economy_ledger` loan rows, and whether the runtime derives them or the economy maintains them. It adds no table, no column, and no sim code change — the derivation rule is the deliverable. The runtime (Phase 6) implements against it.
+
+### 14.1 What the flags mean
+
+The flags live on the NPC→player relationship edge (`relationships.flags`, GDD-01 §2.3; read at snapshot time per §12.1). They are **semantic memory of a debt between two people** — nothing else:
+
+| Flag | Meaning |
+|---|---|
+| `owes_player` | The NPC owes the player money: the player lent to the NPC and the loan is not fully repaid. |
+| `player_owes` | The player owes the NPC money: the NPC lent to the player and the loan is not fully repaid. |
+
+A debt is a loan between two characters. It is **not** a bank loan, not household arrears, and not a missed rent: those are debts to system accounts or to a household pool, and no NPC's flag may ever be set by them (§14.3).
+
+### 14.2 The derivation rule (read-only, over the ledger)
+
+For a pair (NPC `X`, player `P`), evaluated over `economy_ledger` rows whose **both endpoints are characters** (`from_character_id` / `to_character_id` set, `from_business_id` / `to_business_id` NULL) and whose reason code is a loan code:
+
+- `owes_player(X)` is true iff `SUM(loan_disburse, P → X) − SUM(loan_repay, X → P) > 0`
+- `player_owes(X)` is true iff `SUM(loan_disburse, X → P) − SUM(loan_repay, P → X) > 0`
+
+where `SUM(loan_disburse, A → B)` is the sum of `amount` over rows with `reason_code = 'loan_disburse'`, `from_character_id = A`, `to_character_id = B`, and `SUM(loan_repay, A → B)` is the same over `reason_code = 'loan_repay'`. Both sums are over **all** such rows ever written: the ledger is append-only (GDD-01 §8), so history is never rewritten and the sums are the outstanding balance by construction. The reason codes are the `data/schema.sql` codes (`loan_disburse`, `loan_repay`) — the server vocabulary, not the sim's (§14.4).
+
+**When a flag clears:** when the outstanding sum reaches 0 — the loan is fully repaid. A partial repayment leaves the flag set: the flag is boolean and the amount is never shown (dialogue never states amounts — `dialogue-lines.json` notes; the settlement effect reads `amount_ref: ledger_debt_amount`). **No other clearing rule exists in any source:** there is no write-off, no expiry, and no forgiveness mechanic. A debt never clears except by repayment. That absence is recorded here as an open point for the mission/economy design, not filled in by this section.
+
+### 14.3 What never sets the flags
+
+| Ledger rows | Why they never set a flag |
+|---|---|
+| Bank loans (`SYS-BANK` ↔ character, kinds `bank_loan` / `mortgage` — `tools/sim/banking.py` `disburse_loan`, `monthly_repayments`) | The other party is the bank, a system account — not an NPC. A player who owes the bank does not owe any NPC, and an NPC who owes the bank does not owe the player. The derivation excludes every row with a system-account endpoint (`SYS-BANK`, `SYS-CITY`, `SYS-MARKET`, `SYS-EXTERNAL` and any later system account). |
+| Household arrears repayments (e.g. `tools/sim/family_economy.py`, reason `debt_repayment`, head → `SYS-MARKET`) | The debt is a household's arrears to the market/city pool, not a loan between two people. The reason code is not a loan code, so the rule does not count it. |
+| Business-endpoint rows (any row with `from_business_id` / `to_business_id` set) | A business's books are not a person's debt. The rule counts character↔character rows only. |
+| Any other reason code (`wage`, `rent`, `purchase`, `tax`, `mission_reward`, …) | Only `loan_disburse` / `loan_repay` rows are loans. A rent row is rent, however overdue; it is not a loan and it sets no flag. |
+
+### 14.4 Found discrepancy — the reason-code vocabulary drifts across stores
+
+The derivation is written against the schema codes, but three wordings for the same acts exist today, and the server cannot ingest sim rows verbatim until they are aligned:
+
+| Act | `data/schema.sql` (server) | Headless sim (`tools/sim/`) | `docs/GDD-03-ECONOMY-AND-PROFESSIONS.md` §8 |
+|---|---|---|---|
+| Loan disbursement | `loan_disburse` | `loan_disbursement` (`banking.py` `disburse_loan`); `mortgage_disbursement` (`decisions.py` mortgage path) | `loan` |
+| Loan repayment | `loan_repay` | `loan_repayment` (`banking.py` `monthly_repayments`); `debt_repayment` (`family_economy.py`, arrears — not a loan) | `loan_repayment` |
+| Debt settlement from dialogue | `loan_repay` (this section's ruling) | — (no dialogue settlement exists in the sim) | — |
+
+The dialogue settlement effect names its reason `repayment` (GDD-15 §12.4; `dialogue-lines.json` `ledger_settlement`, `reason: "repayment"`). `repayment` is **not** a `schema.sql` reason code. This section rules: a settlement row written by the dialogue settlement effect carries `reason_code = 'loan_repay'` — the schema code for the act. The effect vocabulary's `repayment` is the effect's name for the settlement, not the ledger code. Likewise the sim's SQLite `economy_ledger` carries **no `CHECK` on `reason_code`** (`tools/sim/persistence.py` SCHEMA: `reason_code TEXT NOT NULL`, no list), which is how the drift arose: nothing in the sim enforces the schema list, and the sim today writes ~39 reason strings the schema `CHECK` would reject. Aligning the sim's loan strings to the schema codes is a Phase 9 data-alignment item for the server ingest; it is **not** decided here and no sim code is changed by this unit.
+
+### 14.5 Where the loans come from — today, none
+
+No sim module creates a character↔character loan row. The only loans the sim creates are bank loans (`banking.py`: `SYS-BANK` ↔ character, recorded in the sim-only `loans` table — `data/schema.sql` has **no `loans` table**, so on the server the ledger rows *are* the loan record and outstanding is derived by aggregation per §14.2, never by reading a loan balance). The only designed source of an NPC↔player loan is the GDD-04 §3 favour "lend money (ledger loan, GDD-03 §4.3)" — unimplemented; see GDD-15 §15 / GDD-04 §3.1. **Consequence, stated plainly: today both flags derive `false` for every NPC–player pair in the sim, and the debt tree (`dlg_topic_debt` and its 7 nodes) is reachable only once a favour loan — or a future mechanic — writes a character↔character loan row.** The tree is not broken; it is waiting on its input, like the favour topic (§15).
+
+### 14.6 Derive at conversation time — the decision, and the rejected alternative
+
+**Decision: derive at conversation time (read-only).** When a conversation opens, the runtime evaluates §14.2 once per NPC–player pair, from the ledger, and stores the result in the §12.1 snapshot. That derived value governs the whole conversation — the `debt` topic, the NPC-lead check (§12.2 step 3: `owes_player` set → the debt tree opens at `dlg_debt_npc_owes`), and every `flag` condition on these two flags. Nothing is written to `relationships.flags` by the derivation, and the derivation never creates or erases a debt (GDD-15 §4).
+
+**Why not economy-maintained:** the alternative is for the economy to call `set_flag()` on the edge whenever a loan or repayment row lands. It is rejected for three reasons. (1) **One truth:** the ledger is the truth (GDD-01 §8); a stored flag is a second copy, and every second copy can drift — a missed maintainer path (bank, justice, favour, settlement) would leave a flag saying a debt exists after it was repaid, or absent while it is owed. (2) **No maintainer exists:** no sim module sets these flags today, and the loan paths are spread across banking, justice, decisions, family economy and the future favour generator — maintaining a flag from all of them is five integration points where derivation is one read. (3) **Cost is trivial:** one indexed aggregate per conversation open, over the `economy_ledger` indexes `schema.sql` already defines (`idx_ledger_from_char`, `idx_ledger_to_char`).
+
+**Consequences for the shipped data (no data change needed):** the debt tree's `set_flag` effects (`dlg_debt_repay_now` sets `owes_player` `false`; `dlg_debt_player_pays` sets `player_owes` `false`) become no-ops under derivation — harmless, because the next derivation recomputes the same `false` from the settled ledger. The runtime **ignores stored debt flags** and derives; a stored `owes_player`/`player_owes` value left by an older write is never read. §12.1's snapshot table ("Semantic flags … from `relationships.flags`") is amended for these two flags only: they are derived from the ledger at snapshot time; every other flag still reads from the edge.
+
+**Gap G3 is resolved by this section** — §12.8 G3 now reads as defined, not undefined — with the limits kept: the reason-code drift (§14.4) still needs a Phase 9 alignment, and no character↔character loan exists yet to derive from (§14.5).
+
+*End of GDD-15 §14 — Unit BB, Queue 10.*
+
+---
+
+## 15. Favour Topic Note (AV gap G2 — resolved by contract)
+
+**Unit BC · Queue 10 · Version 1.0 · 2026-11-22**
+**Status:** DESIGN ONLY. This section is the dialogue-side note for the favour generation contract; the contract itself lives in `docs/GDD-04-MISSIONS-AND-PROGRESSION.md` §3.1 (Unit BC), which is the authoritative text. Nothing here duplicates it.
+
+**How the topic evaluates.** `favour_available` (§12.3) is evaluated at conversation open, from the §12.1 snapshot, by the contract's rule (GDD-04 §3.1): the runtime runs the per-type eligibility checks in §3 table order (errands, work shifts, favours, events, discovery) and the flag is true iff at least one type is eligible for this NPC. The two shipped nodes follow it exactly: `dlg_topic_favour` (condition `favour_available: true`) and `dlg_topic_favour_none` (condition `favour_available: false`). No band, flag, or score condition is added to either node — the data conditions only on the flag, and the contract does not invent a second gate.
+
+**What the topic does today — and what it does not.** The shipped favour topic is a stub in the honest sense: its lines and effects carry only a +1/0 relationship drift (`dlg_topic_favour`) or nothing (`dlg_topic_favour_none`). There is no favour offer / accept / complete node in `data/dialogue-lines.json`, so a favour offered through this topic today has nowhere to go after the line is shown. The accept flow — accept writes `mission_progress` under the instance key `side:<type>:<giver>:<generated_at_game_minutes>`, completion is verified against world state (TECH-MULTIPLAYER §4) — is a Phase 6 data addition built on the GDD-04 §3.1 contract. Two of the five types are ungeneratable until a record is designed (find-a-lost-item: no lost-item record; discovery: no discovery-progress record — GDD-04 §3.1); the generator must never offer them in the meantime. **Gap G2 is resolved by this note together with GDD-04 §3.1** — the evaluation rule now exists — while the favour flow remains Phase 6 authoring work.
+
+*End of GDD-15 §15 — Unit BC, Queue 10.*
+
+---
+
+## 16. Dialogue Effect Functions (AV gaps G6 + G7 — resolved; G5 fixed)
+
+**Unit BE · Queue 10 · Version 1.0 · 2026-11-22**
+**Status:** DESIGN ONLY. This section defines the two effect functions no sim module supplies (§12.4: `memory_weight_reduce`, `propose_goal`) and records the three G5 underspecification fixes the data needs (`event_type` names, the weight rule for weightless `memory_write`, the memory owner field). It adds no sim code and does not rewrite `data/dialogue-lines.json` — the function contracts and the data fixes are the deliverable, specified here for the Phase 6 implementation and authoring pass. Where a number would be needed and no source gives one, the amount stays a parameter: this section does not decide it.
+
+### 16.1 `memory_weight_reduce` — the step rule (gap G6)
+
+**The function.** A new function in `tools/sim/memory.py` (the module that owns episodic memory — GDD-01 §2.3; §12.5), specified here for the Phase 6 implementation. Its contract:
+
+- **Target selection.** The target is the harming memory: the strongest negative-weight episodic memory the speaking NPC holds about the player — `memories_about(NPC, player)` (§12.5: strongest first, `ABS(emotional_weight)` descending, then most recent), filtered to `emotional_weight < 0`, first row. The data names the target `harming_episodic_memory` (`dlg_apology_accepted`, `amount_ref: runtime_rule`). If no such memory exists, the effect is a no-op — but the apology accept node requires the `memory: harming_episodic_memory, exists: true` condition, so reaching the effect without a target means the condition was mis-evaluated, and the node's effects roll back per §12.4 rather than silently succeeding.
+- **Step rule.** The weight moves toward zero by the amount, and never across zero: `new_weight = sign(weight) × max(0, |weight| − amount)`. A weight of −40 reduced by an amount of 15 becomes −25; reduced by an amount of 40 or more becomes 0. The row is **never deleted** (GDD-15 §4: the NPC remembers, but forgives) and the weight is never made positive by an apology: forgiveness reduces the harm, it does not manufacture fondness.
+- **The amount stays a parameter.** The amount is supplied by the Phase 6 runtime rule (`amount_ref: runtime_rule` in the data). **No number is decided here** — no source gives one, and this unit does not invent one. The function takes `amount` as an argument; the data carries `amount_ref: runtime_rule`; the value the runtime passes is an owner-tunable rule for Phase 6 playtesting, not a fact this document fixes. Any future number must be recorded where it is set, with its source.
+- **What a zero weight means.** A weight that reaches 0 stays stored as a forgiven memory with weight 0. It is not deleted by the reduction — but `prune()` (`memory.py`, retention priority `|weight|` aged by recency) will forget it first when the 200-row cap binds, because |0| has the lowest priority. That is the correct fate for a forgiven offence under GDD-01 §2.3 ("minor events are never stored indefinitely"): the NPC remembers it only until the cap needs the space.
+- **Whose memory.** The reduction applies to the **speaking NPC's** memory only (see §16.4, the owner fix). The player's own memory of the same event — a separate row owned by the player, if one exists — is untouched: dialogue writes the speaker's and the player's rows, never a third party's (§7), and an apology does not rewrite the player's memory of what happened.
+- **Transaction.** The apology accept node applies `memory_weight_reduce` + `set_flag(apologised_for_offence)` + drift +5/+5 as one transaction (§12.4): if any effect cannot be written, the whole node's effects roll back. One apology per offence: the flag gates repeats, and a second apology for the same offence is answered by `dlg_apology_repeat`, not by a second reduction.
+
+**Gap G6 is resolved by this section** as a function question — the step rule, the target, and the parameter status now exist — while the amount itself remains a runtime-rule parameter by design.
+
+### 16.2 `propose_goal` — the accept path (gap G7)
+
+**The proposal.** `dlg_topic_goals_help` proposes the NPC's life goal as a **stage** goal for the player (`goal_ref: npc_life_goal` — the NPC's `character_goals` row with `goal_kind = 'life'`, GDD-01 §2.2). A proposed goal is always kind `stage`, never `life`: dialogue never silently replaces a life goal (GDD-15 §7).
+
+**The accept path (designed here).** The player — and only the player — accepts, through a dialogue choice on the propose node:
+
+1. **Accept choice.** On accept, the runtime inserts a `character_goals` row for the player: `character_id` = player, `goal_kind = 'stage'`, `goal_type` = the NPC life goal's `goal_type`, `target` = the NPC life goal's `target` plus `proposed_by` (the NPC's character id) and `proposed_at_game_minutes` (current game minutes), `status = 'active'`, `created_at_game_minutes` = current game minutes. The `goal_type` vocabulary is the NPC's own (`own_company | own_house | save_amount | reach_skill | marry | …` — `data/schema.sql` `character_goals` comment): no new goal type is invented for a proposal.
+2. **The stack cap is enforced.** The player's goal stack holds at most 3 active goals — 1 life + up to 2 stage (GDD-01 §2.2). If the player already has 2 active stage goals, the accept choice is **not offered** — hidden, not greyed out, by the same rule that hides locked topics (GDD-15 §4). The proposal can still be heard; it cannot be accepted into a full stack.
+3. **Completion is ordinary goal machinery.** An accepted proposed goal completes like any stage goal (GDD-01 §2.2: completing one pays out in reputation + a trait nudge and proposes the next) — through the goal system, not through dialogue. Dialogue proposes; it never completes a goal.
+4. **Who accepts.** The player only, via the choice. The NPC never accepts a goal for the player, and no other character's goals are touched (§7: dialogue writes the speaker's and the player's rows only).
+
+**What is recorded on decline.** On decline, **no `character_goals` row is written** — that is the point of "never silently applied". The decline itself is recorded as nothing: no flag, no memory row, no goal row. The effect on the decline choice is `none` (the data's explicit no-write vocabulary, §12.4). The NPC's life goal is unchanged, the topic stays available while the band stays `warm`, and the player may be proposed the goal again — bounded only by the 30-minute re-engagement cooldown (GDD-15 §2). The absence of a decline record is deliberate, not an oversight: a proposal the player refused leaves no trace in the goal stack, and the only thing that could stop a re-proposal is the cooldown.
+
+**Required data fix (Phase 6 authoring pass — specified here, not applied to the file by this unit).** The shipped node fires the proposal on entry with no player choice: `dlg_topic_goals_help` has `choices: []` and carries the `propose_goal` effect on both its line and its node, so entering the node proposes the goal immediately — which contradicts GDD-15 §7 ("the player accepts it into the goal stack or not"). The node must be restructured before the accept path can run: (a) the `propose_goal` effect moves off node entry and onto an **accept choice**; (b) a **decline choice** is added with effect `none`, returning to the topic menu; (c) the node's line becomes the proposal itself (the NPC stating the goal and asking), with no effect. The choice labels are authoring for the Phase 6 pass (they must be written, not generated — GDD-15 §5); this section fixes only their structure and their effects, not their words. Until the restructure lands, the accept path in this section has no node to run on — recorded here as the data's current state, not papered over.
+
+**Gap G7 is resolved by this section** as an accept-path question — the row write, the cap rule, the accepter, and the decline record now exist — with the node restructure outstanding as specified Phase 6 authoring work.
+
+### 16.3 G5 fix 1 — `event_type` names for conversation memories
+
+`record_memory()` (`tools/sim/memory.py`) requires an `event_type` string, but no source named the event type for a conversation memory. This fix gives every shipped `memory_write` effect its event type. Two names are **sourced**; three are **decided here** (labelled as this unit's data decision, following the snake_case vocabulary of the schema comment and the sim's event strings — `new_friend`, `partnership`, `marriage`, `conflict_resolved`).
+
+| Memory text (shipped `memory_write`) | `event_type` | Provenance |
+|---|---|---|
+| `helped <name>` (weight +40, `dlg_1_3_return`) | `helped_by_player` | **Sourced** — `data/schema.sql` `character_memories` comment lists `helped_by_player` verbatim among its examples. |
+| `Memory event: friendship with <name>` (`dlg_2_4_return`) | `new_friend` | **Sourced** — the sim's `record_memory()` callers use `new_friend` for a friendship memory (`tools/sim/`). |
+| `<name> could not repay a debt yet` (`dlg_debt_npc_refuses`) | `debt_unpaid` | **Decided here** — no source names a debt event type. Follows the schema/sim snake_case pattern. |
+| `player asked for more time to repay a debt` (`dlg_debt_player_wait`) | `debt_deferred` | **Decided here** — no source names one. Same pattern. |
+| `met <name>` (`dlg_topic_introduce` line — see note below) | `first_meeting` | **Decided here** — no source names one. (`met_player` is a *flag*, GDD-01 §2.3, not an event type, so the event needs its own name.) |
+
+**Note on `met <name>`.** The shipped `dlg_topic_introduce` node carries a `memory_write` with text `met <name>` in the data as read for this unit — if the Phase 6 authoring pass finds the introduce memory recorded under a different text, the `first_meeting` name follows the memory, not the text: the table maps the *occasion* (first meeting), and the text is the authored line. **Rule from here on:** every `memory_write` effect must carry an `event_type` from this table (extended by future units the same way — sourced first, decided-here labelled when no source exists). A `memory_write` without an `event_type` is a data bug, caught by the authoring check — the runtime must never invent one. The `details` JSONB on the row carries the filled memory text (`details.text`, placeholders filled from live data) and the originating node (`details.node_id`).
+
+### 16.4 G5 fix 2 — the weight rule for weightless `memory_write`
+
+Eight of the ten shipped `memory_write` effects carry no `weight` (the four texts in §16.3 other than `helped <name>` — each appearing at node and line level). The rule, grounded in the schema rather than invented: **a `memory_write` with no weight stores `emotional_weight = 0`** — the `data/schema.sql` default (`emotional_weight SMALLINT NOT NULL DEFAULT 0`, and the sim's `character_memories` table likewise defaults to 0). The runtime passes `0` to `record_memory()`; it does not guess a weight and it does not reject the write. Consequence, stated plainly: weight-0 memories have the lowest retention priority under `memory.py` `_priority` (|0| aged by recency) and are forgotten first when the 200-row cap binds — a first meeting is remembered only until the cap needs the space, which matches GDD-01 §2.3 ("minor events are never stored indefinitely"). The only sourced weight in the shipped data remains **+40** (`dlg_1_3_return`, GDD-15 §5). No other number is introduced by this rule.
+
+### 16.5 G5 fix 3 — the memory owner field
+
+No shipped `memory_write` effect names whose memory it is; §12.4 assigns it to the speaking NPC, but the data carries no owner field. The fix: **the `memory_write` effect gains an explicit `owner` field** with two values — `"speaker"` (the speaking NPC — the §12.4 assignment, now explicit in the data) or `"player"` (the player's own memory of the conversation, where the data calls for it). Until the Phase 6 authoring pass adds the field, the runtime default is `"speaker"`, preserving §12.4 for the shipped data. The owner is always one of the two conversation parties — a `memory_write` naming a third party is a data bug (§7: dialogue writes the speaker's and the player's rows only).
+
+**Gap G5 is resolved by this section** — the three underspecifications now have fixes (event-type table §16.3, weight rule §16.4, owner field §16.5) — specified here for the Phase 6 authoring pass, which applies them to `data/dialogue-lines.json`. This unit does not rewrite the data file: the fixes are design decisions recorded in this document, and the verification script checks the document states them and the data contains the effects they apply to.
+
+*End of GDD-15 §16 — Unit BE, Queue 10.*
+
+*End of GDD-15 v1.0 + Unit AV §12 (Queue 9) + Queue 10 §§13–16.*

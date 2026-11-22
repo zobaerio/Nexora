@@ -124,6 +124,62 @@ Extends TECH-MULTIPLAYER §6; each step must pass before the next means anything
 
 ---
 
+## 10. Ledger Idempotency Key Home (AW open decision OD-8 — decided)
+
+**Unit BD · Queue 10 · Version 1.0 · 2026-11-22**
+**Status:** DESIGN ONLY. This section decides open decision OD-8 from `docs/TECH-CHECKPOINT-RUNBOOK.md` §7: `data/schema.sql`'s `economy_ledger` has no `transfer_key` or `event_ref` column although the sim's rows carry both and §2 of this document says the server appends with "same fields, same rule". It adds no column to `schema.sql` — the decision and the migration note are the deliverable, and the migration itself is Phase 9 work.
+
+### 10.1 The decision: add the columns, by forward-only migration
+
+**The server-side home for `transfer_key` and `event_ref` is two columns on `economy_ledger` itself, added by the Phase 9 forward-only migration in §10.3 / Appendix B.** The key lives on the row it identifies — the same home the sim already uses (`tools/sim/persistence.py`: the sim's `economy_ledger` carries `transfer_key TEXT` and `event_ref TEXT`, added by its additive migration, with a `UNIQUE` index on `transfer_key`). The server migration brings PostgreSQL to parity with the proven sim store; it invents no new shape.
+
+The exact DDL the migration carries (Appendix B §B.1 repeats it as the migration record):
+
+```sql
+ALTER TABLE economy_ledger ADD COLUMN transfer_key TEXT;
+ALTER TABLE economy_ledger ADD COLUMN event_ref TEXT;
+CREATE UNIQUE INDEX idx_ledger_transfer_key ON economy_ledger (transfer_key);
+```
+
+Notes on the DDL: the index name is the sim's index name (`idx_ledger_transfer_key`, `tools/sim/persistence.py` `_migrate`), deliberately, so the two stores name the same constraint the same way. The index is a plain `UNIQUE` index, not a partial one: PostgreSQL treats `NULL` values as distinct in a unique index, so rows written before the migration (both columns `NULL`) coexist with keyed rows without any special case. `transfer_key` is nullable because a key is supplied per transfer where one exists (§10.2), and `event_ref` is nullable because §2 already calls it optional ("an optional `event_ref`"). Neither column has a default: a row written without a key stores `NULL`, never an invented key.
+
+### 10.2 The server rule (mirroring the proven sim rule)
+
+The server implements the same rule `Store.transfer` already proves (`tools/sim/persistence.py:2069-2099`):
+
+1. **Same key, same row, never a duplicate charge.** A transfer request carries a `transfer_key` supplied by the client for that request. If a row with that key already exists, the server returns the original `ledger_id` and moves nothing twice. The key and the row commit in **one transaction**: the key is written with the row, never after it, so a retry can always find the committed row by key.
+2. **Keys are globally unique by construction.** Callers build keys from the transfer they identify, in the sim's shapes — `loan:{loan_id}`, `repay:{loan_id}:{month_index}`, `bwage:{employment_id}:{month_index}`, `month:{month_index}`, `decision:…`, `economy_setup` — and the unique index is the backstop, not the plan: a key collision is a caller bug, and the index turns it into a loud refusal instead of a silent duplicate.
+3. **`event_ref` is the causing event, not the identity.** It names the simulation event that caused the transfer (a decision id, a month settlement tag, a loan id — the sim's `event_ref` values are the model). It is never used for deduplication, never unique, and never required: a row without one is a complete row.
+4. **Balances stay caches.** Nothing about the key changes §7 rule 2: the ledger is the truth, balances are caches, and if cache and ledger disagree the ledger wins.
+
+### 10.3 What the migration does not do
+
+- **No change to `reason_code`.** The sim/server reason-code drift found by Unit BB (GDD-15 §14.4 — the sim writes `loan_disbursement` / `loan_repayment` where the schema allows `loan_disburse` / `loan_repay`, among ~39 strings the schema `CHECK` would reject) is a separate Phase 9 data-alignment item. It is not smuggled into this migration: the migration adds two columns and one index, nothing else.
+- **No change to the append-only triggers.** The `economy_ledger` no-UPDATE / no-DELETE triggers keep working unchanged — adding columns does not touch them, and no history row is rewritten.
+- **No backfill.** Rows written before the migration keep `NULL` for both columns. No key is invented for them: a backfilled key would be a fabrication, and a pre-migration row without a key is still a valid ledger row. The idempotency guarantee covers rows written with a key; it does not retroactively cover rows written before keys existed.
+- **No down-migration.** Forward-only (GDD-01 §9; Appendix A §A.5 pattern). If the change must be undone, the rollback is forward: a later migration that stops the server using the columns — never a `DROP COLUMN` smuggled in as a rollback step, and never a delete of keyed rows.
+
+### 10.4 Alternatives considered and rejected
+
+| Alternative | Why it is rejected |
+|---|---|
+| **A separate idempotency table** (`ledger_keys`, one row per key, joined to the ledger) | It splits §7 rule 2 — "every unit of money carries its idempotency key" — across two tables. Every audit query then joins; a key row without its ledger row (or vice versa) is a new failure mode the single-table form cannot have; and the digest (characters + ledger count/sum + clock, §4) would not cover the second table. |
+| **Encode the key in `note` TEXT** | Unstructured, unqueryable, collides with human notes, and no uniqueness can be enforced on a substring of a free-text field. The key would exist as a convention, not a constraint. |
+| **Keep idempotency in the client/request layer only** | A retried request after a disconnect (TECH-MULTIPLAYER §6 test 4) needs the *server* to recognise the key: a client-side-only key cannot deduplicate a request the server already committed. The server must hold the key to answer "did this already land?" |
+| **A key column on another table** (e.g. on `world_state`, or on the requesting entity) | The key belongs to the transfer it identifies. Appendix A §A.1's reasoning for the digest applies by analogy: a statement about a ledger row lives on the ledger row, not on a row it would have to be joined back to — and a single-row table cannot hold one key per transfer at all. |
+
+### 10.5 What TECH-MULTIPLAYER §6 tests 3/4 need from it
+
+- **Test 3 — ledger race** (two clients buy the same `for_sale` property in the same second): the unique index plus the §10.2 rule. Exactly one purchase commits (the property transaction: first committed transaction wins, second gets a refusal — TECH-MULTIPLAYER §4); a retried request carrying the *same* key returns the original `ledger_id` and creates no second row, so the ledger shows exactly one purchase and the loser got a refusal, not a charge. Without the index, the retry path has no server-side fact to consult and the test cannot distinguish "retried" from "bought twice".
+- **Test 4 — disconnect honesty** (a client disconnects mid-transaction; on reconnect, state is the server's): the key written in the same transaction as the row (§10.2 rule 1). On reconnect the client re-sends its request with the same key; the server finds the committed row by key and returns its outcome instead of executing the transfer again — no duplicated money, no half-written stage. A key written in a separate transaction (or not at all) would leave a window where the retry cannot tell "committed" from "never arrived".
+- **Test 6 — soak** needs nothing new from this change: the columns are inert for reconciliation. The Session 10 digest hashes ledger `COUNT(*)` + `SUM(amount)` only (§4 / Appendix A §A.2), so adding two columns changes no digest and no conservation check.
+
+**Open decision OD-8 is decided by this section** — the home is the two columns, added by the Phase 9 forward-only migration (Appendix B) — with the implementation still Phase 9 work: no column exists in `schema.sql` today, no migration file exists, and no server has ever written a keyed row. The runbook's §7 OD-8 entry now reads as decided-here, not undecided.
+
+*End of TECH-PERSISTENT-WORLD §10 — Unit BD, Queue 10.*
+
+---
+
 # Appendix A — Snapshot Digest Metadata (Unit AP · Queue 8 · §3/§9 follow-up)
 
 **Version:** appendix added 2026-11-22 · **Code:** none — design only. No server build, no netcode, no snapshot code exists yet; nothing here claims two machines have ever connected or a world has ever persisted on a server.
@@ -234,5 +290,51 @@ Every field of the sim checkpoint manifest (`worlds.py` `create_checkpoint()`), 
 - **Still open from §9, untouched by this unit:** no network API, no user accounts, no network security surface (checklist item 19 stays PARTIALLY PROVEN), no distributed processing or partitioning, no real-time server in this VM. This appendix closes one open item; it does not close the programme.
 
 *End of Appendix A — Unit AP, Queue 8.*
+
+---
+
+# Appendix B — Ledger Idempotency Keys: Migration Note (Unit BD · Queue 10 · §10 follow-up)
+
+**Version:** appendix added 2026-11-22 · **Code:** none — design only. No server build, no netcode, no migration file exists yet; nothing here claims a server has ever written a keyed ledger row.
+**Parent documents:** `docs/TECH-PERSISTENT-WORLD.md` §2, §7 rule 2, §10 (the decision this appendix records) · `tools/sim/persistence.py` `Store.transfer` + `_migrate` (the proven sim rule this migrates to PostgreSQL) · `data/schema.sql` (`economy_ledger`) · GDD-01 §8 (ledger), §9 (forward-only migrations) · `docs/TECH-CHECKPOINT-RUNBOOK.md` §7 OD-8 (the open decision §10 closes).
+**What this appendix does:** it records the migration for the §10 decision, following Appendix A's §A.5 pattern step for step — the same numbered-steps shape, the same no-backfill rule, the same forward-only rollback posture. It is the migration record for the key columns. It lives here, in this design document — it is NOT written into `data/schema.sql`, and `schema.sql` must not be modified to carry it.
+
+## B.1 The migration (exact statements)
+
+Proposed migration name: `003_ledger_idempotency_keys` (a design-time name — it follows Appendix A's proposed `002_snapshot_metadata`; no migrations directory exists in this repo yet, and the Phase 9 deploy creates the convention).
+
+```sql
+ALTER TABLE economy_ledger ADD COLUMN transfer_key TEXT;
+ALTER TABLE economy_ledger ADD COLUMN event_ref TEXT;
+CREATE UNIQUE INDEX idx_ledger_transfer_key ON economy_ledger (transfer_key);
+```
+
+Three statements, nothing else. No `ALTER TABLE` on any other table, no change to `reason_code` or its `CHECK` list, no change to the append-only triggers, no index on a table that is not being changed.
+
+## B.2 Numbered steps
+
+1. **Author the migration.** The three statements in §B.1, exactly as written. Nothing else.
+2. **Deploy with the server.** The migration runs at deploy (GDD-01 §9: migrations run at deploy; every save/snapshot carries `schema_version`). It is additive only — the deploy adds two columns and one index; it does not rewrite, re-derive, or re-stamp any existing row.
+3. **Backfill: none, by rule.** Rows written before this migration keep `NULL` for both columns. No key is invented for them, and no `event_ref` is reconstructed from history: a pre-migration row without a key is still a valid ledger row, and the idempotency guarantee covers only rows written with a key. PostgreSQL unique indexes treat `NULL` as distinct, so the new index accepts any number of pre-migration `NULL` rows.
+4. **Write path from then on.** Every server-validated transaction that carries a client request key writes `transfer_key` (and `event_ref` where the caller supplies one) in the same transaction as the ledger row (§10 rule 1). A transfer without a key — a system flow with no client request behind it, such as the monthly settlement chain — writes `NULL` and is complete without one: the key is per-request idempotency, not a mandatory field on every row.
+5. **Read path from then on.** A retried request is looked up by `transfer_key` before any money moves: a hit returns the original `ledger_id` and moves nothing (§10 rule 1). The lookup is the same query the sim proves (`SELECT ledger_id FROM economy_ledger WHERE transfer_key = ?`), now backed by the unique index instead of a scan.
+6. **Versioning.** The migration does not change the meaning of any existing row, so existing snapshots keep their `schema_version`; new snapshots record the `schema_version` current at capture. A snapshot from a *newer* version is shown but refused, in words (GDD-05 §7 save/load rule, §3).
+
+## B.3 What is never altered
+
+`world_state` (no new column — the key is not clock state); `save_slots` (no new column); `economy_ledger`'s existing columns, its `reason_code` `CHECK` list, and its append-only triggers (a migration never rewrites history); any existing row's `transfer_key`/`event_ref` once written (a key is never "fixed" to match a retry — the original row is the answer); any existing row's `schema_version`.
+
+## B.4 Rollback posture — forward-only, no down-migration
+
+There is no down-migration for this change, and none may be written later. If the migration must be undone, the rollback is forward: deploy a *new* migration that stops the server using the columns, or a later forward migration that removes them — never a `DROP COLUMN` smuggled in as a rollback step, and never a delete of keyed rows. Keyed rows are the audit evidence of which transfers were deduplicated; deleting them would erase the record of exactly the retries a rollback is trying to reason about. The columns are cheap to keep and safe to ignore; the rows are never deleted by a rollback.
+
+## B.5 Honest boundaries — what this design does and does not do
+
+- **The key is a deduplication fact, not a repair tool.** A retry that finds its key learns the original outcome (§10.5, test 4). What it **never** does: repair a ledger, rewrite a history row, or resurrect a transfer whose row was never committed — a request with no committed row and no key on file is a new transfer, not a retry.
+- **No new server code is shipped here.** No transfer endpoint, no retry handler, no migration file, no netcode. This appendix is a build instruction for Phase 9; the first server test happens on the owner's PC/LAN (TECH-MULTIPLAYER §6), and the §8 test plan — ledger race, disconnect honesty, soak — is the acceptance bar the implementation must meet.
+- **The §9 open item OD-8 is closed as a design question, open as implementation.** The key's home is now decided (two columns on `economy_ledger`, §10). The columns do not exist in `schema.sql` yet, no migration file exists, and no key has ever been written by a server. Nothing in this appendix should be read as claiming otherwise.
+- **Still open from §9 and from the runbook, untouched by this unit:** no network API, no user accounts, no network security surface (checklist item 19 stays PARTIALLY PROVEN), no distributed processing or partitioning, no real-time server in this VM — and the runbook's other open decisions OD-1–OD-7 (operator wording, retention, anchor, fallback automation, audit destination, payload store, operator tooling) are untouched by this unit and are drafted for Queue 11.
+
+*End of Appendix B — Unit BD, Queue 10.*
 
 *End of TECH-PERSISTENT-WORLD v1.0 — Unit AM, Queue 7.*
