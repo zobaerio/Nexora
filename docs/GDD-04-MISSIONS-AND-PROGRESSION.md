@@ -152,6 +152,28 @@ The exact amount inside a range (for example, where in 200-2,000 NCr an errand f
 
 **Shipped-data note (honest limit).** The favour topic exists in `data/dialogue-lines.json` (`dlg_topic_favour` / `dlg_topic_favour_none`, conditions `favour_available` true/false) and evaluates under this contract — but the topic's lines and effects carry only a +1/0 relationship drift. There is **no favour offer / accept / complete node** in the shipped data: the accept writes `mission_progress` with the instance key and completion is verified against world state like any mission (TECH-MULTIPLAYER §4), but those nodes are a Phase 6 data addition built on this contract, not a claim made here. **Gap G2 is resolved by this section** as a contract question — the evaluation rule and the generator's inputs now exist — while the favour *flow* (offer/accept/complete nodes) remains Phase 6 authoring work.
 
+### 3.2 Mission Deadlines (Unit BH · Queue 11 · 2026-11-22)
+
+**Status:** DESIGN ONLY. This section defines the deadline field AV gap G10 named: GDD-15 §4 lets an NPC lead with a time-sensitive mission (deadline within 3 days), but no mission in `data/missions.json` carries a deadline field. It adds no deadline value to any mission — the field is defined, not populated. The dialogue-side note is GDD-15 §19.
+
+**The field.** A mission entry in `data/missions.json` may carry `deadline_days`: an optional integer, minimum 1, counting **in-game days**. Absent means the mission has no deadline — it never expires, and the NPC-lead trigger (GDD-15 §4) never fires for it. The field is optional and per-mission: most missions carry none, and a deadline is a property of the mission's fiction (a client who wants the job by a date), not of the level.
+
+**The clock — from availability, not from acceptance.** The deadline counts from the moment the mission becomes available, not from when the player accepts it. The mission system records that moment in a fifth `progress` key, `available_at_game_minutes` (integer; written by the mission system when the row is created with `status = 'available'`). This extends GDD-15 §13.3, which defined exactly four keys (`accepted_at_game_minutes`, `objectives_complete`, `completed_at_game_minutes`, `abandoned`) — the four keys are unchanged, and this fifth key is defined here, for deadlines only, because §13's mapping has no availability timestamp and the deadline needs one.
+
+| Quantity | Definition |
+|---|---|
+| `deadline_days` | In-game days from availability (field on the `missions.json` entry; absent = no deadline) |
+| `available_at_game_minutes` | `progress` key; game minutes when the row was created `available` |
+| `remaining` | `available_at_game_minutes + deadline_days × 1440 − now` (game minutes; 1440 minutes per in-game day) |
+
+**The lead window — the sourced number.** An available mission with a deadline is *time-sensitive* when `0 < remaining <= 4320` game minutes — the "within 3 days" of GDD-15 §4 (3 × 1440). The window is inclusive at 3 days exactly and exclusive at 0: at `remaining = 0` the mission has expired, not become urgent. The NPC-lead check runs at conversation open (GDD-15 §12.2 step 3, after the debt and memory triggers). Accepting the mission does **not** reset the clock: the client's deadline runs from the ask, so a mission accepted with 2 days left still has 2 days left. That is the design — a deadline is the client's, not the player's acceptance anniversary.
+
+**Expiry.** When `remaining <= 0`, the mission system sets the row to `failed` (GDD-04 §1: a mission can fail when its deadline is missed). Dialogue never writes `failed` (GDD-15 §13.4), and a failed mission has no dialogue state (GDD-15 §13.2): every `mission` condition on it is false, and no node offers, reminds, or completes it. Retry after 7 in-game days returns the row to `available` (GDD-04 §1) with a **fresh** `available_at_game_minutes` — a new deadline window, not a continuation of the expired one. Dialogue plays no part in the retry.
+
+**What never carries a deadline.** Favours never do (GDD-04 §3.1: "A favour has no deadline and no expiry"), so the lead trigger never fires for a favour. Side missions generated from the simulation carry no deadline field either — the field is a main-mission field, and the generator must not invent one.
+
+**Which missions carry one — none today.** No mission in `data/missions.json` carries `deadline_days` as this section is written (verified by the Queue 11 check script), and none is invented here: deadline values are Phase 6 authoring work, set mission by mission when the authoring pass decides which clients are impatient and by how much. A mission that gains a deadline in that pass gains it as a data edit, and the lead trigger, the expiry, and the retry follow from this section without further design. **Gap G10 is resolved by this section** as a field question — the field, the clock, the window, and the expiry now exist — while the values remain authoring work.
+
 ## 4. Free-Roam Rules
 
 1. **The whole district is open from Level 1.** No area is locked behind a level; levels unlock *tools, contracts and systems*, not geography. A Level 1 player can walk the riverfront, enter the market, and ride to the edge of District 1.

@@ -10,7 +10,7 @@
 ## 0. How to read this runbook
 
 - **"The sim"** means the proven headless simulation (Session 10, `tools/sim/`). **"The server"** means the Phase 9 dedicated server (TECH-MULTIPLAYER §1: headless UE server build; owner's PC for LAN tests, a small hosted instance later). Where a step cites a sim behaviour, the citation is the proof; where it prescribes server behaviour, the citation is the design it implements.
-- **No user interface is specified anywhere in this runbook.** The sources define states and outcomes ("refuse to start", "fall back", "write an audit row"), not screens, buttons, or literal message text. Section 6 records the exact operator-facing wording as open decision OD-1 rather than inventing it.
+- **No user interface is specified anywhere in this runbook.** The sources define states and outcomes ("refuse to start", "fall back", "write an audit row"), not screens, buttons, or literal message text. The exact operator-facing wording is defined in §10 (Unit BI, Queue 11), which resolves open decision OD-1.
 - **Tables and fields are quoted exactly as the sources state them.** Where PostgreSQL `data/schema.sql` and the sim's SQLite differ — above all the clock — the difference is stated in the step, not smoothed over (§2.3).
 
 ---
@@ -30,7 +30,7 @@ A named checkpoint is **always a day-boundary state, never a partial day** (TECH
 | On demand | An operator may take a named checkpoint at any day boundary | TECH-PERSISTENT-WORLD §2 ("and on demand") |
 | Mid-day | **Never.** No checkpoint is taken mid-day, mid-tick, or mid-settlement | TECH-PERSISTENT-WORLD §2, §7 rule 4 |
 
-The anchor day within the week is not fixed by any source — see open decision OD-3 (§6).
+The anchor day within the week is fixed by §11.2 (Unit BJ, Queue 11): the day boundary ending each in-game Sunday (Monday 00:00).
 
 ### 1.3 What is captured per tick vs per checkpoint
 
@@ -45,7 +45,7 @@ This is the operator's working form of TECH-PERSISTENT-WORLD §2. "Per tick" mea
 | **Per checkpoint (named)** | Named snapshot via the SQLite backup API + JSON manifest: sim day, population, ledger rows, **ledger reconciled** (verified on the copy), content digest, code version. Server: the snapshot of §3, taken per §1.2. | The checkpoint is the only restorable unit. Nothing else is a restore point. |
 | **Never persisted** | Ambient crowd state, derived NPC positions, client-side caches, the observatory's read models. Server: same — Ambient crowds are local per client and never sent (TECH-MULTIPLAYER §3); a Scheduled NPC's position is derived from schedule + anchor graph on both sides. | Persisting a derived position would be storing a fact twice and letting the copies disagree. |
 
-**Schema discrepancy found while verifying this runbook (§1.3, "Every transfer" row):** the sim's `Store.transfer` rows carry a reason code, an optional `event_ref`, and an idempotency `transfer_key`, and TECH-PERSISTENT-WORLD §2 says the server appends with "same fields, same rule" — but `data/schema.sql`'s `economy_ledger` as drafted lists `reason_code` and no `transfer_key` or `event_ref` column (columns: `ledger_id`, `from_character_id`, `to_character_id`, `from_business_id`, `to_business_id`, `amount`, `reason_code`, `related_property_id`, `related_business_id`, `note`, `game_minutes`, `created_at`). The server-side home for the idempotency key is therefore undecided; see open decision OD-8 (§7). This runbook does not claim the columns exist in `schema.sql`.
+**Schema discrepancy found while verifying this runbook (§1.3, "Every transfer" row):** the sim's `Store.transfer` rows carry a reason code, an optional `event_ref`, and an idempotency `transfer_key`, and TECH-PERSISTENT-WORLD §2 says the server appends with "same fields, same rule" — but `data/schema.sql`'s `economy_ledger` as drafted lists `reason_code` and no `transfer_key` or `event_ref` column (columns: `ledger_id`, `from_character_id`, `to_character_id`, `from_business_id`, `to_business_id`, `amount`, `reason_code`, `related_property_id`, `related_business_id`, `note`, `game_minutes`, `created_at`). The server-side home for the idempotency key is decided by Queue 10, Unit BD — TECH-PERSISTENT-WORLD §10 + Appendix B (forward-only migration `003` adds the columns). This runbook does not claim the columns exist in `schema.sql`.
 
 ---
 
@@ -149,7 +149,7 @@ The chain is, in order: **refuse the snapshot → fall back to the previous name
 |---|---|
 | **Trigger** | Any disagreement at §3.4: recomputed digest ≠ `snapshot_metadata.content_digest`, or ≠ manifest file `digest`, or a count mismatch, or the ledger gate fails, or the version gate refuses. |
 | **Server state** | The server **does not start on that snapshot**. "Never start on a world whose digest does not match — a silently wrong world is worse than a down server" (TECH-PERSISTENT-WORLD §4). |
-| **What the operator sees** | The load is refused for that snapshot. The refusal is recorded: `snapshot_metadata.verification_status` is set to `'mismatch'` with `last_verified_at` updated, and an audit row is written (Appendix A §A.5 step 5). The stored `content_digest` is left untouched — the mismatch is preserved as evidence. No literal message text is defined by any source; exact wording is open decision OD-1 (§6). |
+| **What the operator sees** | The load is refused for that snapshot. The refusal is recorded: `snapshot_metadata.verification_status` is set to `'mismatch'` with `last_verified_at` updated, and an audit row is written (Appendix A §A.5 step 5). The stored `content_digest` is left untouched — the mismatch is preserved as evidence. No literal message text is defined by any source; exact wording is defined in §10 (Unit BI, Queue 11). |
 | **What is never done here** | No repair-in-place of the ledger, no rewrite of history rows to match a digest, no "fix" of a stored digest to match a changed payload, no silent start on the wrong world, no reconstruction of a lost snapshot from its digest (a hash cannot rebuild the society it summarises) — Appendix A §A.6. |
 
 ### 4.2 Step 2 — Fall back to the previous named checkpoint
@@ -159,7 +159,7 @@ The chain is, in order: **refuse the snapshot → fall back to the previous name
 | **Trigger** | Step 1 refused the newest named checkpoint. |
 | **Action** | Load the **previous named checkpoint** — the next-newest snapshot in the named-checkpoint list — and run the full §3.4 verification on it from scratch (recompute, three-way digest agreement, counts, ledger gate, version gate). |
 | **What the operator sees** | The server starts from the previous named checkpoint, at that checkpoint's day (its `game_minutes`, day derived). Play that happened after that checkpoint is gone — that is the honest cost of the fallback, and why checkpoints are taken every in-game week and on clean shutdown (§1.2). The fallback and the refused snapshot are both on the audit record. |
-| **If the previous checkpoint also fails** | Repeat step 2 with the next-older named checkpoint, in order, until one passes §3.4 or the list is exhausted. Each failure is recorded the same way (`verification_status` `'mismatch'`, audit row, digest untouched). Whether this walk is automatic or needs the operator to confirm each step is open decision OD-4 (§6). |
+| **If the previous checkpoint also fails** | Repeat step 2 with the next-older named checkpoint, in order, until one passes §3.4 or the list is exhausted. Each failure is recorded the same way (`verification_status` `'mismatch'`, audit row, digest untouched). Whether this walk is automatic or needs the operator to confirm each step is decided in §11.3 (Unit BJ, Queue 11): confirmation per step. |
 
 ### 4.3 Step 3 — Genesis (the list is exhausted)
 
@@ -168,7 +168,7 @@ The chain is, in order: **refuse the snapshot → fall back to the previous name
 | **Trigger** | Every named checkpoint has been refused, or no named checkpoint exists. |
 | **Action** | Start a **new world from genesis** — a fresh world built from the world's registry entry (name, seed, code version; SESSION-10-REPORT §2.2: registry entries carry world id `WORLD-0001…`, name, path, seed, config/code version, registered time). Genesis is a new world, not a repair of the lost one: nothing from the refused snapshots is carried over, because nothing in them is trusted. |
 | **What the operator sees** | The server starts a fresh world at Day 1, 08:00 (`game_minutes` 480). All prior progress is lost. This is the last resort by design — it exists so the server can always start honestly, never so a broken world can be quietly replaced. |
-| **Operator decision required** | Whether genesis proceeds automatically or only on explicit operator confirmation is open decision OD-4 (§6). No source authorises silently discarding a world's history. |
+| **Operator decision required** | Genesis proceeds only on explicit operator confirmation, typing the world name (§11.3, Unit BJ, Queue 11). No source authorises silently discarding a world's history. |
 
 ### 4.4 The chain at a glance
 
@@ -243,20 +243,20 @@ These are prohibitions, not preferences. Each is stated in a parent document; th
 
 ---
 
-## 7. Open operator decisions
+## 7. Open operator decisions — all resolved
 
-No source gives a value for these. They are recorded here as decisions for the owner/operator, **not** invented by this unit.
+No source gave a value for these when this runbook was written (Unit AW, Queue 9); each row now records its resolution. OD-8 was decided by Queue 10, Unit BD; OD-1–OD-7 by Queue 11, Units BI/BJ/BK (§§10–12). The table is kept as the record of what was open and where each decision lives.
 
 | # | Decision | What the sources do say |
 |---|---|---|
-| OD-1 | **Exact operator-facing wording** for a refused load, a fallback, and a genesis start (message text, log lines, any console/UI wording). | The sources define states and outcomes only: "refuse to start on that snapshot", "fall back to the previous named checkpoint", "write an audit row" (Appendix A §A.5 step 5). No literal message text exists anywhere. |
-| OD-2 | **Checkpoint retention:** how many named checkpoints are kept, and when old ones are deleted. | Checkpoints are taken every in-game week + on clean shutdown + on demand (TECH-PERSISTENT-WORLD §2). No retention count or deletion rule is stated. Deletion, when decided, must respect §6 rule 4 (digest rows are audit evidence — a deleted snapshot must not leave an orphaned digest behind; `ON DELETE CASCADE` in Appendix A §A.3 handles the row, but the retention policy itself is undecided). |
-| OD-3 | **Weekly checkpoint anchor:** which in-game day of the week the periodic checkpoint is taken on. | "Every in-game week" (TECH-PERSISTENT-WORLD §2). The anchor day within the week is unspecified. |
-| OD-4 | **Fallback automation:** whether stepping back through named checkpoints (§4.2) and, finally, genesis (§4.3) happen automatically or only on explicit operator confirmation at each step. | The chain order is fixed (§4); the sources do not say who confirms each step. No source authorises silently discarding a world's history. |
-| OD-5 | **Audit-row destination:** which table/record the mismatch audit row is written to. | Appendix A §A.5 step 5 says "write an audit row" without naming the table. The sim has `audits` (FINAL-ARCHITECTURE layer 15, S05 monthly integrity audits) and `integrity_reports`, but no source maps the server's mismatch audit row to either. |
-| OD-6 | **Snapshot payload store:** where `save_slots.payload_ref` points on the server (file path vs blob key, and which store). | `payload_ref` is defined as "local file path / blob key for the serialised world" (`data/schema.sql`); the choice between them is not made. |
-| OD-7 | **Operator tooling:** how the operator lists checkpoints, takes an on-demand checkpoint, and triggers a restore on the server (no server CLI exists yet; the sim's CLI surface — `--checkpoint`, `--checkpoints`, `--restore-checkpoint`, `--duplicate-to` — is a *local* API, FINAL-ARCHITECTURE). | TECH-MULTIPLAYER §7: no netcode is specified; the server's network API is Phase 9 implementation work. |
-| OD-8 | **Server-side home for the ledger idempotency key:** `data/schema.sql`'s `economy_ledger` has no `transfer_key` or `event_ref` column, although the sim's rows carry both and TECH-PERSISTENT-WORLD §2 says the server appends with "same fields, same rule". Whether the Phase 9 migration adds the columns, or idempotency lives elsewhere, is undecided. | TECH-PERSISTENT-WORLD §2, §7 rule 2; `data/schema.sql` `economy_ledger` column list; TECH-MULTIPLAYER §6 tests 3/4 depend on the key existing. |
+| OD-1 | **Exact operator-facing wording** for a refused load, a fallback, and a genesis start (message text, log lines, any console/UI wording). | **Resolved — §10 (Unit BI, Queue 11):** exact templates for refused load, fallback, and genesis start, plus log lines and wording rules. |
+| OD-2 | **Checkpoint retention:** how many named checkpoints are kept, and when old ones are deleted. | **Resolved — §11.1 (Unit BJ, Queue 11):** newest 10 per world; on taking the 11th, delete the oldest (payload + manifest files, then the `save_slots` row; `ON DELETE CASCADE` removes the digest row with its snapshot). |
+| OD-3 | **Weekly checkpoint anchor:** which in-game day of the week the periodic checkpoint is taken on. | **Resolved — §11.2 (Unit BJ, Queue 11):** the day boundary ending each in-game Sunday (Monday 00:00, `game_minutes % 10080 == 0`). |
+| OD-4 | **Fallback automation:** whether stepping back through named checkpoints (§4.2) and, finally, genesis (§4.3) happen automatically or only on explicit operator confirmation at each step. | **Resolved — §11.3 (Unit BJ, Queue 11):** refusal automatic; each fallback step confirmed; genesis confirmed by typing the world name. No source authorises silently discarding a world's history. |
+| OD-5 | **Audit-row destination:** which table/record the mismatch audit row is written to. | **Resolved — §10.3 (Unit BI, Queue 11):** the `audits` table, scope `snapshot_verification` (a proposed Phase 9 table, not in `schema.sql` yet); `integrity_reports` rejected, new-table rejected. |
+| OD-6 | **Snapshot payload store:** where `save_slots.payload_ref` points on the server (file path vs blob key, and which store). | **Resolved — §12.1 (Unit BK, Queue 11):** absolute file path on the server host, `<snapshot_dir>/<world_id>/<save_slot_id>.payload.json`, manifest beside it. Blob key deferred to a future decision. |
+| OD-7 | **Operator tooling:** how the operator lists checkpoints, takes an on-demand checkpoint, and triggers a restore on the server (no server CLI exists yet; the sim's CLI surface — `--checkpoint`, `--checkpoints`, `--restore-checkpoint`, `--duplicate-to` — is a *local* API, FINAL-ARCHITECTURE). | **Resolved — §12.2 (Unit BK, Queue 11):** local server operator CLI `nexora-server` on the server host, mirroring the sim flags 1:1 (`checkpoints`, `checkpoint`, `restore`, `duplicate`, plus an added `verify`); not a network API. |
+| OD-8 | **Server-side home for the ledger idempotency key:** `data/schema.sql`'s `economy_ledger` has no `transfer_key` or `event_ref` column, although the sim's rows carry both and TECH-PERSISTENT-WORLD §2 says the server appends with "same fields, same rule". Whether the Phase 9 migration adds the columns, or idempotency lives elsewhere, is undecided. | **Resolved — Queue 10, Unit BD (TECH-PERSISTENT-WORLD §10 + Appendix B):** forward-only migration `003` adds the columns. |
 
 ---
 
@@ -284,4 +284,191 @@ The operator runs this on every server start, in order. Each item cites the step
 - **The UE layer remains uncompiled scaffolding for the owner's PC** (FINAL-ARCHITECTURE boundary 1; `docs/PHASE1-BUILD-SHEET.md`). Checkpoint/restore timings quoted here (save 2.90 s, restore 0.79 s, recovery 7.9 s) are headless-sim measurements, not server guarantees.
 - **Still open from TECH-PERSISTENT-WORLD §9, untouched by this unit:** no network API, no user accounts, no network security surface, no distributed processing or partitioning, no real-time server in this VM. This runbook closes one open item — the operator procedure — as a design question; it does not close the programme.
 
-*End of TECH-CHECKPOINT-RUNBOOK v1.0 — Unit AW, Queue 9.*
+---
+
+## 10. Operator Wording & Audit Destination (AW open decisions OD-1 + OD-5 — resolved)
+
+**Unit BI · Queue 11 · Version 1.0 · 2026-11-22**
+**Status:** DESIGN ONLY. This section resolves the two open decisions the runbook left for the owner/operator: the exact operator-facing wording for a refused load, a fallback, and a genesis start (OD-1), and which table the mismatch audit row is written to (OD-5). It adds no server code and no table — the wording templates and the row shape are the deliverable. The server (Phase 9) implements against them. Where a choice is made here rather than sourced, it is labelled as this unit's decision.
+
+**Correction to §0:** §0 says "Section 6 records the exact operator-facing wording as open decision OD-1" — that pointer is wrong. §6 is "What is NEVER done"; OD-1 lives in §7, and the wording itself lives here, in §10.
+
+### 10.1 Wording rules — what every message must and must not do
+
+1. **Name the world, the snapshot, and the day.** Every message names the world id, the snapshot's name, and its in-game day + `game_minutes`. An operator with two worlds on one host (TECH-PERSISTENT-WORLD §8 test 3) must never have to guess which world a refusal is about.
+2. **Name the gate that failed, not a cause.** The check knows *which* gate failed (digest, counts, ledger, version) and what it measured; it does not know *why* (disk corruption, a bad write, a bug). A message states the measured disagreement and never invents a cause — "digests disagree" is the truth; "the disk is corrupt" is a guess.
+3. **Name the next action.** A refusal is not a dead end: the message says what happens next (confirm the fallback, or stop) and what is preserved (the refused snapshot stays preserved for audit; its `content_digest` is untouched, §4.1).
+4. **Digests: full in the log, short on the console.** Log lines carry the full 64-hex digests (machine-readable, comparable). Console/UI lines carry the first 12 hex characters plus "see log" — enough to identify which digest, short enough to read. This split is this unit's decision.
+5. **Language: English.** The runbook's design text is English, and the save/load rule it cites (GDD-05 §7) says a refusal is "shown but refused, in words" — the words are the operator's working language, English, following the document's own language. No localisation is designed here (GDD-05 §11: a Bangla UI is a separate owner decision).
+6. **Placeholders in this section are literal.** `<world>`, `<snapshot>`, `<day>`, `<game_minutes>`, `<gate>`, `<audit_id>` are filled from the check's own values at runtime. The templates below are the exact text, with only the placeholders varying.
+
+### 10.2 The three messages (exact templates)
+
+**Refused load** — console/UI, on any §3.4 failure:
+
+```
+REFUSED: world <world> will not start on snapshot '<snapshot>' (Day <day>, <game_minutes> game minutes).
+<gate> check failed: <detail>. The snapshot is preserved; see audit row <audit_id>.
+Next: confirm fallback to the previous named checkpoint, or stop the server.
+```
+
+`<gate>` is one of `digest`, `counts`, `ledger`, `version`. `<detail>` is the measured disagreement in the gate's own terms, for example `recomputed digest a1b2c3d4e5f6… does not match stored digest 9f8e7d6c5b4a…` (digest), `characters counted 241, snapshot records 242` (counts), `ledger_sum_check found 1 mismatch` (ledger), `snapshot schema_version 3 is newer than server version 2` (version). Log line (one line, full digests):
+
+```
+<utc> REFUSE world=<world> snapshot='<snapshot>' game_minutes=<n> gate=<gate> expected=<stored value> actual=<recomputed value> audit=<audit_id> digest_recomputed=<64-hex> digest_stored=<64-hex> digest_manifest=<64-hex>
+```
+
+**Fallback** — console/UI, when the operator confirms stepping back (§4.2, §11.3):
+
+```
+FALLBACK: starting world <world> from the previous named checkpoint '<snapshot>' (Day <day>).
+Play after that checkpoint is lost. Refused snapshot '<refused>' stays preserved for audit.
+```
+
+Log line:
+
+```
+<utc> FALLBACK world=<world> from_snapshot='<refused>' to_snapshot='<snapshot>' to_game_minutes=<n> confirmed_by=<operator> audit=<audit_id>
+```
+
+**Genesis start** — console/UI, when the list is exhausted (§4.3) and the operator confirms (§11.3):
+
+```
+GENESIS: no named checkpoint passed verification for world <world>.
+Starting a fresh world at Day 1, 08:00 (game_minutes 480). ALL prior progress in this world is lost.
+Type the world name '<world>' to confirm:
+```
+
+The confirmation requires typing the world name — a bare "yes" cannot wipe a world by accident. Log line:
+
+```
+<utc> GENESIS world=<world> confirmed_by=<operator> reason=<no checkpoints | all checkpoints refused> audit=<audit_id>
+```
+
+**Supporting line — verified start** (not one of the three OD-1 messages, but the operator needs its positive form): on a §3.4 pass, the console records
+
+```
+START: world <world> started from checkpoint '<snapshot>' (Day <day>). Digest verified (sha256 <12-hex>…).
+```
+
+### 10.3 Audit destination — the `audits` table (OD-5 decided)
+
+**Decision: the mismatch audit row is written to the `audits` table, scope `snapshot_verification`.** The row shape:
+
+| Field | Value for a mismatch audit row |
+|---|---|
+| `audit_id` | The table's primary key, generated by the server's normal id rule |
+| `scope` | `'snapshot_verification'` (a new scope value; the existing sim scope is `'government_accounts'`) |
+| `month_index` | `game_minutes // 43200` — the same rule `audit_government()` uses (`tools/sim/integrity.py`) |
+| `discrepancies` | JSON list, one object per failed check: `{snapshot, gate, expected, actual}` — `gate` ∈ `digest` \| `counts` \| `ledger` \| `version` |
+| `discrepancy_count` | Length of `discrepancies` |
+| `result` | `'mismatch'` for digest/count/ledger failures; `'version_refusal'` for a newer-version snapshot (§4.4: a version refusal is recorded as such, not as corruption) |
+| `integrity_index` | `NULL` — the index is the government-accounts integrity measure (Session 05); it does not apply to a snapshot check, and no number is invented for it |
+| `auditor_character_id` | `NULL` — the auditor is the server process, not a citizen; no office holds this check (the Auditor General audits government accounts, not snapshots) |
+| `game_minutes` | Current game minutes at the check |
+
+**Table status, stated plainly:** `audits` does **not** exist in `data/schema.sql` today (checked: 19 `CREATE TABLE` statements, no `audits`, no `integrity_reports`, no `snapshot_metadata`). The table arrives with the Phase 9 migration, on the same pattern as `snapshot_metadata` (TECH-PERSISTENT-WORLD Appendix A §A.5): the row shape is specified here, the table itself is Phase 9 work, and this unit does not add it to `schema.sql`. The sim's SQLite `audits` table (`tools/sim/persistence.py`) is the shape this decision mirrors — same columns, same `scope`/`discrepancies`/`result` vocabulary — so the server row and the sim row are the same object in different stores.
+
+**Rejected alternative — `integrity_reports`.** That table holds citizen whistleblower reports about citizens (`reporter_character_id`, `subject_character_id`, `allegation`, `status` — `tools/sim/integrity.py` `file_report()`). A digest mismatch is not an allegation against anyone, has no reporter and no subject citizen, and its outcome is not "unsubstantiated" or "disciplined" — the shape does not fit, and forcing it would record a machine verification failure as a citizen report. Rejected.
+
+**Rejected alternative — a new server table.** A dedicated `snapshot_audits` table would need its own migration for no gain: `audits` is already the audit table, its `scope` field exists precisely to separate audit kinds, and the mismatch row needs no column `audits` lacks. Rejected.
+
+**What is written alongside the row (unchanged):** the §3.4 step 6 outcome record — `snapshot_metadata.last_verified_at` + `verification_status` (`verified` / `mismatch`) — is still written, and `content_digest` is still never overwritten. The `audits` row is the audit trail; the metadata row is the snapshot's own status. Both are written on every verification; neither replaces the other.
+
+**OD-1 and OD-5 are resolved by this section** — the wording templates (§10.2) and the audit destination (§10.3) now exist — with the labelled decisions kept: the digest split (§10.1 rule 4), the typed-name genesis confirmation (§10.2), and the `NULL` auditor/index (§10.3). The `audits` table itself remains Phase 9 migration work.
+
+*End of TECH-CHECKPOINT-RUNBOOK §10 — Unit BI, Queue 11.*
+
+---
+
+## 11. Checkpoint Retention, Anchor & Fallback Automation (AW open decisions OD-2 + OD-3 + OD-4 — resolved)
+
+**Unit BJ · Queue 11 · Version 1.0 · 2026-11-22**
+**Status:** DESIGN ONLY. This section resolves the three open decisions the runbook left for the owner/operator: how many named checkpoints are kept and when old ones are deleted (OD-2), which in-game day of the week the periodic checkpoint is taken on (OD-3), and whether the fallback walk and genesis happen automatically or only on explicit operator confirmation (OD-4). It adds no server code — the three decisions are the deliverable. The server (Phase 9) implements against them. Each number below is this unit's decision, labelled as such, with its rationale stated so the owner/operator can revise it as a config change, not a redesign.
+
+**Correction to §1.2:** §1.2 says "The anchor day within the week is not fixed by any source — see open decision OD-3 (§6)". That pointer is wrong twice over: OD-3 lives in §7, not §6, and it is resolved here, in §11.
+
+### 11.1 Retention — keep the newest 10 named checkpoints (OD-2 decided)
+
+**Decision: keep the newest 10 named checkpoints per world; on taking the 11th, delete the oldest.** The count is per world, and every named checkpoint counts — weekly, clean-shutdown, and on-demand alike, because all three are named snapshots (§1.2) and the fallback chain (§4) does not distinguish them. Genesis resets the count to 0.
+
+**Why 10.** The weekly cadence (§1.2) makes 10 checkpoints ≈ 10 in-game weeks ≈ 2.5 in-game months of fallback depth — deep enough that a corruption discovered a month late still has a clean checkpoint to fall back to, shallow enough to bound the disk: each snapshot is a full world copy (Session 10 endurance: the world file reaches 213.6 MB at 365 days), so 10 bounds one world at roughly 2 GB of snapshots. The number is a config value the operator may revise; the rule is the shape (newest N, delete the oldest on overflow), and N = 10 is this unit's decision, not a sourced fact.
+
+**How deletion works (the §6 rule 4 constraint).** Deletion must respect §6 rule 4: digest rows are audit evidence — a deleted snapshot must not leave an orphaned digest behind. The deletion procedure is one step, in this order:
+
+1. Delete the payload file (`save_slots.payload_ref` — §12.1) and the manifest file beside it.
+2. Delete the `save_slots` row. `ON DELETE CASCADE` (TECH-PERSISTENT-WORLD Appendix A §A.3: `snapshot_metadata.save_slot_id … ON DELETE CASCADE`) removes the `snapshot_metadata` row with it — the digest row goes *with* its snapshot, which is the sanctioned path (§7 OD-2): it is not orphaned, and it is not deleted by a rollback (§6 rule 4 governs rollbacks; retention deletion is a different act, and it deletes the digest row only together with the snapshot it describes).
+3. Verify: list the world's checkpoints (§12.2) and confirm the deleted name is gone and no orphaned row or file remains. A row without a manifest is invisible to the loader (§2.4), and files without a row are ignored, so either order of steps 1–2 is safe — but the procedure is always both, never one without the other. A half-deleted snapshot (files gone, row left, or row gone, files left) is cleanup, never a load candidate.
+
+**What retention never deletes.** It never deletes the `audits` rows (§10.3) that record past verifications — those are the audit trail of deleted snapshots, and they outlive the snapshots they describe. It never deletes a snapshot the operator has explicitly held (no hold mechanism is designed here — a hold is a future operator decision, not smuggled in as a flag).
+
+### 11.2 Weekly anchor — the day boundary ending Sunday (OD-3 decided)
+
+**Decision: the weekly checkpoint is taken at the day boundary ending each in-game Sunday — when the clock write moves `game_minutes` to a multiple of 7 × 1440 (Monday 00:00).** Day 1 is a Monday (`tools/sim/scheduler.py`: `weekday = day_index % 7`, Day 1 index 0 is Monday, Friday = 4), so the in-game week runs Monday–Sunday and the anchor captures the completed week at the moment it ends.
+
+**Why Monday 00:00.** It is unambiguous (a multiple of 7 days from genesis, no calendar lookup), and it avoids the district's weekend-variant days: Friday and Saturday carry schedule variants (`scheduler.py` Friday/Saturday bends), so a checkpoint anchored on either would capture a variant day as the week's representative. Monday is the week's first ordinary day, and the boundary that ends Sunday is a day boundary like every other (§1.1). The check itself is arithmetic on the clock write the server already performs (§1.3): after the once-per-day write, if `game_minutes % 10080 == 0`, take the weekly checkpoint.
+
+### 11.3 Fallback automation — refuse automatically, fall back and genesis only on confirmation (OD-4 decided)
+
+**Decision: the refusal is automatic; every step back is confirmed; genesis is confirmed by name.**
+
+| Step | Automatic or confirmed | Rule |
+|---|---|---|
+| Refuse the snapshot (§4.1) | **Automatic** | The §3.4 gate refuses by itself — the server simply does not start on that snapshot. No confirmation is needed to *not* start a wrong world; asking would invite starting it. The refusal, the `verification_status` update, and the `audits` row (§10.3) are all written automatically. |
+| Fall back to the previous named checkpoint (§4.2) | **Explicit operator confirmation, per step** | Each step back discards real play (everything after that checkpoint is gone — §4.2), so the operator confirms each one, seeing the checkpoint's name and day (§10.2 fallback message). The operator may stop the walk at any step and leave the server down rather than fall further back — a down server is honest, a silently discarded month is not. |
+| Genesis (§4.3) | **Explicit operator confirmation, typing the world name** | The §10.2 genesis message requires the operator to type the world name. No source authorises silently discarding a world's history (§4.3, §7 OD-4), and a bare "yes" cannot wipe a world by accident. |
+
+**Rationale.** The chain order is fixed (§4); only the confirmation was undecided. The split follows the operator's law (§0): a mismatch is refused, never repaired — refusal needs no permission — but *discarding history* needs a human to own it, at each step, because each step is a loss the operator cannot undo. A newer-version refusal (§4.4) follows the same rule: it is shown, recorded as `version_refusal` (§10.3), and the fallback from it is confirmed like any other.
+
+**OD-2, OD-3, and OD-4 are resolved by this section** — the retention count and deletion procedure (§11.1), the weekly anchor (§11.2), and the confirmation split (§11.3) now exist — with each number labelled as this unit's decision and revisable as config. The §7 table rows for OD-2/OD-3/OD-4 point here.
+
+*End of TECH-CHECKPOINT-RUNBOOK §11 — Unit BJ, Queue 11.*
+
+---
+
+## 12. Snapshot Payload Store & Operator Tooling (AW open decisions OD-6 + OD-7 — resolved)
+
+**Unit BK · Queue 11 · Version 1.0 · 2026-11-22**
+**Status:** DESIGN ONLY. This section resolves the two open decisions the runbook left for the owner/operator: where `save_slots.payload_ref` points on the server (OD-6), and how the operator lists checkpoints, takes an on-demand checkpoint, and triggers a restore on the server (OD-7). It adds no server code and no netcode — the store decision and the CLI surface are the deliverable. The server (Phase 9) implements against them.
+
+**Correction to the Queue 11 brief:** the brief cited "TECH-PERSISTENT-WORLD §11 note" for the payload store. No §11 exists in that document — its numbered sections run §1–§10, then Appendices A and B. The payload-store note is **§3** (the manifest-mapping table: `checkpoint_db` → `save_slots.payload_ref`, "file path / blob key") and Appendix A §A.4. This section decides on §3's terms.
+
+### 12.1 Payload store — an absolute file path on the server host (OD-6 decided)
+
+**Decision: `save_slots.payload_ref` holds an absolute file path on the server host, under the server's snapshot directory:**
+
+```
+<snapshot_dir>/<world_id>/<save_slot_id>.payload.json
+```
+
+The manifest file lives beside it, same stem:
+
+```
+<snapshot_dir>/<world_id>/<save_slot_id>.manifest.json
+```
+
+The file name uses the `save_slot_id` (UUID, stable, unique per snapshot), not the human checkpoint name (`slot_label`) — labels can repeat and collide, ids cannot. The payload is the society: every schema table by name, as JSON rows (`TablePayloads`, TECH-SAVE-SYSTEM §2), exactly as §3 defines it. The manifest is the same JSON manifest the sim writes beside its copied world file (§2.1), with the server fields of §2.2.
+
+**Why a file path.** The Phase 9 v1 server runs on the owner's PC/LAN (TECH-MULTIPLAYER §6: first server test on the owner's PC/LAN), and no blob store exists anywhere in the design: no hosting provider, region, or budget is chosen (TECH-MULTIPLAYER §5, §7), and a blob key would require a blob store that has not been decided, priced, or built. A file path works on the LAN server today, with the server's own disk, and the column keeps the blob-key option open — a future decision changes the *value format* (`payload_ref` becomes a key), not the column. The snapshot directory itself (`<snapshot_dir>`) is a server config value, set at deploy; this section fixes the layout inside it, not the root.
+
+**What the decision does not do.** It does not choose a hosting provider, a backup service, or a replication scheme — those are owner money decisions, deferred honestly (TECH-MULTIPLAYER §5). It does not change `payload_ref`'s column (`data/schema.sql`: `payload_ref TEXT — local file path / blob key for the serialised world`); the column already allows either value, and this decision picks one of the two it names.
+
+### 12.2 Operator tooling — the server operator CLI (OD-7 decided)
+
+**Decision: the operator works through a local server operator CLI, `nexora-server`, run on the server host.** It is a local tool, not a network API: TECH-MULTIPLAYER §7 specifies no netcode, and the server's network API is Phase 9 implementation work. Host access is the authorisation — the CLI runs where the server runs, and remote operation waits for the network API. The CLI mirrors the sim's local surface (`tools/sim/__main__.py`: `--checkpoint`, `--checkpoints`, `--restore-checkpoint`, `--duplicate-to`, `--from-checkpoint`) 1:1 in name and semantics, so an operator who learned the sim's flags already knows the server's commands.
+
+| Command | Mirrors (sim) | What it does |
+|---|---|---|
+| `nexora-server checkpoints --world <id>` | `--checkpoints` | Lists the world's named checkpoints, newest first: name (`slot_label`), day (`game_minutes` derived), `verification_status`, `schema_version`. This is the §8 pre-flight step 1. |
+| `nexora-server checkpoint --world <id> --name <name>` | `--checkpoint` | Takes an on-demand named checkpoint **at a day boundary only** (§1.1). Mid-day, it refuses with the §10.2 wording (a refusal, not a partial checkpoint). The new checkpoint counts toward the §11.1 retention of 10. |
+| `nexora-server restore --world <id> --checkpoint <name>` | `--restore-checkpoint` | Restores the named checkpoint as the live state. **Before loading, it takes a safety snapshot of the current live state** (named `pre-restore-<name>`, decided here — so the restore is reversible and the pre-restore world is not silently discarded), then runs the full §3.4 verification on the named snapshot, then loads it only on explicit operator confirmation (§11.3). A failed verification refuses with the §10.2 wording and loads nothing. |
+| `nexora-server duplicate --world <id> --from-checkpoint <name> --to-world <new-id>` | `--duplicate-to` + `--from-checkpoint` | Duplicates the named checkpoint to a new world id. **Never into the live world's slot** (TECH-PERSISTENT-WORLD §4): the duplicate gets a fresh registry entry and its own digest baseline, and the two worlds diverge honestly from there. |
+| `nexora-server verify --world <id> --checkpoint <name>` | — (added here) | Runs the §3.4 verification on a named snapshot **without starting or loading anything**: recompute, three-way digest agreement, counts, ledger gate, version gate; writes the `audits` row (§10.3) and the metadata outcome (§3.4 step 6). The sim has no standalone verify flag — its verification lives inside restore — so this command is added here, labelled as such. It is the operator's way to check a snapshot before deciding to restore it. |
+
+**What the CLI is not.** Not a network API (TECH-MULTIPLAYER §7: no netcode specified). Not remote: it runs on the server host, and no account, token, or network security surface is designed here (SESSION-10-REPORT §8 item 19 stays PARTIALLY PROVEN for exactly this reason). Not a game UI: it is the operator's tool, and the runbook specifies no screens or buttons anywhere (§0). The §8 pre-flight checklist is the procedure these commands serve: list (§8 step 1), verify (§8 steps 2–6), restore (§8 step 7), crash recovery (§8 step 8, via the server restart + verify path).
+
+**OD-6 and OD-7 are resolved by this section** — the payload store (§12.1) and the operator CLI surface (§12.2) now exist — with the labelled decisions kept: the file-path format and layout, the `pre-restore-` safety snapshot, and the added `verify` command. The §7 table rows for OD-6/OD-7 point here. With OD-1 through OD-7 all resolved except OD-8 (decided by Queue 10, Unit BD — TECH-PERSISTENT-WORLD §10 + Appendix B), the runbook's open-decision table is now empty: every decision the runbook recorded has a resolution, and the remaining work is Phase 9 implementation, not design.
+
+*End of TECH-CHECKPOINT-RUNBOOK §12 — Unit BK, Queue 11.*
+
+*End of TECH-CHECKPOINT-RUNBOOK v1.0 — Unit AW, Queue 9 + Queue 10 §10 (Unit BD) + Queue 11 §§10–12 (Units BI, BJ, BK).*
