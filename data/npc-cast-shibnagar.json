@@ -1,0 +1,471 @@
+{
+  "version": "1.0",
+  "source_doc": "docs/GDD-06-NPC-BEHAVIOUR.md §12 (Unit AS addendum)",
+  "notes": "The Phase 6 full tier for Shibnagar Town: 10 fictional named NPCs. Shibnagar is a town, not a district, so the cast is 10, not 25. Every character is invented for the game; no real person is depicted. profession_id resolves to data/professions.json; home_property_id and workplace_property_id resolve to data/city2-shibnagar.json (homes are residential apartment/house properties); schedule_template_id resolves to data/npc-schedules.json (a profession template, or the elder_day life-stage template for the one retired cast member). Relationship types and score ranges follow GDD-01 §6.1/§6.2; spouse edges are mirrored and parent/child edges are mirrored as child/parent. workplace_property_id is null only for the retired elder — Shibnagar has no airport, so it has no pilot, and the pilot profession is not represented in this cast. Intercity edges point at ids in data/npc-cast.json (the District 1 cast) and are recorded from the Shibnagar side only; the District 1 file carries no return edge in this unit. life_stage follows the GDD-01 §3 age bands.",
+  "cast": [
+    {
+      "id": "npc_s01",
+      "name": "Tasnim Jahan",
+      "sex": "female",
+      "age": 34,
+      "life_stage": "adult",
+      "tier": "full",
+      "district": "shibnagar_town",
+      "profession_id": "teacher",
+      "home_property_id": "b_c2_res_apts_a",
+      "workplace_property_id": "b_c2_civic_school",
+      "schedule_template_id": "teacher",
+      "life_goal": "Become head teacher of the Shibnagar school",
+      "note": "Teaches at the primary school; married to Naimul Haque; daughter of Mariam Begum.",
+      "relationships": [
+        {
+          "to": "npc_s05",
+          "type": "spouse",
+          "trust": 85,
+          "affection": 90,
+          "respect": 80
+        },
+        {
+          "to": "npc_s10",
+          "type": "child",
+          "trust": 70,
+          "affection": 80,
+          "respect": 75
+        },
+        {
+          "to": "npc_s02",
+          "type": "friend",
+          "trust": 65,
+          "affection": 70,
+          "respect": 60
+        },
+        {
+          "to": "npc_s06",
+          "type": "acquaintance",
+          "trust": 20,
+          "affection": 15,
+          "respect": 30
+        },
+        {
+          "to": "npc_02",
+          "type": "colleague",
+          "trust": 50,
+          "affection": 45,
+          "respect": 60
+        }
+      ]
+    },
+    {
+      "id": "npc_s02",
+      "name": "Ashraf Ali",
+      "sex": "male",
+      "age": 42,
+      "life_stage": "adult",
+      "tier": "full",
+      "district": "shibnagar_town",
+      "profession_id": "doctor",
+      "home_property_id": "b_c2_res_houses_b",
+      "workplace_property_id": "b_c2_civic_clinic",
+      "schedule_template_id": "doctor",
+      "life_goal": "Bring a second doctor to the Shibnagar clinic",
+      "note": "The town clinic's only doctor; works with Farhana Akter across the river on the second-clinic plan.",
+      "relationships": [
+        {
+          "to": "npc_s01",
+          "type": "friend",
+          "trust": 65,
+          "affection": 70,
+          "respect": 60
+        },
+        {
+          "to": "npc_s06",
+          "type": "acquaintance",
+          "trust": 20,
+          "affection": 15,
+          "respect": 30
+        },
+        {
+          "to": "npc_s08",
+          "type": "acquaintance",
+          "trust": 20,
+          "affection": 15,
+          "respect": 30
+        },
+        {
+          "to": "npc_03",
+          "type": "colleague",
+          "trust": 50,
+          "affection": 45,
+          "respect": 60
+        }
+      ]
+    },
+    {
+      "id": "npc_s03",
+      "name": "Golam Mostafa",
+      "sex": "male",
+      "age": 51,
+      "life_stage": "middle_aged",
+      "tier": "full",
+      "district": "shibnagar_town",
+      "profession_id": "shop_owner",
+      "home_property_id": "b_c2_res_houses_a",
+      "workplace_property_id": "b_c2_market_shops",
+      "schedule_template_id": "shop_owner",
+      "life_goal": "Expand his shop to a second unit in the bazar",
+      "note": "Runs a shop in the Shibnagar Bazar; buys wholesale from Halima Khatun's godown.",
+      "relationships": [
+        {
+          "to": "npc_s08",
+          "type": "colleague",
+          "trust": 50,
+          "affection": 45,
+          "respect": 60
+        },
+        {
+          "to": "npc_s04",
+          "type": "colleague",
+          "trust": 50,
+          "affection": 45,
+          "respect": 60
+        },
+        {
+          "to": "npc_s06",
+          "type": "acquaintance",
+          "trust": 20,
+          "affection": 15,
+          "respect": 30
+        },
+        {
+          "to": "npc_s10",
+          "type": "acquaintance",
+          "trust": 20,
+          "affection": 15,
+          "respect": 30
+        },
+        {
+          "to": "npc_16",
+          "type": "colleague",
+          "trust": 50,
+          "affection": 45,
+          "respect": 60
+        }
+      ]
+    },
+    {
+      "id": "npc_s04",
+      "name": "Farzana Yasmin",
+      "sex": "female",
+      "age": 29,
+      "life_stage": "young_adult",
+      "tier": "full",
+      "district": "shibnagar_town",
+      "profession_id": "chef",
+      "home_property_id": "b_c2_res_apts_b",
+      "workplace_property_id": "b_c2_riverfront_tea_stall",
+      "schedule_template_id": "chef",
+      "life_goal": "Open her own tea stall on the riverfront",
+      "note": "Cooks at the Riverside Tea Stall kitchen; Shibnagar has no restaurant — the tea stalls are the town's food trade.",
+      "relationships": [
+        {
+          "to": "npc_s03",
+          "type": "colleague",
+          "trust": 50,
+          "affection": 45,
+          "respect": 60
+        },
+        {
+          "to": "npc_s08",
+          "type": "colleague",
+          "trust": 50,
+          "affection": 45,
+          "respect": 60
+        },
+        {
+          "to": "npc_s10",
+          "type": "acquaintance",
+          "trust": 20,
+          "affection": 15,
+          "respect": 30
+        },
+        {
+          "to": "npc_12",
+          "type": "colleague",
+          "trust": 50,
+          "affection": 45,
+          "respect": 60
+        }
+      ]
+    },
+    {
+      "id": "npc_s05",
+      "name": "Naimul Haque",
+      "sex": "male",
+      "age": 36,
+      "life_stage": "adult",
+      "tier": "full",
+      "district": "shibnagar_town",
+      "profession_id": "civil_engineer",
+      "home_property_id": "b_c2_res_apts_a",
+      "workplace_property_id": "b_c2_civic_office",
+      "schedule_template_id": "civil_engineer",
+      "life_goal": "See the ferry ghat rebuilt as a proper terminal",
+      "note": "Town Office public-works engineer; married to Tasnim Jahan. Shibnagar has no staged build site.",
+      "relationships": [
+        {
+          "to": "npc_s01",
+          "type": "spouse",
+          "trust": 85,
+          "affection": 90,
+          "respect": 80
+        },
+        {
+          "to": "npc_s09",
+          "type": "colleague",
+          "trust": 50,
+          "affection": 45,
+          "respect": 60
+        },
+        {
+          "to": "npc_s06",
+          "type": "colleague",
+          "trust": 50,
+          "affection": 45,
+          "respect": 60
+        },
+        {
+          "to": "npc_21",
+          "type": "colleague",
+          "trust": 50,
+          "affection": 45,
+          "respect": 60
+        }
+      ]
+    },
+    {
+      "id": "npc_s06",
+      "name": "Anwar Hossain",
+      "sex": "male",
+      "age": 44,
+      "life_stage": "adult",
+      "tier": "full",
+      "district": "shibnagar_town",
+      "profession_id": "police_officer",
+      "home_property_id": "b_c2_res_houses_a",
+      "workplace_property_id": "b_c2_civic_office",
+      "schedule_template_id": "police_officer",
+      "life_goal": "Keep the bazar safe at market hours",
+      "note": "Constable at the Town Office outpost desk; Shibnagar has no dedicated police station.",
+      "relationships": [
+        {
+          "to": "npc_s01",
+          "type": "acquaintance",
+          "trust": 20,
+          "affection": 15,
+          "respect": 30
+        },
+        {
+          "to": "npc_s02",
+          "type": "acquaintance",
+          "trust": 20,
+          "affection": 15,
+          "respect": 30
+        },
+        {
+          "to": "npc_s05",
+          "type": "colleague",
+          "trust": 50,
+          "affection": 45,
+          "respect": 60
+        },
+        {
+          "to": "npc_s03",
+          "type": "acquaintance",
+          "trust": 20,
+          "affection": 15,
+          "respect": 30
+        },
+        {
+          "to": "npc_s07",
+          "type": "acquaintance",
+          "trust": 20,
+          "affection": 15,
+          "respect": 30
+        },
+        {
+          "to": "npc_07",
+          "type": "colleague",
+          "trust": 50,
+          "affection": 45,
+          "respect": 60
+        }
+      ]
+    },
+    {
+      "id": "npc_s07",
+      "name": "Sohag Rana",
+      "sex": "male",
+      "age": 31,
+      "life_stage": "adult",
+      "tier": "full",
+      "district": "shibnagar_town",
+      "profession_id": "taxi_driver",
+      "home_property_id": "b_c2_res_apts_c",
+      "workplace_property_id": "b_c2_transport_bus_stand",
+      "schedule_template_id": "taxi_driver",
+      "life_goal": "Own his own taxi and run the ferry-ghat rank",
+      "note": "Drives the ferry-ghat rank; collects his vehicle at the bus stand.",
+      "relationships": [
+        {
+          "to": "npc_s09",
+          "type": "friend",
+          "trust": 65,
+          "affection": 70,
+          "respect": 60
+        },
+        {
+          "to": "npc_s06",
+          "type": "acquaintance",
+          "trust": 20,
+          "affection": 15,
+          "respect": 30
+        },
+        {
+          "to": "npc_09",
+          "type": "colleague",
+          "trust": 50,
+          "affection": 45,
+          "respect": 60
+        }
+      ]
+    },
+    {
+      "id": "npc_s08",
+      "name": "Halima Khatun",
+      "sex": "female",
+      "age": 47,
+      "life_stage": "adult",
+      "tier": "full",
+      "district": "shibnagar_town",
+      "profession_id": "business_owner",
+      "home_property_id": "b_c2_res_houses_b",
+      "workplace_property_id": "b_c2_market_godown",
+      "schedule_template_id": "business_owner",
+      "life_goal": "Open a second godown near the ferry ghat",
+      "note": "Runs the wholesale godown; supplies the bazar shops and the tea stalls.",
+      "relationships": [
+        {
+          "to": "npc_s03",
+          "type": "colleague",
+          "trust": 50,
+          "affection": 45,
+          "respect": 60
+        },
+        {
+          "to": "npc_s04",
+          "type": "colleague",
+          "trust": 50,
+          "affection": 45,
+          "respect": 60
+        },
+        {
+          "to": "npc_s02",
+          "type": "acquaintance",
+          "trust": 20,
+          "affection": 15,
+          "respect": 30
+        },
+        {
+          "to": "npc_19",
+          "type": "colleague",
+          "trust": 50,
+          "affection": 45,
+          "respect": 60
+        }
+      ]
+    },
+    {
+      "id": "npc_s09",
+      "name": "Alamin Sheikh",
+      "sex": "male",
+      "age": 27,
+      "life_stage": "young_adult",
+      "tier": "full",
+      "district": "shibnagar_town",
+      "profession_id": "construction_worker",
+      "home_property_id": "b_c2_res_apts_b",
+      "workplace_property_id": "b_c2_market_godown",
+      "schedule_template_id": "construction_worker",
+      "life_goal": "Become foreman of the town maintenance crew",
+      "note": "Town maintenance crew, based at the godown yard; Shibnagar has no staged build site.",
+      "relationships": [
+        {
+          "to": "npc_s05",
+          "type": "colleague",
+          "trust": 50,
+          "affection": 45,
+          "respect": 60
+        },
+        {
+          "to": "npc_s07",
+          "type": "friend",
+          "trust": 65,
+          "affection": 70,
+          "respect": 60
+        },
+        {
+          "to": "npc_05",
+          "type": "colleague",
+          "trust": 50,
+          "affection": 45,
+          "respect": 60
+        }
+      ]
+    },
+    {
+      "id": "npc_s10",
+      "name": "Mariam Begum",
+      "sex": "female",
+      "age": 69,
+      "life_stage": "elder",
+      "tier": "full",
+      "district": "shibnagar_town",
+      "profession_id": "teacher",
+      "home_property_id": "b_c2_res_apts_a",
+      "workplace_property_id": null,
+      "schedule_template_id": "elder_day",
+      "life_goal": "Write down Shibnagar's old river stories",
+      "note": "Retired teacher; mother of Tasnim Jahan. Her schedule is the elder_day life-stage template, not a profession template.",
+      "relationships": [
+        {
+          "to": "npc_s01",
+          "type": "parent",
+          "trust": 75,
+          "affection": 85,
+          "respect": 80
+        },
+        {
+          "to": "npc_s03",
+          "type": "acquaintance",
+          "trust": 20,
+          "affection": 15,
+          "respect": 30
+        },
+        {
+          "to": "npc_s04",
+          "type": "acquaintance",
+          "trust": 20,
+          "affection": 15,
+          "respect": 30
+        },
+        {
+          "to": "npc_25",
+          "type": "friend",
+          "trust": 65,
+          "affection": 70,
+          "respect": 60
+        }
+      ]
+    }
+  ]
+}

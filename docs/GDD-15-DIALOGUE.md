@@ -182,7 +182,7 @@ The migration plan (Part C #17) makes LLM dialogue *optional, later*. This docum
 
 ## 11. What This Document Deliberately Does Not Decide
 
-- **Exact authored lines for every tree** — the tree *structure* and the worked examples are here; the full line library is Phase 6 authoring work, written against the §5 contract.
+- **Exact authored lines for every tree** — the tree *structure* and the worked examples are here; the full line library is Phase 6 authoring work, written against the §5 contract. That library now exists as authored data (Unit AO, 2026-11-22): `data/dialogue-lines.json` carries full line sets for the mission `1.3` neighbour-help tree, the mission `2.4` friendship tree, the debt tree, and the apology tree, plus the §4 topic set and small-talk lines for all 11 professions and all 10 zones. Every node and line carries its `condition` and `effects` per the §5 contract, and every reward quoted is verbatim from `data/missions.json`. It is authored data, not generated text — the runtime walks it, it never authors a line.
 - **Voice acting, casting, or a voice pipeline** — text first (§8); a voice pass reads the same lines.
 - **Localisation** — all strings are English design text (GDD-05 §11: a Bangla UI is a separate owner decision).
 - **Multiplayer dialogue** — Phase 9: dialogue in a shared world is server-validated like any other state change (TECH-MULTIPLAYER §4); two players talking to the same NPC is a Phase 9 design question, not answered here.

@@ -10,7 +10,7 @@ change ships:
 Exit code 0 = all checks pass. Any failure prints FAIL lines and exits 1.
 
 Checks (from docs/AUDIT-AND-CHECKLIST.md §2/§7):
-- All 11 JSON data files parse.
+- All 15 JSON data files parse.
 - npc-schedules profession templates match professions.json ids 1:1;
   the 3 life-stage templates exist.
 - district1-blockout plots match buildings-district1 properties 1:1 by id.
@@ -31,9 +31,22 @@ Checks (from docs/AUDIT-AND-CHECKLIST.md §2/§7):
   tools/sim/citygen.py): stays labelled generated; its property /
   plot / road cross-references resolve inside the file; its
   residential stock is 39 units.
+- dialogue-lines.json (Queue 8 Unit AO): the GDD-15 line library —
+  every node/line carries the §5 contract fields, mission /
+  profession / zone references resolve, rewards quoted verbatim
+  from missions.json, no invented NCr amount.
+- district2-blockout.json (Queue 8 Unit AR): the PROPOSED District 2
+  layout — plot ids unique, no id collides with District 1, zones
+  are District 1 vocabulary or labelled new PROPOSED, road classes
+  from the District 1 hierarchy, every element labelled PROPOSED.
+- npc-cast-shibnagar.json (Queue 8 Unit AS): the 10-NPC Shibnagar
+  cast — every profession/home/workplace/schedule reference
+  resolves, edges resolve and intra-Shibnagar edges reciprocate,
+  the graph is one component, the married pair shares a home.
 """
 import json
 import os
+import re
 import sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -56,12 +69,544 @@ def check(cond, label, detail=""):
         print(f"  FAIL: {label} {detail}")
 
 
+# -- Queue 8: Unit AO — dialogue line library --------------------
+# GDD-15 §5 node contract, §4 topic set, §3 bands, §7 effects.
+def check_dialogue_lines_parses(data):
+    """dialogue-lines.json parses (loaded by the caller in the real
+    validator; here we load it ourselves for the standalone run)."""
+    try:
+        dlg = load("dialogue-lines.json")
+    except Exception as e:  # parse failure is a failed check
+        check(False, "dialogue-lines.json parses", f"({e})")
+        return None
+    check(True, "dialogue-lines.json parses")
+    data["dialogue-lines.json"] = dlg
+    return dlg
+
+
+def check_dialogue_lines_contract(dlg):
+    """Every node and every line carries the §5 contract fields;
+    node line counts are 1-3; choice targets resolve; speakers
+    resolve to player / the generic npc token / a cast id / a
+    profession template."""
+    nodes = []
+    for tree in dlg["trees"].values():
+        nodes.extend(tree["nodes"])
+    for topic in dlg["topics"].values():
+        nodes.extend(topic["nodes"])
+    node_ids = [n["node_id"] for n in nodes]
+    check(len(node_ids) == len(set(node_ids)),
+          "dialogue node ids are unique", f"n={len(node_ids)}")
+    check(all(1 <= len(n["lines"]) <= 3 for n in nodes),
+          "every dialogue node holds 1-3 lines")
+    bad = []
+    for n in nodes:
+        for f in ("node_id", "speaker", "lines", "condition",
+                  "choices", "effects", "ends"):
+            if f not in n:
+                bad.append((n.get("node_id"), f))
+        for ln in n.get("lines", []):
+            for f in ("speaker", "text", "condition", "effects"):
+                if f not in ln or (f == "effects" and not ln[f]):
+                    bad.append((n.get("node_id"), "line " + f))
+            if not ln.get("text", "").strip():
+                bad.append((n.get("node_id"), "empty line text"))
+        for c in n.get("choices", []):
+            if c.get("next") not in node_ids:
+                bad.append((n.get("node_id"), "choice -> " + str(c.get("next"))))
+    check(not bad, "dialogue nodes/lines carry the §5 contract "
+          "fields and choice targets resolve", f"bad={bad[:8]}")
+    return nodes
+
+
+def check_dialogue_lines_references(dlg, data):
+    """Mission ids resolve in missions.json; profession ids resolve
+    in professions.json (all 11 covered by small talk); zone ids
+    resolve in buildings-district1.json (all 10 covered); speakers
+    resolve; conditions use only the documented vocabulary."""
+    missions = {m["id"] for m in data["missions.json"]["missions"]}
+    prof_ids = {p["id"] for p in data["professions.json"]["professions"]}
+    zones = set(data["buildings-district1.json"]["zones"])
+    cast_ids = {c["id"] for c in data["npc-cast.json"]["cast"]}
+    cond_keys = {"always", "band", "band_min", "band_max", "flag",
+                 "value", "mission", "state", "relationship_mean_min",
+                 "respect_min", "employed", "has_household", "zone",
+                 "profession", "memory", "exists", "tier",
+                 "favour_available"}
+    bands = {"close", "warm", "neutral", "wary", "hostile"}
+    flags = {"met_player", "owes_player", "player_owes",
+             "worked_with_player", "employs_player",
+             "apologised_for_offence"}
+    bad = []
+    seen_missions, seen_profs, seen_zones = set(), set(), set()
+
+    def scan_cond(c, where):
+        if set(c) > cond_keys:
+            bad.append((where, "cond keys", sorted(set(c) - cond_keys)))
+        for k in ("band", "band_min", "band_max"):
+            if k in c and c[k] not in bands:
+                bad.append((where, k, c[k]))
+        if "flag" in c and c["flag"] not in flags:
+            bad.append((where, "flag", c["flag"]))
+        if "mission" in c:
+            seen_missions.add(c["mission"])
+            if c["mission"] not in missions:
+                bad.append((where, "mission", c["mission"]))
+        if "zone" in c:
+            seen_zones.add(c["zone"])
+            if c["zone"] not in zones:
+                bad.append((where, "zone", c["zone"]))
+        if "profession" in c:
+            seen_profs.add(c["profession"])
+            if c["profession"] not in prof_ids:
+                bad.append((where, "profession", c["profession"]))
+
+    def scan_line(ln, where):
+        s = ln.get("speaker")
+        if s not in ("player", "npc") and s not in cast_ids \
+                and s not in prof_ids:
+            bad.append((where, "speaker", s))
+        scan_cond(ln.get("condition", {}), where)
+
+    for tree in dlg["trees"].values():
+        if tree.get("mission_id"):
+            seen_missions.add(tree["mission_id"])
+            if tree["mission_id"] not in missions:
+                bad.append((tree["mission_id"], "tree mission", ""))
+        for n in tree["nodes"]:
+            scan_cond(n.get("condition", {}), n["node_id"])
+            for ln in n["lines"]:
+                scan_line(ln, n["node_id"])
+    for tname, topic in dlg["topics"].items():
+        for n in topic["nodes"]:
+            scan_cond(n.get("condition", {}), n["node_id"])
+            for ln in n["lines"]:
+                scan_line(ln, n["node_id"])
+    for pid, lines in dlg["small_talk"]["by_profession"].items():
+        seen_profs.add(pid)
+        if pid not in prof_ids:
+            bad.append((pid, "small-talk profession", ""))
+        for ln in lines:
+            scan_line(ln, "small_talk:" + pid)
+    for zid, lines in dlg["small_talk"]["by_zone"].items():
+        seen_zones.add(zid)
+        if zid not in zones:
+            bad.append((zid, "small-talk zone", ""))
+        for ln in lines:
+            scan_line(ln, "small_talk:" + zid)
+    check(not bad, "dialogue mission/profession/zone/speaker/"
+          "condition references resolve", f"bad={bad[:8]}")
+    check(seen_missions <= missions,
+          "every dialogue mission id resolves in missions.json",
+          f"unresolved={seen_missions - missions}")
+    check(seen_profs == prof_ids,
+          "dialogue covers all 11 professions",
+          f"missing={prof_ids - seen_profs}")
+    check(seen_zones == zones,
+          "dialogue covers all 10 zones",
+          f"missing={zones - seen_zones}")
+    check(set(dlg["topics"]) == {"greet", "introduce", "ask_about_work",
+                                 "ask_about_goals", "ask_about_family",
+                                 "ask_about_place", "mission_offer",
+                                 "favour", "debt", "apologise",
+                                 "say_goodbye"},
+          "all 11 GDD-15 §4 topics present")
+
+
+def check_dialogue_lines_effects(dlg):
+    """Effects use only the §7 allowed writes; ledger settlements
+    carry only the allowed reason codes; no forbidden write
+    (property, third-party memory, balance minting) appears."""
+    allowed = {"relationship_drift", "set_flag", "memory_write",
+               "memory_weight_reduce", "mission_progress",
+               "mission_complete", "ledger_settlement", "propose_goal",
+               "none"}
+    reasons = {"mission_reward", "loan", "repayment"}
+    bad = []
+
+    def scan_effects(effects, where):
+        for e in effects:
+            if e.get("type") not in allowed:
+                bad.append((where, "effect", e.get("type")))
+            if e.get("type") == "ledger_settlement" \
+                    and e.get("reason") not in reasons:
+                bad.append((where, "ledger reason", e.get("reason")))
+
+    for tree in dlg["trees"].values():
+        for n in tree["nodes"]:
+            scan_effects(n.get("effects", []), n["node_id"])
+            for ln in n["lines"]:
+                scan_effects(ln.get("effects", []), n["node_id"])
+    for topic in dlg["topics"].values():
+        for n in topic["nodes"]:
+            scan_effects(n.get("effects", []), n["node_id"])
+            for ln in n["lines"]:
+                scan_effects(ln.get("effects", []), n["node_id"])
+    for group in dlg["small_talk"].values():
+        for lines in group.values():
+            for ln in lines:
+                scan_effects(ln.get("effects", []), "small_talk")
+    blob = json.dumps(dlg)
+    for forbidden in ("property_transfer", "property_purchase",
+                      "third_party_memory", "set_balance",
+                      "mint_credits"):
+        if forbidden in blob:
+            bad.append(("file", "forbidden write", forbidden))
+    check(not bad, "dialogue effects are §7-allowed writes only",
+          f"bad={bad[:8]}")
+
+
+def check_dialogue_lines_rewards_verbatim(dlg, data):
+    """Rewards/objectives/unlocks quoted in the mission trees match
+    missions.json verbatim; offer lines name the same reputation
+    amounts and state 'no credits' where credits_ncr is null; no
+    line states an invented NCr amount (debt amounts live in the
+    ledger; the errand pattern is quoted verbatim, not as a
+    promise)."""
+    missions = {m["id"]: m for m in data["missions.json"]["missions"]}
+    bad = []
+    for tname, tree in dlg["trees"].items():
+        mid = tree.get("mission_id")
+        if not mid:
+            continue
+        m = missions[mid]
+        if tree.get("objectives_quoted") != m["objectives"]:
+            bad.append((tname, "objectives"))
+        if tree.get("rewards_quoted") != m["rewards"]:
+            bad.append((tname, "rewards"))
+        if tree.get("unlocks_quoted") != m["unlocks"]:
+            bad.append((tname, "unlocks"))
+        text = " ".join(ln["text"] for n in tree["nodes"]
+                        for ln in n["lines"])
+        for rep in m["rewards"]["reputation"]:
+            if str(rep["amount"]) not in text:
+                bad.append((tname, "offer omits +" + str(rep["amount"])))
+        if m["rewards"]["credits_ncr"] is None and \
+                "no credit" not in text.lower():
+            bad.append((tname, "offer omits 'no credits'"))
+    check(not bad, "dialogue mission rewards/objectives/unlocks "
+          "match missions.json verbatim", f"bad={bad}")
+    # No invented NCr amount in any line (the favour line quotes
+    # the side_mission_types pattern verbatim).
+    pattern = next(s["reward_pattern"] for s in
+                   data["missions.json"]["side_mission_types"]
+                   if s["type"] == "errands")
+    texts = []
+    for tree in dlg["trees"].values():
+        texts.extend(ln["text"] for n in tree["nodes"] for ln in n["lines"])
+    for topic in dlg["topics"].values():
+        texts.extend(ln["text"] for n in topic["nodes"] for ln in n["lines"])
+    for group in dlg["small_talk"].values():
+        for lines in group.values():
+            texts.extend(ln["text"] for ln in lines)
+    bad_amounts = [t for t in texts
+                   if re.search(r"\b\d[\d,]*\s*NCr\b", t)
+                   and pattern not in t]
+    check(not bad_amounts,
+          "no dialogue line states an invented NCr amount",
+          f"bad={bad_amounts[:2]}")
+    check(any(pattern in t for t in texts),
+          "favour topic quotes the errand reward pattern verbatim")
+
+
+# -- Queue 8: Unit AR — District 2 blockout -----------------------
+def check_district2_parses(d2):
+    """district2-blockout.json parses and carries the PROPOSED status."""
+    check(d2 is not None, "district2-blockout.json parses")
+    check(d2.get("status") == "PROPOSED",
+          "district2 top-level status is PROPOSED",
+          f"status={d2.get('status')}")
+    check(d2.get("version") == "1.0",
+          "district2 version is 1.0", f"version={d2.get('version')}")
+
+
+def check_district2_plot_ids_unique(d2):
+    """Plot ids are unique within the file."""
+    ids = [p["id"] for p in d2["plots"]]
+    check(len(ids) == len(set(ids)),
+          "district2 plot ids unique within the file",
+          f"n={len(ids)} unique={len(set(ids))}")
+
+
+def check_district2_no_collision_with_district1(d1, d2):
+    """No plot/road/landmark/junction/zone id collides with any id in
+    data/district1-blockout.json (segments, junctions, landmarks,
+    building ids, zone ids)."""
+    d1_ids = set()
+    for s in d1["road_segments"]:
+        d1_ids.add(s["id"])
+    for j in d1["junctions"]:
+        d1_ids.add(j["id"])
+    for lm in d1["landmarks"]:
+        d1_ids.add(lm["id"])
+    for p in d1["plots"]:
+        d1_ids.add(p["building_id"])
+    d1_ids.update(d1["zone_boxes_m"])
+    d2_ids = set()
+    for coll, key in ((d2["road_segments"], "id"), (d2["plots"], "id"),
+                      (d2["landmarks"], "id"), (d2["junctions"], "id")):
+        d2_ids.update(c[key] for c in coll)
+    d2_ids.update(d2["zone_boxes_m"])
+    collisions = sorted(d2_ids & d1_ids)
+    check(not collisions,
+          "district2 ids do not collide with district1 ids",
+          f"collisions={collisions} (d1={len(d1_ids)} d2={len(d2_ids)})")
+    # Plots must not reference buildings that do not exist: every
+    # district2 plot has building_id null (no buildings-district2 data).
+    non_null = [p["id"] for p in d2["plots"]
+                if p.get("building_id") is not None]
+    check(not non_null,
+          "district2 plots reference no building ids (building_id null)",
+          f"non-null={non_null}")
+
+
+def check_district2_zones_in_d1_vocabulary_or_proposed(d1, d2):
+    """Every zone id is in the District 1 zone vocabulary (base zone name
+    after the d<N>_ prefix) or explicitly labelled as a new PROPOSED zone
+    in the zones metadata."""
+    d1_vocab = {z.split("_", 1)[1] for z in d1["zone_boxes_m"]}
+    bad = []
+    for z in d2["zone_boxes_m"]:
+        base = z.split("_", 1)[1]
+        meta = d2.get("zones", {}).get(z, {})
+        if base in d1_vocab:
+            continue
+        if meta.get("status") == "PROPOSED" and \
+                "NEW PROPOSED" in meta.get("vocabulary", ""):
+            continue
+        bad.append(z)
+    check(not bad,
+          "district2 zones are d1 vocabulary or labelled new PROPOSED",
+          f"bad={bad} d1_vocab={sorted(d1_vocab)}")
+    check(set(d2.get("zones", {})) == set(d2["zone_boxes_m"]),
+          "district2 zones metadata covers exactly its zone boxes")
+    bad_plots = [p["id"] for p in d2["plots"]
+                 if p["zone_id"] not in d2["zone_boxes_m"]]
+    check(not bad_plots,
+          "district2 plot zone refs resolve",
+          f"bad={bad_plots}")
+
+
+def check_district2_road_classes_in_d1_hierarchy(d1, d2):
+    """Road classes are from the District 1 hierarchy (GDD-02 §3), with
+    the District 1 widths for arterial/collector/local."""
+    d1_classes = {s["class"] for s in d1["road_segments"]}
+    bad = [s["id"] for s in d2["road_segments"]
+           if s["class"] not in d1_classes]
+    check(not bad,
+          "district2 road classes are from the d1 hierarchy",
+          f"bad={bad} classes={sorted(d1_classes)}")
+    widths = {"arterial": 16, "collector": 10, "local": 8}
+    bad_w = [s["id"] for s in d2["road_segments"]
+             if s["class"] in widths and s["width_m"] != widths[s["class"]]]
+    check(not bad_w,
+          "district2 arterial/collector/local widths match d1 (16/10/8)",
+          f"bad={bad_w}")
+
+
+def check_district2_proposed_labelling(d2):
+    """Every PROPOSED element is labelled: top-level status, and status
+    PROPOSED on every segment, plot, landmark, junction and zone entry."""
+    bad = []
+    for coll, label in ((d2["road_segments"], "segment"),
+                        (d2["plots"], "plot"),
+                        (d2["landmarks"], "landmark"),
+                        (d2["junctions"], "junction")):
+        bad.extend(f"{label}:{c['id']}" for c in coll
+                   if c.get("status") != "PROPOSED")
+    bad.extend(f"zone:{z}" for z, m in d2.get("zones", {}).items()
+               if m.get("status") != "PROPOSED")
+    check(not bad,
+          "every district2 element is labelled PROPOSED",
+          f"unlabelled={bad}")
+    check(d2.get("river", {}).get("bridge", {}).get("segment_ref") is None,
+          "district2 proposes no bridge (no second bridge)",
+          f"bridge={d2.get('river', {}).get('bridge')}")
+    check(d2.get("river", {}).get("ghat") is None,
+          "district2 has no ghat (no river in district 2)")
+
+
+# -- Queue 8: Unit AS — Shibnagar full cast -----------------------
+# Written in this file's style: they take the shared `data` dict loaded
+# by main() and use its module-level `check()` / `FAILURES` helpers,
+# plus the locals main() already builds (professions, prof_ids,
+# schedules, sched_ids, buildings).
+#
+# Rule enforced on intercity edges: every relationship target must
+# resolve (intra-Shibnagar in this file, intercity in npc-cast.json);
+# intra-Shibnagar edges must mirror (spouse/partner/sibling mirrored,
+# parent <-> child, everything else same-type back). Intercity edges are
+# NOT required to mirror — the District 1 file carries no return edge in
+# this unit, so the tie is recorded from the Shibnagar side only. The
+# intercity rule is file-level: the cast as a whole must have >= 1
+# intercity edge; a per-NPC intercity edge is NOT required (each NPC
+# only needs >= 1 edge total). As written, all 10 NPCs happen to have
+# one, which is stronger than the rule.
+def check_shibnagar_cast_parses(data):
+    """npc-cast-shibnagar.json parses (main() loads it into data)."""
+    check("npc-cast-shibnagar.json" in data,
+          "npc-cast-shibnagar.json parses")
+
+
+def check_shibnagar_cast_ids(data):
+    """10 fictional Full-tier NPCs, unique ids, Shibnagar district."""
+    cast = data["npc-cast-shibnagar.json"]["cast"]
+    ids = [c["id"] for c in cast]
+    check(len(cast) == 10 and len(set(ids)) == 10,
+          "shibnagar cast is 10 unique ids", f"n={len(cast)}")
+    check(all(c.get("tier") == "full" for c in cast),
+          "shibnagar cast is all full tier")
+    check(all(c.get("district") == "shibnagar_town" for c in cast),
+          "shibnagar cast district is shibnagar_town")
+
+
+def check_shibnagar_cast_refs(data, prof_ids, sched_ids, schedules):
+    """Every profession/home/workplace/schedule ref resolves; ages sit
+    in their life_stage's GDD-01 §3 band; null workplace only for the
+    retired elder (elder_day), as in the Unit AN checks."""
+    cast = data["npc-cast-shibnagar.json"]["cast"]
+    c2 = data["city2-shibnagar.json"]
+    c2_ids = {p["id"] for p in c2["properties"]}
+    c2_res = {p["id"] for p in c2["properties"]
+              if p["property_type"] in ("apartment", "house")}
+    sched_all = set(sched_ids) | set(
+        schedules["life_stage_templates"].keys())
+    bands = {"child": (3, 12), "teen": (13, 17),
+             "young_adult": (18, 29), "adult": (30, 49),
+             "middle_aged": (50, 64), "elder": (65, 200)}
+    bad = []
+    profs_seen = set()
+    for c in cast:
+        profs_seen.add(c["profession_id"])
+        if c["profession_id"] not in prof_ids:
+            bad.append((c["id"], "profession", c["profession_id"]))
+        if c["schedule_template_id"] not in sched_all:
+            bad.append((c["id"], "schedule", c["schedule_template_id"]))
+        if c["home_property_id"] not in c2_res:
+            bad.append((c["id"], "home", c["home_property_id"]))
+        w = c.get("workplace_property_id")
+        if w is not None and w not in c2_ids:
+            bad.append((c["id"], "workplace", w))
+        if w is None and c["schedule_template_id"] != "elder_day":
+            bad.append((c["id"], "workplace", "null without reason"))
+        lo, hi = bands.get(c["life_stage"], (0, 0))
+        if not (lo <= c["age"] <= hi):
+            bad.append((c["id"], "age/stage",
+                        (c["age"], c["life_stage"])))
+    check(not bad, "shibnagar cast refs resolve (profession/home/"
+          "workplace/schedule/age-band)", f"bad={bad}")
+    # A town of 10 cannot cover all 11 professions; the two honest
+    # absences are pilot (no airport anywhere, GDD-06 §4.11) and
+    # software_developer (no office stock in Shibnagar).
+    check("pilot" not in profs_seen
+          and "software_developer" not in profs_seen,
+          "shibnagar cast omits only pilot + software_developer",
+          f"seen={sorted(profs_seen)}")
+    NOTES.append(f"shibnagar profession spread: "
+                 f"{len(profs_seen)} distinct of 11")
+
+
+def check_shibnagar_cast_edges(data):
+    """Every relationship target resolves (intra-Shibnagar in this
+    file, intercity in npc-cast.json); types from GDD-01 §6.1, scores
+    in -100..100; intra edges reciprocate with the AN mirror map;
+    intercity edges are exempt from mirroring (recorded from the
+    Shibnagar side only). Each NPC needs >= 1 edge total; the file
+    needs >= 1 intercity edge (per-NPC intercity NOT required)."""
+    cast = data["npc-cast-shibnagar.json"]["cast"]
+    by_id = {c["id"]: c for c in cast}
+    d1_ids = {c["id"] for c in data["npc-cast.json"]["cast"]}
+    rel_types = {"parent", "child", "sibling", "partner", "spouse",
+                 "ex_partner", "friend", "best_friend", "colleague",
+                 "employer", "employee", "rival", "acquaintance"}
+    mirror = {"spouse": "spouse", "partner": "partner",
+              "sibling": "sibling", "parent": "child",
+              "child": "parent", "colleague": "colleague",
+              "friend": "friend", "best_friend": "best_friend",
+              "rival": "rival", "acquaintance": "acquaintance"}
+    bad = []
+    intercity = 0
+    for c in cast:
+        seen = set()
+        for e in c.get("relationships", []):
+            tgt = e["to"]
+            intra = tgt in by_id
+            if not intra and tgt not in d1_ids:
+                bad.append((c["id"], "edge to", tgt))
+                continue
+            if not intra:
+                intercity += 1
+            if tgt == c["id"]:
+                bad.append((c["id"], "self edge", tgt))
+            if tgt in seen:
+                bad.append((c["id"], "dup edge", tgt))
+            seen.add(tgt)
+            if e["type"] not in rel_types:
+                bad.append((c["id"], "rel type", e["type"]))
+            if any(not (-100 <= e[k] <= 100)
+                   for k in ("trust", "affection", "respect")):
+                bad.append((c["id"], "score range", tgt))
+            if intra:
+                back = [x for x in by_id[tgt].get("relationships", [])
+                        if x["to"] == c["id"]]
+                if not back or back[0]["type"] != mirror.get(e["type"]):
+                    bad.append((c["id"], "unmirrored", tgt, e["type"]))
+        if not c.get("relationships"):
+            bad.append((c["id"], "no edges", ""))
+    check(not bad, "shibnagar cast edges resolve, score, and "
+          "intra edges reciprocate", f"bad={bad[:8]}")
+    check(intercity >= 1,
+          "shibnagar cast has >=1 intercity edge (file-level rule)",
+          f"intercity={intercity}")
+
+
+def check_shibnagar_cast_component(data):
+    """The graph is one connected component over intra-Shibnagar
+    edges (intercity edges are extra, not part of the component)."""
+    cast = data["npc-cast-shibnagar.json"]["cast"]
+    ids = [c["id"] for c in cast]
+    adj = {cid: set() for cid in ids}
+    for c in cast:
+        for e in c.get("relationships", []):
+            if e["to"] in adj:
+                adj[c["id"]].add(e["to"])
+                adj[e["to"]].add(c["id"])
+    seen, stack = set(), [ids[0]]
+    while stack:
+        n = stack.pop()
+        if n in seen:
+            continue
+        seen.add(n)
+        stack.extend(adj[n] - seen)
+    check(seen == set(ids),
+          "shibnagar cast relationship graph is one component",
+          f"reached={len(seen)}/10")
+
+
+def check_shibnagar_cast_households(data):
+    """The married pair shares a home property (GDD-01 §5 household
+    in the data sense: one home property, one expense pool)."""
+    cast = data["npc-cast-shibnagar.json"]["cast"]
+    by_id = {c["id"]: c for c in cast}
+    pairs = [(c["id"], e["to"]) for c in cast
+             for e in c.get("relationships", [])
+             if e["type"] == "spouse" and c["id"] < e["to"]]
+    check(len(pairs) >= 1
+          and all(by_id[a]["home_property_id"]
+                  == by_id[b]["home_property_id"]
+                  for a, b in pairs),
+          "shibnagar married pair(s) share a home",
+          f"pairs={pairs}")
+
+
 def main():
     names = ["professions.json", "npc-schedules.json",
              "buildings-district1.json", "district1-blockout.json",
              "prices.json", "weather-presets.json", "missions.json",
              "clothing.json", "vehicles.json", "planets.json",
-             "city2-shibnagar.json", "npc-cast.json"]
+             "city2-shibnagar.json", "npc-cast.json",
+             "dialogue-lines.json", "district2-blockout.json",
+             "npc-cast-shibnagar.json"]
     data = {}
     for n in names:
         try:
@@ -770,6 +1315,35 @@ def main():
         check(seen == set(cast_ids),
               "npc cast relationship graph is one component",
               f"reached={len(seen)}/25")
+
+    # -- Queue 8: Units AO + AR + AS -------------------------------
+    # Dialogue line library (AO), District 2 blockout (AR) and the
+    # Shibnagar cast (AS); the check functions live at module level
+    # above, in this file's style.
+    if "dialogue-lines.json" in data:
+        dlg = check_dialogue_lines_parses(data)
+        if dlg is not None:
+            check_dialogue_lines_contract(dlg)
+            check_dialogue_lines_references(dlg, data)
+            check_dialogue_lines_effects(dlg)
+            check_dialogue_lines_rewards_verbatim(dlg, data)
+    if "district2-blockout.json" in data \
+            and "district1-blockout.json" in data:
+        d2 = data["district2-blockout.json"]
+        d1 = data["district1-blockout.json"]
+        check_district2_parses(d2)
+        check_district2_plot_ids_unique(d2)
+        check_district2_no_collision_with_district1(d1, d2)
+        check_district2_zones_in_d1_vocabulary_or_proposed(d1, d2)
+        check_district2_road_classes_in_d1_hierarchy(d1, d2)
+        check_district2_proposed_labelling(d2)
+    if "npc-cast-shibnagar.json" in data:
+        check_shibnagar_cast_parses(data)
+        check_shibnagar_cast_ids(data)
+        check_shibnagar_cast_refs(data, prof_ids, sched_ids, schedules)
+        check_shibnagar_cast_edges(data)
+        check_shibnagar_cast_component(data)
+        check_shibnagar_cast_households(data)
 
     return finish()
 
