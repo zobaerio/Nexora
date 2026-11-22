@@ -1,10 +1,29 @@
 #!/usr/bin/env python3
-"""NEXORA — Economy Balance Simulator v3 (Units AH + AI, Queue 6).
+"""NEXORA — Economy Balance Simulator v4 (Unit AJ, Queue 7).
 
 Simulates 30 game-days of household cashflow for every profession in
 data/prices.json (wages_monthly) at entry / mid / senior tiers.
 Deterministic — no randomness; the same input always produces the
 same report.
+
+What v4 changes vs v3 (Queue 7, Unit AJ — closes the v3 report §5
+open item):
+- The medical_monthly line (300/500/800 by band, Unit AI) is now
+  charged in the base table: simulate() adds the household's band
+  line to monthly costs for every row, business professions included
+  (a plain expense — tax is computed on profit/gross first, so no
+  tax-split issue, and the v3 business ValueError path is untouched).
+- The pinned baseline md5 in tools/sim/tests/test_no_regression.py
+  is updated to the new default-run md5 (the v2 md5 is kept in a
+  comment there as history). The life-sim reconciliation is kept:
+  tools/sim/engine.py _living_costs charges the same flat
+  per-household medical line, so a one-adult household still reduces
+  exactly to simulate() (acceptance test, ±2 tolerance).
+- The --v3/--v4 scenarios drop the four medical scenarios — they
+  would double-charge now that the line is in the base — and keep
+  the five tutoring/part-time scenarios plus the medicine-basket
+  check. --v3 is kept as an alias for the same section.
+- Run: python3 tools/economy_sim.py [--v3|--v4]
 
 What v2 changes vs v1 (Queue 4, fixing the v1 report's findings):
 - Finding 1 (fixed in data, Unit U): cab rental now reads 200 NCr/day
@@ -44,7 +63,9 @@ does NOT change:
   the pinned baseline md5 is a change to a test file, outside this
   unit's scope. So v3 reports the new lines' effect as scenarios
   (docs/ECONOMY-SIM-REPORT-V3.md §5 records the open item honestly)
-  instead of silently moving the baseline.
+  instead of silently moving the baseline. Unit AJ (v4, this version)
+  is the follow-up that does the fold-in, with the baseline update —
+  see docs/ECONOMY-SIM-REPORT-V4.md.
 - Extra income is taxed marginally on the combined gross (wage rows
   only); business professions with extras raise ValueError — a
   business household mixing personal side-income with profit needs a
@@ -143,6 +164,14 @@ def simulate(prices, wage_row, tier, extra_daily_cost=0, label_suffix="",
     clothing = lc["clothing_personal"][band]
     eating = lc["eating_out_monthly"][band]
     services = lc["household_services_monthly"][band]
+    # Queue 7 / v4 (Unit AJ): the medical line is a base cost now,
+    # charged at the household's band for every row, business
+    # professions included (a plain expense — tax is computed on
+    # profit/gross first, so the v3 business ValueError path is
+    # untouched). The medicine_expense kwarg stays for callers that
+    # model an extra episode on top; the default run charges the
+    # line exactly once, here.
+    medical = lc["medical_monthly"][band]
     if pid in CAR_PROFESSIONS:
         transport = lc["transport_own_car_fuel_upkeep"][band]
     else:
@@ -168,7 +197,9 @@ def simulate(prices, wage_row, tier, extra_daily_cost=0, label_suffix="",
                     if pid in BUSINESS_PROFESSIONS else wage_row["entry"])
     uplift = round(max(0, gross - entry_income) * uplift_pct / 100.0)
 
-    # Queue 6 / v3 new lines (all default 0 — base rows unchanged).
+    # Queue 6 / v3 new lines (all default 0) + Queue 7 / v4: the
+    # medical line is a base cost now (see `medical` above), so the
+    # medicine_expense kwarg models only an EXTRA episode on top.
     # Uplift above is computed from the base gross on purpose: the
     # lifestyle uplift prices the wage ladder, not side-income.
     # Extra income is taxed marginally on the combined gross.
@@ -186,7 +217,7 @@ def simulate(prices, wage_row, tier, extra_daily_cost=0, label_suffix="",
     extra_income_net = extra_income - (tax - base_tax)
 
     monthly_costs = rent + food + utilities + clothing + transport \
-        + eating + services + uplift + extra_expense
+        + eating + services + medical + uplift + extra_expense
     extra_monthly = extra_daily_cost * WORK_DAYS
     net = gross - tax - monthly_costs - extra_monthly
 
@@ -235,12 +266,15 @@ def simulate(prices, wage_row, tier, extra_daily_cost=0, label_suffix="",
     }
 
 
-def print_v3_scenarios(prices):
-    """Queue 6 / v3 new lines (Units AH + AI), behind the --v3 flag.
+def print_v4_scenarios(prices):
+    """Queue 6/7 additional lines (Units AH + AI), behind --v3/--v4.
 
-    The base table above is the pinned v2 output, unchanged. These
-    scenarios apply the new lines on top of it and print the delta
-    per household, so the v3 report can quote them verbatim.
+    v4 (Unit AJ): the medical line is charged in the base table now,
+    so the four medical scenarios v3 printed are gone — they would
+    double-charge. What remains are the tutoring / part-time
+    scenarios (still extras on top of the base) plus the medicine
+    basket check, so the v4 report can quote them verbatim. --v3 is
+    kept as an alias for this section.
     """
     tut = prices["tutoring"]["monthly_typical_ncr"]
     pt = prices["part_time_student_work"]["monthly_typical_ncr"]
@@ -251,7 +285,7 @@ def print_v3_scenarios(prices):
               + med_items["oral_rehydration_salts"]
               + med_items["cough_syrup_bottle"])
     wages = {w["profession_id"]: w for w in prices["wages_monthly"]}
-    print("Queue 6 / v3 new lines (Units AH + AI):")
+    print("v4 additional scenarios (Units AH + AI):")
     print(f"  priced from prices.json: tutoring "
           f"{prices['tutoring']['per_session_ncr']}/session x "
           f"{prices['tutoring']['sessions_per_month_typical']}/mo = "
@@ -259,7 +293,8 @@ def print_v3_scenarios(prices):
           f"{prices['part_time_student_work']['per_block_ncr']}/block x "
           f"{prices['part_time_student_work']['blocks_per_week_typical']}"
           f"/wk x 4 = {pt}; medical budget lower {med['lower']} / "
-          f"mid {med['mid']} / upper {med['upper']}")
+          f"mid {med['mid']} / upper {med['upper']} — now charged in "
+          f"the base table (Unit AJ), not a scenario")
     print(f"  medicine basket check: one minor-illness episode "
           f"(fever strip {med_items['fever_pain_relief_strip']} + "
           f"rehydration salts {med_items['oral_rehydration_salts']} + "
@@ -283,15 +318,6 @@ def print_v3_scenarios(prices):
          "construction_worker", "entry", {"part_time_income": pt}),
         ("teacher/entry + teen part-time income",
          "teacher", "entry", {"part_time_income": pt}),
-        ("construction_worker/entry + medical budget (lower)",
-         "construction_worker", "entry",
-         {"medicine_expense": med["lower"]}),
-        ("police_officer/entry + medical budget (mid)",
-         "police_officer", "entry", {"medicine_expense": med["mid"]}),
-        ("pilot/entry + medical budget (upper)",
-         "pilot", "entry", {"medicine_expense": med["upper"]}),
-        ("civil_engineer/entry + medical budget (mid)",
-         "civil_engineer", "entry", {"medicine_expense": med["mid"]}),
     ]
     fails, tight = [], []
     for label, pid, tier, kw in scenarios:
@@ -305,8 +331,8 @@ def print_v3_scenarios(prices):
         print(f"  {label:52} base net {base['net']:>6} -> {scen['net']:>6} "
               f"(delta {delta:+d}, save {scen['rate']}%)  "
               f"{', '.join(scen['flags']) or '-'}")
-    print(f"v3 scenario SURVIVAL FAIL rows: {fails}")
-    print(f"v3 scenario TIGHT rows: {tight}")
+    print(f"v4 scenario SURVIVAL FAIL rows: {fails}")
+    print(f"v4 scenario TIGHT rows: {tight}")
 
 
 def main():
@@ -395,9 +421,9 @@ def main():
           f"car_small ({car}) in {round(car / ce['net'], 1)} months; "
           f"tier-3 deposit ({deposit}) in {round(deposit / ce['net'], 1)} months")
 
-    if "--v3" in sys.argv:
+    if "--v3" in sys.argv or "--v4" in sys.argv:
         print()
-        print_v3_scenarios(prices)
+        print_v4_scenarios(prices)
 
 
 if __name__ == "__main__":

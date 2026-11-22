@@ -5,7 +5,7 @@ audit's Unit AD criteria, tested at engine level:
 - save/restore identity: 15 days + restart + 15 days == 30 days
   uninterrupted (owner: data survives restart; audit 7)
 - schedule coverage persisted for every agent (audit 4)
-- economy reconciliation with economy_sim v2 for a single-adult
+- economy reconciliation with economy_sim v4 for a single-adult
   household (audit 5)
 - weather variety + coupling evidence (audit 6; coupling itself is
   unit-tested in test_scheduler)
@@ -90,7 +90,7 @@ class TestCoverageAndWeather(unittest.TestCase):
 class TestReconciliation(unittest.TestCase):
     def test_single_adult_matches_economy_sim(self):
         """A lone teacher at entry tier, renting at the canonical
-        tier-2 rent, must net exactly what economy_sim v2 computes
+        tier-2 rent, must net exactly what economy_sim v4 computes
         for the same household over one month (the sim's scaling
         reduces to the reference model for one adult)."""
         d = data()

@@ -11,7 +11,12 @@ import unittest
 
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__),
                                     "..", "..", ".."))
-ECONOMY_SIM_BASELINE_MD5 = "16740182867525bd659735deeb05150a"
+# Pinned default-run md5 of tools/economy_sim.py.
+# v4 baseline (Unit AJ, Queue 7, 2026-11-22): the medical_monthly
+# line (300/500/800) is charged in the base table — see
+# docs/ECONOMY-SIM-REPORT-V4.md. Previous baseline (v2, pinned
+# 2026-11-21 through v3): 16740182867525bd659735deeb05150a.
+ECONOMY_SIM_BASELINE_MD5 = "318c6114c143a81a579e70b39ccca8f8"
 
 
 class TestNoRegression(unittest.TestCase):
