@@ -80,6 +80,13 @@ Session 01):
 - characters.first_name / last_name / birthplace / nationality /
   family_background — Session 01 Unit 01 identity fields that
   schema.sql folds into display_name / leaves implicit.
+- Session 10 additions (bottom of SCHEMA): world_events (the
+  unified event registry — an index over the existing history
+  tables; sources stay immutable), event_sync_state (per-source
+  rowid watermarks), technology_levels (monthly derived indices
+  with their basis stored). One more column migration:
+  world_state.integration_setup. schema.sql has none of these;
+  the gap is recorded in docs/SESSION-10-REPORT.md.
 - Session 07 additions (bottom of SCHEMA): vehicles, trips,
   road_loads, transit_routes, transit_runs, freight_shipments,
   vehicle_events, transport_statistics — the transportation
@@ -1855,6 +1862,50 @@ CREATE TABLE IF NOT EXISTS agent_perf (
 );
 CREATE INDEX IF NOT EXISTS idx_agentperf_pass
     ON agent_perf(pass_kind, game_minutes);
+-- Session 10 additions: the integration layer. world_events is
+-- the unified event registry — an INDEX over the existing
+-- history tables (life_events, elections, disaster_events,
+-- social_events, construction_projects, research_records,
+-- agreements, crisis_records, business_events): each row copies
+-- a reference (source table + source id) plus the registry's own
+-- normalisation (type, sim timestamp, city, entity refs). Source
+-- tables stay the immutable originals; the registry never writes
+-- to them. event_sync_state holds the per-source rowid watermark
+-- that makes the daily sync idempotent and restart-safe.
+-- technology_levels persists the monthly technology derivation
+-- WITH its basis (publication counts + credentialed share), so
+-- every level is auditable back to the records it came from.
+CREATE TABLE IF NOT EXISTS world_events (
+    event_id TEXT PRIMARY KEY,
+    event_type TEXT NOT NULL,
+    game_minutes INTEGER NOT NULL,
+    day_index INTEGER NOT NULL DEFAULT 0,
+    city_id TEXT,
+    zone_id TEXT,
+    entity_refs TEXT NOT NULL DEFAULT '{}',
+    source TEXT NOT NULL,
+    source_table TEXT NOT NULL,
+    source_id TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'recorded',
+    details TEXT NOT NULL DEFAULT '{}',
+    UNIQUE (source_table, source_id)
+);
+CREATE INDEX IF NOT EXISTS idx_worldevents_type
+    ON world_events(event_type, game_minutes);
+CREATE INDEX IF NOT EXISTS idx_worldevents_city
+    ON world_events(city_id, game_minutes);
+CREATE TABLE IF NOT EXISTS event_sync_state (
+    source_table TEXT PRIMARY KEY,
+    last_rowid INTEGER NOT NULL DEFAULT 0
+);
+CREATE TABLE IF NOT EXISTS technology_levels (
+    field TEXT NOT NULL,
+    month_index INTEGER NOT NULL,
+    level REAL NOT NULL DEFAULT 0,
+    basis TEXT NOT NULL DEFAULT '{}',
+    game_minutes INTEGER NOT NULL DEFAULT 0,
+    PRIMARY KEY (field, month_index)
+);
 """
 
 # Additive column migrations for tables that predate a session.
@@ -1882,6 +1933,7 @@ MIGRATIONS = (
     ("character_goals", "deadline_game_minutes", "INTEGER"),
     ("character_goals", "dependencies", "TEXT NOT NULL DEFAULT '[]'"),
     ("character_goals", "completion_rule", "TEXT NOT NULL DEFAULT ''"),
+    ("world_state", "integration_setup", "INTEGER NOT NULL DEFAULT 0"),
 )
 
 SYSTEM_ACCOUNTS = ("SYS-CITY", "SYS-EMPLOYERS", "SYS-MARKET", "SYS-BANK")
