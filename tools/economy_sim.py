@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""NEXORA — Economy Balance Simulator v2 (Unit X, Queue 4).
+"""NEXORA — Economy Balance Simulator v3 (Units AH + AI, Queue 6).
 
 Simulates 30 game-days of household cashflow for every profession in
 data/prices.json (wages_monthly) at entry / mid / senior tiers.
@@ -28,6 +28,29 @@ What v2 changes vs v1 (Queue 4, fixing the v1 report's findings):
   taxes it at the 8% business rate (GDD-03 §4.2) instead of personal
   income tax, and runs the household on profit minus tax.
 
+What v3 adds (Queue 6, Units AH + AI) — and what it deliberately
+does NOT change:
+- The new lines are modelled as additive household scenarios behind
+  a `--v3` flag: tutoring income/expense (300/session x 8/mo),
+  part-time income (150/block x 16/mo) and the medicine expense
+  (medical_monthly 300/500/800 by band). `simulate()` takes them as
+  optional keyword arguments, all defaulting to 0, so every existing
+  caller (tools/sim/dataio.py, the acceptance test) is unaffected.
+- The default run is BYTE-IDENTICAL to v2. This is not cosmetic:
+  tools/sim/tests/test_no_regression.py pins this tool's stdout md5,
+  and the life-sim acceptance test requires a single-adult teacher
+  household to net exactly what simulate() computes. Folding the
+  medical line into the base table would break both — and updating
+  the pinned baseline md5 is a change to a test file, outside this
+  unit's scope. So v3 reports the new lines' effect as scenarios
+  (docs/ECONOMY-SIM-REPORT-V3.md §5 records the open item honestly)
+  instead of silently moving the baseline.
+- Extra income is taxed marginally on the combined gross (wage rows
+  only); business professions with extras raise ValueError — a
+  business household mixing personal side-income with profit needs a
+  business+personal split this unit does not design.
+- Run: python3 tools/economy_sim.py [--v3]
+
 Household model (unchanged from v1 unless listed above):
 - One adult, living alone, renting at the tier assigned in RENT_TIER.
 - Lifestyle band from entry wage: lower <= 15,000, mid <= 40,000,
@@ -55,6 +78,7 @@ Run: python3 tools/economy_sim.py
 """
 import json
 import os
+import sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 DATA = os.path.join(HERE, "..", "data")
@@ -106,7 +130,9 @@ def business_pnl(prices, pid, tier):
     }
 
 
-def simulate(prices, wage_row, tier, extra_daily_cost=0, label_suffix=""):
+def simulate(prices, wage_row, tier, extra_daily_cost=0, label_suffix="",
+             tutoring_income=0, tutoring_expense=0, part_time_income=0,
+             medicine_expense=0):
     pid = wage_row["profession_id"]
     band = band_for(wage_row["entry"])
     lc = prices["living_costs_monthly"]
@@ -142,12 +168,33 @@ def simulate(prices, wage_row, tier, extra_daily_cost=0, label_suffix=""):
                     if pid in BUSINESS_PROFESSIONS else wage_row["entry"])
     uplift = round(max(0, gross - entry_income) * uplift_pct / 100.0)
 
+    # Queue 6 / v3 new lines (all default 0 — base rows unchanged).
+    # Uplift above is computed from the base gross on purpose: the
+    # lifestyle uplift prices the wage ladder, not side-income.
+    # Extra income is taxed marginally on the combined gross.
+    base_tax = tax
+    extra_income = tutoring_income + part_time_income
+    extra_expense = tutoring_expense + medicine_expense
+    if extra_income or extra_expense:
+        if pid in BUSINESS_PROFESSIONS:
+            raise ValueError(
+                f"{pid}: tutoring/part-time/medicine lines are not "
+                "modelled for business professions in v3 — a "
+                "business household needs a business+personal split")
+        gross = gross + extra_income
+        tax = monthly_tax(gross, prices["tax"]["income_monthly_brackets"])
+    extra_income_net = extra_income - (tax - base_tax)
+
     monthly_costs = rent + food + utilities + clothing + transport \
-        + eating + services + uplift
+        + eating + services + uplift + extra_expense
     extra_monthly = extra_daily_cost * WORK_DAYS
     net = gross - tax - monthly_costs - extra_monthly
 
     # 30-day trajectory from a zero start (v1-comparable minbal).
+    # Base pay follows the profession's schedule on the BASE gross
+    # and tax; v3 side-income accrues evenly on top, so the month's
+    # total still equals gross - tax exactly.
+    base_gross = gross - extra_income
     daily_cost = monthly_costs / DAYS
     balance, min_balance = 0.0, 0.0
     for day in range(1, DAYS + 1):
@@ -156,12 +203,15 @@ def simulate(prices, wage_row, tier, extra_daily_cost=0, label_suffix=""):
             balance -= extra_daily_cost
         if sched == "monthly":
             if day == DAYS:
-                balance += gross - tax
+                balance += base_gross - base_tax
         elif sched == "daily":
             if day <= WORK_DAYS and day % 7 != 0:
-                balance += (gross - tax) / WORK_DAYS
+                balance += (base_gross - base_tax) / WORK_DAYS
         else:  # per_fare / daily_takings: even accrual
-            balance += (gross - tax) / DAYS
+            balance += (base_gross - base_tax) / DAYS
+        if extra_income_net:
+            # v3 side-income (tutoring / part-time) accrues evenly.
+            balance += extra_income_net / DAYS
         min_balance = min(min_balance, balance)
 
     rate = net / gross * 100 if gross else 0
@@ -181,7 +231,82 @@ def simulate(prices, wage_row, tier, extra_daily_cost=0, label_suffix=""):
         "uplift": uplift, "extra": extra_monthly,
         "net": round(net), "rate": round(rate, 1),
         "min_balance": round(min_balance), "flags": flags, "pnl": pnl,
+        "extra_income": extra_income, "extra_expense": extra_expense,
     }
+
+
+def print_v3_scenarios(prices):
+    """Queue 6 / v3 new lines (Units AH + AI), behind the --v3 flag.
+
+    The base table above is the pinned v2 output, unchanged. These
+    scenarios apply the new lines on top of it and print the delta
+    per household, so the v3 report can quote them verbatim.
+    """
+    tut = prices["tutoring"]["monthly_typical_ncr"]
+    pt = prices["part_time_student_work"]["monthly_typical_ncr"]
+    med = prices["living_costs_monthly"]["medical_monthly"]
+    med_items = {i["id"]: i["price_ncr"]
+                 for i in prices["medicine"]["items"]}
+    basket = (med_items["fever_pain_relief_strip"]
+              + med_items["oral_rehydration_salts"]
+              + med_items["cough_syrup_bottle"])
+    wages = {w["profession_id"]: w for w in prices["wages_monthly"]}
+    print("Queue 6 / v3 new lines (Units AH + AI):")
+    print(f"  priced from prices.json: tutoring "
+          f"{prices['tutoring']['per_session_ncr']}/session x "
+          f"{prices['tutoring']['sessions_per_month_typical']}/mo = "
+          f"{tut}; part-time "
+          f"{prices['part_time_student_work']['per_block_ncr']}/block x "
+          f"{prices['part_time_student_work']['blocks_per_week_typical']}"
+          f"/wk x 4 = {pt}; medical budget lower {med['lower']} / "
+          f"mid {med['mid']} / upper {med['upper']}")
+    print(f"  medicine basket check: one minor-illness episode "
+          f"(fever strip {med_items['fever_pain_relief_strip']} + "
+          f"rehydration salts {med_items['oral_rehydration_salts']} + "
+          f"cough syrup {med_items['cough_syrup_bottle']}) = {basket} "
+          f"NCr, inside the lower medical budget ({med['lower']})")
+    print(f"  pharmacy: {prices['medicine']['pharmacy_name']} "
+          f"({prices['medicine']['pharmacy_property_id']}, unit 1); "
+          f"clinic treatment stays free at point of use (GDD-12 §6)")
+    print()
+    print("household scenarios (base net -> scenario net; tax recomputed "
+          "on combined income):")
+    scenarios = [
+        ("teacher/entry + tutoring income (tutors 8 sessions)",
+         "teacher", "entry", {"tutoring_income": tut}),
+        ("teacher/entry + tutoring expense (pays for one child)",
+         "teacher", "entry", {"tutoring_expense": tut}),
+        ("teacher/entry + tutoring income AND expense",
+         "teacher", "entry",
+         {"tutoring_income": tut, "tutoring_expense": tut}),
+        ("construction_worker/entry + teen part-time income",
+         "construction_worker", "entry", {"part_time_income": pt}),
+        ("teacher/entry + teen part-time income",
+         "teacher", "entry", {"part_time_income": pt}),
+        ("construction_worker/entry + medical budget (lower)",
+         "construction_worker", "entry",
+         {"medicine_expense": med["lower"]}),
+        ("police_officer/entry + medical budget (mid)",
+         "police_officer", "entry", {"medicine_expense": med["mid"]}),
+        ("pilot/entry + medical budget (upper)",
+         "pilot", "entry", {"medicine_expense": med["upper"]}),
+        ("civil_engineer/entry + medical budget (mid)",
+         "civil_engineer", "entry", {"medicine_expense": med["mid"]}),
+    ]
+    fails, tight = [], []
+    for label, pid, tier, kw in scenarios:
+        base = simulate(prices, wages[pid], tier)
+        scen = simulate(prices, wages[pid], tier, **kw)
+        delta = scen["net"] - base["net"]
+        if "SURVIVAL FAIL" in scen["flags"]:
+            fails.append(label)
+        if "TIGHT" in scen["flags"]:
+            tight.append(label)
+        print(f"  {label:52} base net {base['net']:>6} -> {scen['net']:>6} "
+              f"(delta {delta:+d}, save {scen['rate']}%)  "
+              f"{', '.join(scen['flags']) or '-'}")
+    print(f"v3 scenario SURVIVAL FAIL rows: {fails}")
+    print(f"v3 scenario TIGHT rows: {tight}")
 
 
 def main():
@@ -269,6 +394,10 @@ def main():
     print(f"pacing: civil_engineer/entry saves {ce['net']} NCr/mo -> "
           f"car_small ({car}) in {round(car / ce['net'], 1)} months; "
           f"tier-3 deposit ({deposit}) in {round(deposit / ce['net'], 1)} months")
+
+    if "--v3" in sys.argv:
+        print()
+        print_v3_scenarios(prices)
 
 
 if __name__ == "__main__":
