@@ -668,9 +668,11 @@ class Simulation:
         economy_sim's single-adult model: food and clothing scale
         with household size (children at half/third), transport is
         per earner (car for economy_sim's CAR_PROFESSIONS), eating
-        out per earner, utilities and services flat per household.
-        A one-adult household reduces exactly to economy_sim's
-        numbers — that is the reconciliation contract."""
+        out per earner, utilities, services and medical flat per
+        household. A one-adult household reduces exactly to
+        economy_sim's numbers — that is the reconciliation contract.
+        (Queue 7 / Unit AJ: the medical line is flat per household
+        here, matching economy_sim v4's per-household band charge.)"""
         lc = self.data.prices["living_costs_monthly"]
         econ = self.data.econ
         transport = sum(
@@ -688,6 +690,7 @@ class Simulation:
             "eating": lc["eating_out_monthly"][band]
                       * max(1, len(earner_pids)),
             "services": lc["household_services_monthly"][band],
+            "medical": lc["medical_monthly"][band],
         }
 
     def _households(self):
