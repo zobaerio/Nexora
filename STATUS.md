@@ -1,7 +1,24 @@
 # NEXORA — Development Status
 
 **Continuous development:** RUNNING — **the 10-session programme is COMPLETE**: Session 10 "Global Virtual Universe Integration" finished 2026-11-21 and merged on GitHub main 2026-11-22 (PR #21, main `ba79597d`; see the Session 10 section below). Queues 1–5 + Sessions 01–10 ALL merged on GitHub main. Full suite 438 tests, all passing (re-verified 2026-11-22: 32/32 Session 10 tests, validate_data green). The remaining milestone is owner-side: Phase 1 on the owner's PC (UE 5.8.x test scene; owner still owes Step 0: PC specs). Note: PR #4 was a duplicate of PR #3 created by a late scheduled run; closed 2026-11-21, no content difference.
-**Repo:** https://github.com/zobaerio/Nexora · main after PR #20: `daf6d464` (STATUS finalisation `25ef48c8`)
+**Repo:** https://github.com/zobaerio/Nexora · main after PR #22: `19d4378a`
+
+## Queue 6 — "Phase 7–10 Design + Recorded Economy Open Items" (drafted 2026-11-22 under the owner's standing continuous-development order, "improve as much as possible")
+
+| Unit | State | PR |
+|---|---|---|
+| AE — Life Stages & Aging Design (Phase 7, GDD-13) | ✅ Merged + blob-verified on main (GDD-13 `197baec3`) — 291 lines, 31-row cross-ref table, asset gate restated honestly | #22 |
+| AF — Multi-District & Multi-City Design (Phase 8) | ✅ Merged + blob-verified on main (TECH-MULTIDISTRICT `bdde4466`) — 78 cross-ref checks, 0 failures; Shibnagar climate + no-airport contradictions stated in-doc | #22 |
+| AG — Space & Planets Design (Phase 10, GDD-14) | ✅ Merged + blob-verified on main (GDD-14 `dbf31f00`) — 415 lines, 73 cross-ref checks, 0 failures; "2 planets" = the 2 landing targets among 5 bodies | #22 |
+| AH — Priced Tutoring & Part-Time Student Work | ✅ Merged + blob-verified on main (prices.json `160b8247`) — tutoring 300/session, part-time 150/block; GDD-11 §7 no longer "unpriced" | #22 |
+| AI — Pharmacy & Priced Medicine + Simulator v3 | ✅ Merged + blob-verified on main (report `b5b8389c`, sim `0ca901d3`) — medicine table + medical_monthly 300/500/800; Boro Bazar Pharmacy in market hall unit 1; v3 verdicts AH FIXED, AI FIXED | #22 |
+
+## Queue 6 completion summary (2026-11-22)
+
+- **Queue 6 is COMPLETE and fully merged:** PR #22 (branch `feat/queue6-phase-design`, head `3e433186`), squash-merged to main `19d4378a`. Every unit's key files were read back on `refs/heads/main` and blob-matched to the locally validated tree.
+- **What Queue 6 added:** the Phase 7 life-stages design (GDD-13, UE presentation layer over the Session 01/02 headless lifecycle), the Phase 8 multi-district/multi-city design (TECH-MULTIDISTRICT, World Partition + transition-based intercity travel), the Phase 10 space design (GDD-14, station hub + Nexora-7/Kallisto landings + Level 8 hookup), and the two recorded economy open items now priced — tutoring/part-time work and pharmacy/medicine — proven by the v3 simulator re-run (default output byte-identical to v2; `--v3` deterministic; report's verbatim block byte-matches the actual run).
+- **Economy honesty notes:** no wage band moved, no rent tier moved. Police/entry thinned to 8.3% and pilot/entry to 0.8% (TIGHT) under the medical line — reported in the v3 report, not tuned away. The medical line is modelled as v3 scenarios only: folding it into the base table would break the pinned no-regression md5, so that needs a follow-up unit that updates the baseline with coordinator agreement (v3 report §5). Clinic treatment stays free at point of use; the medicine table prices pharmacy purchases only.
+- **Next honest milestone (unchanged):** Phase 1 on the owner's PC (UE 5.8.x + 400 m test scene). Owner still owes Step 0: PC specs (GPU/RAM/SSD).
 
 ## Queue 5 — "Life Systems" (ordered 2026-11-21 08:01 — "Continue Your Work")
 
