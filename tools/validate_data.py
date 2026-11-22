@@ -43,6 +43,14 @@ Checks (from docs/AUDIT-AND-CHECKLIST.md §2/§7):
   cast — every profession/home/workplace/schedule reference
   resolves, edges resolve and intra-Shibnagar edges reciprocate,
   the graph is one component, the married pair shares a home.
+- buildings-district2.json (Queue 9 Unit AT): the PROPOSED first-slice
+  buildings — 11 buildings, plot_id 1:1 with the Phase 8 first slice,
+  zone/type/tier equal to the plot, residential rent/buy from the
+  prices.json tier table, commercial rent/buy from the cited District 1
+  analogue, no id collides with District 1.
+- npc-cast.json + npc-cast-shibnagar.json (Queue 9 Unit AU): the 10
+  intercity pairs are symmetric — same type and same trust/affection/
+  respect scores in both directions, no new pairs.
 """
 import json
 import os
@@ -426,6 +434,122 @@ def check_district2_proposed_labelling(d2):
           "district2 has no ghat (no river in district 2)")
 
 
+# -- Queue 9: Unit AT — District 2 first-slice buildings ----------
+def check_district2_buildings_first_slice(d2, b2, d1, prices):
+    """buildings-district2.json (Queue 9 Unit AT): 11 buildings, all
+    PROPOSED; plot_id covers the Phase 8 first slice exactly once;
+    each building's zone/type/tier equals its plot's; residential
+    rent/buy equal the prices.json tier table; commercial rent/buy
+    equal the cited District 1 analogue; plot-type buildings carry
+    null rent/buy; no building id collides with District 1."""
+    check(b2 is not None, "buildings-district2.json parses")
+    if b2 is None:
+        return
+    check(b2.get("status") == "PROPOSED",
+          "buildings-district2 top-level status is PROPOSED",
+          f"status={b2.get('status')}")
+    props = b2.get("properties", [])
+    ids = [p["id"] for p in props]
+    check(len(props) == 11 and len(set(ids)) == 11,
+          "buildings-district2 has 11 unique buildings",
+          f"n={len(props)} unique={len(set(ids))}")
+    check(all(p.get("status") == "proposed" for p in props),
+          "every district2 building status is proposed")
+    d1_bldg_ids = {p["id"] for p in d1["properties"]}
+    check(not ({p["id"] for p in props} & d1_bldg_ids),
+          "district2 building ids do not collide with district1",
+          f"collisions={sorted({p['id'] for p in props} & d1_bldg_ids)}")
+    first_slice = d2["phase8_first_slice"]["plot_ids"]
+    plots = {p["id"]: p for p in d2["plots"]}
+    check(sorted(p["plot_id"] for p in props) == sorted(first_slice),
+          "district2 buildings cover the first slice 1:1 by plot_id",
+          f"plots={sorted(p['plot_id'] for p in props)}")
+    tier_table = {r["tier"]: (r["rent_ncr"], r["buy_price_guide_ncr"])
+                  for r in prices["rent_monthly_by_tier"]}
+    d1_by_id = {p["id"]: p for p in d1["properties"]}
+    analogue = {  # building id -> (district1 analogue id, rent, buy)
+        "b_d2_market_hall_shops": ("b_d1_market_hall_units", 9000,
+                                   1100000),
+        "b_d2_market_tea_stalls": ("b_d1_market_tea_stalls", 1500, None),
+        "b_d2_market_godowns": ("b_d1_market_godowns", 12000, 1500000),
+        "b_d2_market_restaurant": ("b_d1_market_restaurant", 10000,
+                                   1300000),
+        "b_d2_park_food_carts": ("b_d1_park_food_carts", 800, None),
+    }
+    bad = []
+    for p in props:
+        pl = plots.get(p.get("plot_id", ""), {})
+        if (p.get("zone_id"), p.get("property_type"),
+                p.get("tier")) != (pl.get("zone_id"),
+                                   pl.get("property_type"),
+                                   pl.get("tier")):
+            bad.append((p["id"], "plot zone/type/tier mismatch"))
+        if p["property_type"] in ("apartment", "house"):
+            if (p.get("rent_monthly_ncr_per_unit"),
+                    p.get("buy_price_ncr_per_unit")) != \
+                    tier_table[p["tier"]]:
+                bad.append((p["id"], "residential rent/buy != tier table"))
+        elif p["property_type"] == "plot":
+            if (p.get("rent_monthly_ncr_per_unit"),
+                    p.get("buy_price_ncr_per_unit")) != (None, None):
+                bad.append((p["id"], "plot rent/buy not null"))
+        else:
+            ana_id, rent, buy = analogue[p["id"]]
+            ana = d1_by_id[ana_id]
+            if (ana["rent_monthly_ncr_per_unit"],
+                    ana["buy_price_ncr_per_unit"]) != (rent, buy):
+                bad.append((p["id"], "analogue source drift", ana_id))
+            if (p.get("rent_monthly_ncr_per_unit"),
+                    p.get("buy_price_ncr_per_unit")) != (rent, buy):
+                bad.append((p["id"], "commercial rent/buy != analogue"))
+        if p.get("for_sale_units", 0) != 0:
+            bad.append((p["id"], "for_sale_units not 0 (first slice)"))
+        if p["property_type"] != "plot" and \
+                p.get("for_rent_units") != p.get("units"):
+            bad.append((p["id"], "for_rent_units != units"))
+    check(not bad, "district2 buildings match plots, tier table and "
+          "cited analogues", f"bad={bad[:8]}")
+
+
+# -- Queue 9: Unit AU — intercity return edges --------------------
+def check_intercity_symmetry(data):
+    """The 10 intercity pairs are symmetric (Queue 9 Unit AU): exactly
+    one pair per Shibnagar NPC, same type and identical trust /
+    affection / respect scores in both directions, no extra pairs."""
+    shib = data["npc-cast-shibnagar.json"]["cast"]
+    d1 = data["npc-cast.json"]["cast"]
+    d1_by_id = {c["id"]: c for c in d1}
+    mirror = {"spouse": "spouse", "partner": "partner",
+              "sibling": "sibling", "parent": "child",
+              "child": "parent", "colleague": "colleague",
+              "friend": "friend", "best_friend": "best_friend",
+              "rival": "rival", "acquaintance": "acquaintance"}
+    pairs = []
+    bad = []
+    for s in shib:
+        for e in s.get("relationships", []):
+            if e["to"] in d1_by_id:
+                pairs.append((s["id"], e["to"]))
+                back = [x for x in
+                        d1_by_id[e["to"]].get("relationships", [])
+                        if x["to"] == s["id"]]
+                if (not back or back[0]["type"] != mirror.get(e["type"])
+                        or any(back[0][k] != e[k] for k in
+                               ("trust", "affection", "respect"))):
+                    bad.append((s["id"], "no symmetric return", e["to"]))
+    d1_intercity = [(c["id"], e["to"]) for c in d1
+                    for e in c.get("relationships", [])
+                    if e["to"].startswith("npc_s")]
+    check(len(pairs) == 10,
+          "intercity pairs are exactly 10 (one per Shibnagar NPC)",
+          f"pairs={len(pairs)}")
+    check(sorted(pairs) == sorted((b, a) for a, b in d1_intercity),
+          "intercity pairs are the same 10 from both files",
+          f"shib={sorted(pairs)} d1={sorted(d1_intercity)}")
+    check(not bad, "intercity edges symmetric (type + scores both ways)",
+          f"bad={bad}")
+
+
 # -- Queue 8: Unit AS — Shibnagar full cast -----------------------
 # Written in this file's style: they take the shared `data` dict loaded
 # by main() and use its module-level `check()` / `FAILURES` helpers,
@@ -435,13 +559,14 @@ def check_district2_proposed_labelling(d2):
 # Rule enforced on intercity edges: every relationship target must
 # resolve (intra-Shibnagar in this file, intercity in npc-cast.json);
 # intra-Shibnagar edges must mirror (spouse/partner/sibling mirrored,
-# parent <-> child, everything else same-type back). Intercity edges are
-# NOT required to mirror — the District 1 file carries no return edge in
-# this unit, so the tie is recorded from the Shibnagar side only. The
-# intercity rule is file-level: the cast as a whole must have >= 1
-# intercity edge; a per-NPC intercity edge is NOT required (each NPC
-# only needs >= 1 edge total). As written, all 10 NPCs happen to have
-# one, which is stronger than the rule.
+# parent <-> child, everything else same-type back). Intercity edges
+# mirror too since Queue 9 Unit AU: the District 1 file carries the 10
+# return edges, so the tie is symmetric — same type and same
+# trust/affection/respect scores in both directions. The intercity rule
+# is file-level: the cast as a whole must have >= 1 intercity edge; a
+# per-NPC intercity edge is NOT required (each NPC only needs >= 1 edge
+# total). As written, all 10 NPCs happen to have one, which is stronger
+# than the rule.
 def check_shibnagar_cast_parses(data):
     """npc-cast-shibnagar.json parses (main() loads it into data)."""
     check("npc-cast-shibnagar.json" in data,
@@ -510,9 +635,10 @@ def check_shibnagar_cast_edges(data):
     """Every relationship target resolves (intra-Shibnagar in this
     file, intercity in npc-cast.json); types from GDD-01 §6.1, scores
     in -100..100; intra edges reciprocate with the AN mirror map;
-    intercity edges are exempt from mirroring (recorded from the
-    Shibnagar side only). Each NPC needs >= 1 edge total; the file
-    needs >= 1 intercity edge (per-NPC intercity NOT required)."""
+    intercity edges reciprocate with the AU return edge in
+    npc-cast.json — same mirror type and identical scores (Queue 9
+    Unit AU). Each NPC needs >= 1 edge total; the file needs >= 1
+    intercity edge (per-NPC intercity NOT required)."""
     cast = data["npc-cast-shibnagar.json"]["cast"]
     by_id = {c["id"]: c for c in cast}
     d1_ids = {c["id"] for c in data["npc-cast.json"]["cast"]}
@@ -551,6 +677,18 @@ def check_shibnagar_cast_edges(data):
                         if x["to"] == c["id"]]
                 if not back or back[0]["type"] != mirror.get(e["type"]):
                     bad.append((c["id"], "unmirrored", tgt, e["type"]))
+            else:
+                # Queue 9 Unit AU: intercity edges mirror from the
+                # District 1 file — same type, identical scores.
+                d1_by_id = {x["id"]: x for x in
+                            data["npc-cast.json"]["cast"]}
+                back = [x for x in d1_by_id.get(tgt, {}).get(
+                    "relationships", []) if x["to"] == c["id"]]
+                if (not back or back[0]["type"] != mirror.get(e["type"])
+                        or any(back[0][k] != e[k] for k in
+                               ("trust", "affection", "respect"))):
+                    bad.append((c["id"], "intercity unmirrored",
+                                tgt, e["type"]))
         if not c.get("relationships"):
             bad.append((c["id"], "no edges", ""))
     check(not bad, "shibnagar cast edges resolve, score, and "
@@ -606,7 +744,7 @@ def main():
              "clothing.json", "vehicles.json", "planets.json",
              "city2-shibnagar.json", "npc-cast.json",
              "dialogue-lines.json", "district2-blockout.json",
-             "npc-cast-shibnagar.json"]
+             "buildings-district2.json", "npc-cast-shibnagar.json"]
     data = {}
     for n in names:
         try:
@@ -1269,6 +1407,12 @@ def main():
               "npc cast covers all 11 professions",
               f"missing={set(prof_ids) - profs_seen}")
         by_id = {c["id"]: c for c in cast}
+        # Queue 9 Unit AU: intercity edges point at the Shibnagar cast
+        # and mirror from that file (same type, identical scores).
+        shib_by_id = {}
+        if "npc-cast-shibnagar.json" in data:
+            shib_by_id = {x["id"]: x for x in
+                          data["npc-cast-shibnagar.json"]["cast"]}
         mirror = {"spouse": "spouse", "partner": "partner",
                   "sibling": "sibling", "parent": "child",
                   "child": "parent", "colleague": "colleague",
@@ -1278,23 +1422,35 @@ def main():
         for c in cast:
             seen = set()
             for e in c.get("relationships", []):
-                if e["to"] not in by_id:
+                if e["to"] in seen:
+                    bad.append((c["id"], "dup edge", e["to"]))
+                seen.add(e["to"])
+                if e["to"] in shib_by_id:
+                    # Intercity edge: resolve + mirror in the Shibnagar
+                    # file, not in this file's cast.
+                    back = [x for x in shib_by_id[e["to"]].get(
+                        "relationships", []) if x["to"] == c["id"]]
+                    if (not back
+                            or back[0]["type"] != mirror.get(e["type"])
+                            or any(back[0][k] != e[k] for k in
+                                   ("trust", "affection", "respect"))):
+                        bad.append((c["id"], "intercity unmirrored",
+                                    e["to"], e["type"]))
+                elif e["to"] not in by_id:
                     bad.append((c["id"], "edge to", e["to"]))
                 elif e["to"] == c["id"]:
                     bad.append((c["id"], "self edge", e["to"]))
-                elif e["to"] in seen:
-                    bad.append((c["id"], "dup edge", e["to"]))
-                seen.add(e["to"])
                 if e["type"] not in rel_types:
                     bad.append((c["id"], "rel type", e["type"]))
                 if any(not (-100 <= e[k] <= 100)
                        for k in ("trust", "affection", "respect")):
                     bad.append((c["id"], "score range", e["to"]))
-                back = [x for x in by_id.get(e["to"], {}).get(
-                    "relationships", []) if x["to"] == c["id"]]
-                if not back or back[0]["type"] != mirror.get(e["type"]):
-                    bad.append((c["id"], "unmirrored", e["to"],
-                                e["type"]))
+                if e["to"] in by_id:
+                    back = [x for x in by_id.get(e["to"], {}).get(
+                        "relationships", []) if x["to"] == c["id"]]
+                    if not back or back[0]["type"] != mirror.get(e["type"]):
+                        bad.append((c["id"], "unmirrored", e["to"],
+                                    e["type"]))
             if not c.get("relationships"):
                 bad.append((c["id"], "no edges", ""))
         check(not bad, "npc cast relationship edges resolve, score, "
@@ -1337,6 +1493,12 @@ def main():
         check_district2_zones_in_d1_vocabulary_or_proposed(d1, d2)
         check_district2_road_classes_in_d1_hierarchy(d1, d2)
         check_district2_proposed_labelling(d2)
+    if "buildings-district2.json" in data \
+            and "district2-blockout.json" in data:
+        check_district2_buildings_first_slice(
+            data["district2-blockout.json"],
+            data["buildings-district2.json"],
+            data["buildings-district1.json"], prices)
     if "npc-cast-shibnagar.json" in data:
         check_shibnagar_cast_parses(data)
         check_shibnagar_cast_ids(data)
@@ -1344,6 +1506,7 @@ def main():
         check_shibnagar_cast_edges(data)
         check_shibnagar_cast_component(data)
         check_shibnagar_cast_households(data)
+        check_intercity_symmetry(data)
 
     return finish()
 

@@ -1,10 +1,32 @@
 #!/usr/bin/env python3
-"""NEXORA — Economy Balance Simulator v4 (Unit AJ, Queue 7).
+"""NEXORA — Economy Balance Simulator v5 (Unit AX, Queue 9).
 
 Simulates 30 game-days of household cashflow for every profession in
 data/prices.json (wages_monthly) at entry / mid / senior tiers.
 Deterministic — no randomness; the same input always produces the
 same report.
+
+What v5 adds vs v4 (Queue 9, Unit AX — the Shibnagar variant):
+- A `--shibnagar` flag runs the same 30-day simulation over Shibnagar
+  Town's priced residential stock (data/city2-shibnagar.json) instead
+  of District 1's tier rents. The variant reads the town's rents from
+  the city file (residential properties only: apartment/house with a
+  rent), asserts each tier's rent equals the prices.json tier table
+  (they do: 2500/4000/6000 for tiers 1/2/3), and refuses to run if
+  the city data ever drifts from the table — no silent stale numbers.
+- Shibnagar has no tier-4 or tier-5 residential stock (its top home
+  is the tier-3 Houses B at 6000), so the three professions the
+  District 1 table houses at tier 4 (doctor, business_owner, pilot)
+  are capped at tier 3 in the variant — recorded as the variant's one
+  rule, not hidden. Every other profession keeps its tier, so their
+  rows are identical to District 1 by construction; the report says so
+  instead of pretending the variant re-proves them.
+- The default run is BYTE-IDENTICAL to v4 (the pinned md5 in
+  tools/sim/tests/test_no_regression.py is untouched): the variant is
+  an additive flag, simulate() takes an optional rent_override that
+  defaults to the tier-table rent, and no wage band, rent tier,
+  living-cost line or tax rule moves.
+- Run: python3 tools/economy_sim.py [--shibnagar] [--v3|--v4]
 
 What v4 changes vs v3 (Queue 7, Unit AJ — closes the v3 report §5
 open item):
@@ -109,6 +131,12 @@ RENT_TIER = {
     "teacher": 2, "police_officer": 3, "civil_engineer": 3,
     "software_developer": 3, "doctor": 4, "business_owner": 4, "pilot": 4,
 }
+# Queue 9 / v5 (Unit AX): Shibnagar's residential stock tops out at
+# tier 3 (no tier-4/5 homes exist in data/city2-shibnagar.json), so the
+# three tier-4 professions are capped at tier 3 there. Every other
+# profession keeps its District 1 tier.
+SHIBNAGAR_RENT_TIER = {pid: min(tier, 3)
+                       for pid, tier in RENT_TIER.items()}
 CAR_PROFESSIONS = {"doctor", "business_owner", "pilot"}
 BUSINESS_PROFESSIONS = {"shop_owner", "business_owner"}
 WORK_DAYS = 26
@@ -151,14 +179,55 @@ def business_pnl(prices, pid, tier):
     }
 
 
+def load_shibnagar_rents(prices):
+    """Queue 9 / v5 (Unit AX): Shibnagar's priced residential stock.
+
+    Reads data/city2-shibnagar.json (residential properties only:
+    apartment/house with a rent) and returns (tier -> rent, stock).
+    Each tier's rent must equal the prices.json tier table — the town's
+    rents are tier rents, not a second price list — and a drift raises
+    ValueError instead of running on stale numbers. The 7 unpriced
+    properties (ghat, bus stand, school, clinic, town office, 2
+    farmland plots) are civic/plot stock, not homes, and are excluded
+    by the residential + priced filter, not by an id list.
+    """
+    city = load("city2-shibnagar.json")
+    tier_table = {r["tier"]: r["rent_ncr"]
+                  for r in prices["rent_monthly_by_tier"]}
+    rents, stock = {}, {}
+    for p in city["properties"]:
+        if p["property_type"] not in ("apartment", "house"):
+            continue
+        rent = p.get("rent_monthly_ncr_per_unit")
+        if rent is None:
+            continue
+        tier = p["tier"]
+        if tier in rents and rents[tier] != rent:
+            raise ValueError(
+                f"shibnagar tier {tier} rent disagrees within the file: "
+                f"{rents[tier]} vs {rent}")
+        rents[tier] = rent
+        stock[tier] = stock.get(tier, 0) + p.get("units", 1)
+    for tier, rent in rents.items():
+        if tier_table.get(tier) != rent:
+            raise ValueError(
+                f"shibnagar tier {tier} rent {rent} != prices.json tier "
+                f"table {tier_table.get(tier)}")
+    return rents, stock
+
+
 def simulate(prices, wage_row, tier, extra_daily_cost=0, label_suffix="",
              tutoring_income=0, tutoring_expense=0, part_time_income=0,
-             medicine_expense=0):
+             medicine_expense=0, rent_override=None):
     pid = wage_row["profession_id"]
     band = band_for(wage_row["entry"])
     lc = prices["living_costs_monthly"]
-    rent = next(r["rent_ncr"] for r in prices["rent_monthly_by_tier"]
-                if r["tier"] == RENT_TIER[pid])
+    # Queue 9 / v5: rent_override is the Shibnagar variant's rent for
+    # this profession (None = the District 1 tier-table rent, the v4
+    # behaviour, byte-identical).
+    rent = rent_override if rent_override is not None else next(
+        r["rent_ncr"] for r in prices["rent_monthly_by_tier"]
+        if r["tier"] == RENT_TIER[pid])
     food = lc["food_home_cooking"][band]
     utilities = lc["utilities_power_water_internet"][band]
     clothing = lc["clothing_personal"][band]
@@ -335,6 +404,106 @@ def print_v4_scenarios(prices):
     print(f"v4 scenario TIGHT rows: {tight}")
 
 
+def print_shibnagar_variant(prices, d1_rows, start_balances):
+    """Queue 9 / v5 (Unit AX): the --shibnagar variant table.
+
+    Re-runs the same 30-day simulation over Shibnagar's priced
+    residential stock: each profession rents at its SHIBNAGAR_RENT_TIER
+    (tier-4 professions capped at tier 3 — the town has no tier-4/5
+    homes), at the rent the city file itself carries. Wages, living
+    costs, taxes, business P&L and starting balances are unchanged, so
+    the comparison at the end is a pure rent effect.
+    """
+    rents, stock = load_shibnagar_rents(prices)
+    capped = sorted(pid for pid, tier in RENT_TIER.items()
+                    if SHIBNAGAR_RENT_TIER[pid] != tier)
+    print("shibnagar variant (Unit AX): same 30-day simulation over "
+          "data/city2-shibnagar.json residential stock")
+    print(f"  priced residential stock: "
+          + ", ".join(f"tier {t}: {rents[t]} NCr/mo "
+                      f"({stock[t]} units)" for t in sorted(rents))
+          + " — each tier's rent equals the prices.json tier table "
+          "(asserted, not assumed)")
+    print(f"  no tier-4/5 homes exist in Shibnagar; capped at tier 3: "
+          f"{', '.join(capped)} (rent 12000 -> 6000)")
+    print(f"  7 of 18 properties unpriced (ghat, bus stand, school, "
+          f"clinic, town office, 2 farmland plots) — civic/plot stock, "
+          f"not homes")
+    rows = []
+    for w in prices["wages_monthly"]:
+        pid = w["profession_id"]
+        override = rents[SHIBNAGAR_RENT_TIER[pid]]
+        for tier in ("entry", "mid", "senior"):
+            rows.append(simulate(prices, w, tier, rent_override=override))
+        if pid == "taxi_driver":
+            cab_rent = prices["taxi_fares"]["cab_rental_ncr_per_day"]
+            rows.append(simulate(prices, w, "entry",
+                                 extra_daily_cost=cab_rent,
+                                 label_suffix=" (renting cab)",
+                                 rent_override=override))
+    print(f"{'profession':28} {'tier':7} {'gross':>7} {'tax':>6} {'rent':>6} "
+          f"{'costs':>6} {'net/mo':>8} {'save%':>6} {'minbal':>8}  flags")
+    for r in rows:
+        print(f"{r['profession']:28} {r['tier']:7} {r['gross']:>7} "
+              f"{r['tax']:>6} {r['rent']:>6} {r['costs_total']:>6} "
+              f"{r['net']:>8} {r['rate']:>6} {r['min_balance']:>8}  "
+              f"{', '.join(r['flags']) or '-'}")
+    print()
+    fails = [r for r in rows if "SURVIVAL FAIL" in r["flags"]]
+    fast = [r for r in rows if "IMPLAUSIBLY FAST" in r["flags"]]
+    tight = [r for r in rows if "TIGHT" in r["flags"]]
+    print(f"shibnagar SURVIVAL FAIL rows: "
+          f"{[r['profession'] + '/' + r['tier'] for r in fails]}")
+    print(f"shibnagar IMPLAUSIBLY FAST rows: "
+          f"{[r['profession'] + '/' + r['tier'] for r in fast]}")
+    print(f"shibnagar TIGHT rows: "
+          f"{[r['profession'] + '/' + r['tier'] for r in tight]}")
+    print("shibnagar senior savings rates: " + ", ".join(
+        f"{r['pid']} {r['rate']}%" for r in rows if r["tier"] == "senior"))
+    print()
+    print("shibnagar first-month bridge check (same starting balances):")
+    bridge_fail = []
+    for r in rows:
+        if r["tier"] != "entry" or r["pid"] == "taxi_driver" and "renting" in r["profession"]:
+            continue
+        start = start_balances.get(r["pid"], 0)
+        worst = start + r["min_balance"]
+        status = "OK" if worst >= 0 else "BRIDGE FAIL"
+        if worst < 0:
+            bridge_fail.append(r["pid"])
+        print(f"  {r['pid']:22} start {start:>6} + dip {r['min_balance']:>7} = {worst:>7}  {status}")
+    rent_row = next(r for r in rows if "renting" in r["profession"])
+    start = start_balances.get("taxi_driver", 0)
+    worst = start + rent_row["min_balance"]
+    status = "OK" if worst >= 0 else "BRIDGE FAIL"
+    if worst < 0:
+        bridge_fail.append("taxi_driver (renting cab)")
+    print(f"  {'taxi_driver (renting cab)':22} start {start:>6} + dip {rent_row['min_balance']:>7} = {worst:>7}  {status}")
+    print(f"shibnagar BRIDGE FAIL rows: {bridge_fail}")
+    print()
+    print("district 1 vs shibnagar (rent delta -> net delta; only the "
+          "three capped professions differ):")
+    d1_by_key = {(r["profession"], r["tier"]): r for r in d1_rows}
+    for r in rows:
+        d1r = d1_by_key[(r["profession"], r["tier"])]
+        print(f"  {r['profession']:28} {r['tier']:7} "
+              f"rent {d1r['rent']:>6} -> {r['rent']:>6} "
+              f"({r['rent'] - d1r['rent']:+d})  "
+              f"net {d1r['net']:>7} -> {r['net']:>7} "
+              f"({r['net'] - d1r['net']:+d})  "
+              f"{', '.join(r['flags']) or '-'}")
+    ce = next(r for r in rows if r["profession"] == "civil_engineer"
+              and r["tier"] == "entry")
+    car = next(v["price_ncr"] for v in prices["vehicles"]
+               if v["id"] == "car_small")
+    t3 = next(r for r in prices["rent_monthly_by_tier"] if r["tier"] == 3)
+    deposit = t3["buy_price_guide_ncr"] * prices["loans"]["mortgage"]["deposit_percent"] // 100
+    print(f"shibnagar pacing: civil_engineer/entry saves {ce['net']} "
+          f"NCr/mo -> car_small ({car}) in {round(car / ce['net'], 1)} "
+          f"months; tier-3 deposit ({deposit}) in "
+          f"{round(deposit / ce['net'], 1)} months")
+
+
 def main():
     prices = load("prices.json")
     professions = load("professions.json")
@@ -420,6 +589,10 @@ def main():
     print(f"pacing: civil_engineer/entry saves {ce['net']} NCr/mo -> "
           f"car_small ({car}) in {round(car / ce['net'], 1)} months; "
           f"tier-3 deposit ({deposit}) in {round(deposit / ce['net'], 1)} months")
+
+    if "--shibnagar" in sys.argv:
+        print()
+        print_shibnagar_variant(prices, rows, start_balances)
 
     if "--v3" in sys.argv or "--v4" in sys.argv:
         print()

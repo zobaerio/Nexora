@@ -97,6 +97,13 @@
           "trust": 70,
           "affection": 80,
           "respect": 75
+        },
+        {
+          "to": "npc_s01",
+          "type": "colleague",
+          "trust": 50,
+          "affection": 45,
+          "respect": 60
         }
       ]
     },
@@ -128,6 +135,13 @@
           "trust": 20,
           "affection": 15,
           "respect": 30
+        },
+        {
+          "to": "npc_s02",
+          "type": "colleague",
+          "trust": 50,
+          "affection": 45,
+          "respect": 60
         }
       ]
     },
@@ -190,6 +204,13 @@
           "trust": 60,
           "affection": 70,
           "respect": 65
+        },
+        {
+          "to": "npc_s09",
+          "type": "colleague",
+          "trust": 50,
+          "affection": 45,
+          "respect": 60
         }
       ]
     },
@@ -259,6 +280,13 @@
           "trust": 50,
           "affection": 45,
           "respect": 60
+        },
+        {
+          "to": "npc_s06",
+          "type": "colleague",
+          "trust": 50,
+          "affection": 45,
+          "respect": 60
         }
       ]
     },
@@ -320,6 +348,13 @@
           "type": "friend",
           "trust": 65,
           "affection": 70,
+          "respect": 60
+        },
+        {
+          "to": "npc_s07",
+          "type": "colleague",
+          "trust": 50,
+          "affection": 45,
           "respect": 60
         }
       ]
@@ -424,6 +459,13 @@
         },
         {
           "to": "npc_17",
+          "type": "colleague",
+          "trust": 50,
+          "affection": 45,
+          "respect": 60
+        },
+        {
+          "to": "npc_s04",
           "type": "colleague",
           "trust": 50,
           "affection": 45,
@@ -552,6 +594,13 @@
           "trust": 20,
           "affection": 15,
           "respect": 30
+        },
+        {
+          "to": "npc_s03",
+          "type": "colleague",
+          "trust": 50,
+          "affection": 45,
+          "respect": 60
         }
       ]
     },
@@ -652,6 +701,13 @@
           "trust": 50,
           "affection": 45,
           "respect": 60
+        },
+        {
+          "to": "npc_s08",
+          "type": "colleague",
+          "trust": 50,
+          "affection": 45,
+          "respect": 60
         }
       ]
     },
@@ -717,6 +773,13 @@
         },
         {
           "to": "npc_24",
+          "type": "colleague",
+          "trust": 50,
+          "affection": 45,
+          "respect": 60
+        },
+        {
+          "to": "npc_s05",
           "type": "colleague",
           "trust": 50,
           "affection": 45,
@@ -844,6 +907,13 @@
           "type": "colleague",
           "trust": 50,
           "affection": 45,
+          "respect": 60
+        },
+        {
+          "to": "npc_s10",
+          "type": "friend",
+          "trust": 65,
+          "affection": 70,
           "respect": 60
         }
       ]

@@ -189,3 +189,153 @@ The migration plan (Part C #17) makes LLM dialogue *optional, later*. This docum
 - **The LLM layer** — optional, later, bounded by §9; no API, provider, or cost is chosen here.
 
 *End of GDD-15 v1.0 — Unit AL, Queue 7.*
+
+---
+
+## 12. Dialogue Runtime Binding
+
+**Unit AV · Queue 9 · Version 1.0 · 2026-11-22**
+**Status:** DESIGN ONLY. This section binds the authored data in `data/dialogue-lines.json` (Unit AO) to live state at conversation time. It adds no new state, no new fields, and no sim code changes; Phase 6 implements against it. Where a binding needs an input no source supplies, the gap is named in §12.8 — it is not papered over.
+
+### 12.1 The conversation-time snapshot
+
+When a conversation opens (GDD-06 §2 `Converse`; GDD-15 §2), the runtime takes one snapshot of the §1 state for this NPC–player pair. Every condition in the conversation is evaluated against that snapshot, plus the effects the conversation itself has already applied — so a later node sees an earlier node's writes (for example, `dlg_1_3_intro` sets `met_player`, and the topic menu then drops `introduce`). Nothing outside the conversation mutates the snapshot while it runs: the NPC's schedule state is suspended (GDD-06 §2), and the rest of the district keeps living without touching this pair's rows.
+
+| Input the runtime needs | Where it lives | How it is read |
+|---|---|---|
+| Greeting band | `relationships` (NPC→player edge), `trust`/`affection` | Mean of trust and affection, banded by GDD-15 §3 / `dialogue-lines.json` `greeting_bands` |
+| Semantic flags | `relationships.flags` JSONB | `met_player`, `worked_with_player`, `employs_player`, `owes_player`, `player_owes`, `apologised_for_offence` (GDD-01 §2.3; GDD-15 §1) |
+| Respect | `relationships.respect` on the same edge | Compared against `respect_min` (GDD-01 §6.2) |
+| Episodic memories | `character_memories` rows for the NPC about the player | `tools/sim/memory.py` `memories_about()` — strongest first (GDD-01 §2.3; GDD-06 §6) |
+| Goal stack | `character_goals` (1 life + up to 2 stage goals) | The NPC's life goal fills `<life_goal>` (GDD-01 §2.2) |
+| Mission state | `mission_progress` row for (player, mission id) | See §12.3 and gap G1 — the dialogue states do not all exist in the schema |
+| Employment | `employments` row with `ended_at_game_minutes IS NULL` | `profession_id` matches `data/professions.json` ids (GDD-01 §1) |
+| Household | `household_members` row with `left_at_game_minutes IS NULL` | `has_household` (GDD-01 §5) |
+| Current zone | The NPC's current anchor zone | One of the 10 zone ids (GDD-06 §3); see gap G8 |
+| Tier / life stage | `characters.sim_tier`; stage derived from age | `full` / `scheduled` / `ambient` (GDD-01 §2, §3); child stage per GDD-06 §4.12 |
+| Favour availability | Side-mission generator (GDD-04 §3) | See gap G2 — no sim module supplies it |
+| Conversation cooldown | `relationships.last_interaction_at_game_minutes` | 30 in-game minutes (GDD-15 §2); mission-flagged topics bypass it |
+
+### 12.2 The walk — how a line is selected
+
+1. **Entry gate (GDD-15 §2).** The NPC must be Full or Scheduled tier and in an interruptible state (not `Sleep`, not a moving work sub-state). Ambient NPCs promote first (GDD-06 §5). A child routes to a guardian or refuses (GDD-06 §4.12, `dlg_topic_introduce_child`). The 30-minute cooldown applies unless the topic is mission-flagged.
+2. **Greeting (GDD-15 §3).** The opening line is the band-matching line of the greeting nodes: `dlg_topic_greet` (bands `close`, `warm`, `neutral`), `dlg_topic_greet_wary` (`wary`), `dlg_topic_greet_hostile` (`hostile`). Full tier, `close` band, may open with the top episodic memory instead — the first row of `memories_about()` for this NPC about the player.
+3. **NPC lead (GDD-15 §4), at most once.** Checked in this order: `owes_player` set → the debt tree opens at `dlg_debt_npc_owes`; a top-weighted episodic memory involving the player exists → the NPC opens with it; a time-sensitive mission (deadline within 3 days) → the mission offer opens. The third trigger cannot fire today — see gap G10. After the led topic resolves, the menu opens.
+4. **Topic menu (GDD-15 §4).** Only topics whose unlock condition holds on the snapshot are listed; locked topics are hidden, never greyed out.
+5. **Node entry.** A node is entered only if its `condition` holds (§12.3). Entering a node applies its effects (§12.4) before its lines render.
+6. **Lines.** Every line in the node whose `condition` holds is shown, in file order, up to the 3-line maximum (GDD-15 §8). There is no random pick and no re-roll: the same snapshot always shows the same lines. Placeholders fill from existing data only — `<name>` from the speaking NPC's cast name, `<life_goal>` from the NPC's goal stack, `<current_work>` from the NPC's current work sub-state (GDD-06 §4), `<zone_name>` from the display name of the NPC's current zone (GDD-02 §2).
+7. **Choices.** Only choices whose `condition` holds are shown. Following a choice jumps to its `next` node id and re-enters step 5. A node with no choices and `ends: false` returns to the topic menu; a node with `ends: true` closes the conversation.
+8. **Close.** `say_goodbye` (`dlg_topic_goodbye`) writes the drift and any memory rows (§12.4); the cooldown starts from the drift write, which updates `last_interaction_at_game_minutes`.
+
+**Worked trace — mission `1.3` "Know Your Neighbours" (GDD-04 §2, `data/missions.json`).** Neighbour, band `neutral`, `met_player` = false. Opening line: the `neutral` line of `dlg_topic_greet`. Inside the mission `1.3` tree, `dlg_1_3_intro` offers two choices: "I just moved in." → `dlg_1_3_offer`; "Nice to meet you." → `dlg_1_3_hello`, which greets and drifts slightly without offering the mission. The player picks `introduce` → `dlg_topic_introduce` sets `met_player`. The `mission_offer` topic lists mission `1.3` → `dlg_topic_mission_offer` → choice "Tell me about 'Know Your Neighbours'." → `dlg_1_3_offer` (condition: mission `1.3` state `available`; both lines show — the offer, then the reward quoted verbatim: no credits, +10 reputation with each neighbour met, +5 district reputation, unlocks the Neighbour favour system). Accept → `dlg_1_3_accept` (mission `1.3` state `offered` — see G1). Decline → `dlg_1_3_decline`; nothing is written and the offer stays open. While the mission is accepted, re-engaging the NPC enters `dlg_1_3_reminder` (and `dlg_1_3_reminder_exit`). On return with the objective complete → `dlg_1_3_return`: +10 trust / +10 affection drift, episodic memory "helped `<name>`" weight +40 (Full tier), mission `1.3` completes with the exact `missions.json` rewards.
+
+**Worked trace — mission `2.4` "A Friend in the City" (GDD-04 §2).** Entry is the score itself: `dlg_2_4_entry` requires `relationship_mean_min` 40, matching the mission objective "Raise one friendship to 40+ (trust/affection)". Then `dlg_2_4_offer` (mission `2.4` state `available`) quotes the reward verbatim — no credits, +10 district reputation, a memory event, unlocks Friend favour missions. Accept → `dlg_2_4_accept`; progress → `dlg_2_4_progress`; return → `dlg_2_4_return` (memory event, mission complete). Decline → `dlg_2_4_decline`; defer → `dlg_2_4_later`. No separate quest-giver NPC type exists: any NPC whose scores qualify carries the mission (GDD-15 §5).
+
+### 12.3 Condition evaluation
+
+A `condition` object holds only if **every** key in it holds (AND). An absent `condition` means always true. The vocabulary is the one declared in `data/dialogue-lines.json` `condition_vocabulary`; each key maps to live state as follows.
+
+| Condition key | Reads | True when |
+|---|---|---|
+| `always` | Nothing | Always |
+| `band` | NPC→player edge, mean of trust and affection, banded per §3 | The computed band equals the named band |
+| `band_min` | Same | The band is at least this warm, in the order `close` > `warm` > `neutral` > `wary` > `hostile` (inclusive) |
+| `band_max` | Same | The band is at most this warm (inclusive) |
+| `flag` | `relationships.flags` on the NPC→player edge | The named flag equals the stated value (`met_player`, `owes_player`, `player_owes`, `worked_with_player`, `employs_player`, `apologised_for_offence`) |
+| `mission` | `mission_progress` row for (player, mission id) | The mission is in the named state — **see G1**: only `available` and `completed` exist in both vocabularies; `not_started`, `offered`, `accepted`, `objective_complete` have no defined evaluation against `data/schema.sql` as written |
+| `relationship_mean_min` | Same edge, mean of trust and affection | Mean ≥ the number (e.g. 40 for `dlg_2_4_entry`, matching mission `2.4`) |
+| `respect_min` | `relationships.respect` on the same edge | Respect ≥ the number |
+| `employed` | `employments` | A current row exists (`ended_at_game_minutes IS NULL`) |
+| `has_household` | `household_members` | A current row exists (`left_at_game_minutes IS NULL`) |
+| `zone` | NPC's current anchor zone | Equals the named zone id (see G8) |
+| `profession` | NPC's `profession_id` | Equals the named profession id |
+| `memory` (`harming_episodic_memory`, `exists: true`) | `memories_about()` for the NPC about the player | At least one row has negative emotional weight (GDD-01 §2.3: weight −100..100; negative = harming) |
+| `tier` | `characters.sim_tier` / derived life stage | Equals the named tier or stage (`full`, `child`) |
+| `favour_available` | Side-mission generator (GDD-04 §3) | **See G2** — no sim module supplies this value |
+
+**Band arithmetic.** The band uses the arithmetic mean of trust and affection on the NPC's outgoing edge toward the player (GDD-01 §6.2: behaviour reads the actor's outgoing scores). Thresholds are GDD-15 §3, stored as data in `dialogue-lines.json` `greeting_bands`: `close` ≥ 60, `warm` 20 to 59, `neutral` −19 to 19, `wary` −59 to −20, `hostile` ≤ −60. Respect is not part of the band — it gates work topics only (§3). A pair with no edge at all (first meeting, `met_player` = false) reads as `neutral` (§3).
+
+**Zones and professions in the data.** The `ask_about_place` topic has one node per zone — `dlg_topic_place_market` (`d1_market`), `dlg_topic_place_oldtown` (`d1_oldtown`), `dlg_topic_place_riverfront` (`d1_riverfront`), `dlg_topic_place_midtown` (`d1_midtown`), `dlg_topic_place_civic` (`d1_civic`), `dlg_topic_place_education` (`d1_education`), `dlg_topic_place_industry` (`d1_industry`), `dlg_topic_place_park` (`d1_park`), `dlg_topic_place_transport` (`d1_transport`), `dlg_topic_place_uptown` (`d1_uptown`) — and small-talk lines exist for all 11 professions: `construction_worker`, `civil_engineer`, `doctor`, `teacher`, `police_officer`, `taxi_driver`, `chef`, `software_developer`, `shop_owner`, `business_owner`, `pilot`. Zone lines use only the contents GDD-02 §2 lists for that zone; profession lines use only the workplace and gameplay summary `data/professions.json` carries for that profession.
+
+**Debt and apology trees.** The debt tree is entered through `dlg_topic_debt` and branches on the flags: `dlg_debt_npc_owes` → `dlg_debt_repay_now` (settles), `dlg_debt_npc_refuses` (cannot pay yet), `dlg_debt_wait` (player waits); `dlg_debt_player_owes` → `dlg_debt_player_pays`, `dlg_debt_player_wait`. The apology tree is entered through `dlg_topic_apologise`: `dlg_apology_open` requires band at most `wary` and a harming memory; `dlg_apology_accepted` reduces that memory's weight (see G6) and sets `apologised_for_offence`; `dlg_apology_refused` ends the attempt with drift; `dlg_apology_repeat` answers a second apology for the same offence; `dlg_apology_hostile` is the single hostile line and exit. Work topics live at `dlg_topic_work` / `dlg_topic_work_how`, goals at `dlg_topic_goals` / `dlg_topic_goals_help`, family at `dlg_topic_family` / `dlg_topic_family_meet`, favours at `dlg_topic_favour` / `dlg_topic_favour_none` (see G2).
+
+### 12.4 Effect application
+
+Effects are applied on node entry, in the order listed, as one transaction per node: if any effect cannot be written (for example the ledger rejects a settlement), the whole node's effects roll back and the node is treated as failed — the conversation returns to the topic menu with no partial write. Effects write only the speaker's and the player's rows, never a third party's (GDD-15 §7).
+
+| Effect type | Engine call | Row written |
+|---|---|---|
+| `relationship_drift` | `tools/sim/relationships.py` `adjust_scores()` | Trust/affection/respect on the NPC→player edge, clamped to −100..100; symmetric relation types mirror to the return edge; `last_interaction_at_game_minutes` updates (this is what the §2 cooldown reads) |
+| `set_flag` | `tools/sim/relationships.py` `set_flag()` | One key in `relationships.flags` JSONB on the NPC→player edge |
+| `memory_write` | `tools/sim/memory.py` `record_memory()` | Appends to `character_memories` (Full tier only — `record_memory()` returns `None` for Scheduled/Ambient, so the effect is a no-op there and the rest of the node's effects still apply); cap 200, oldest low-weight forgotten first (`prune()`). Weight is carried only where a source gives one (+40 for `dlg_1_3_return`, GDD-15 §5) — see G5 |
+| `memory_weight_reduce` | None exists | See G6 — `memory.py` can append and prune but cannot change a stored weight |
+| `mission_progress` / `mission_complete` | The mission system's own functions (not dialogue code) | `mission_progress` rows; `mission_complete` pays the rewards verbatim from `data/missions.json` — mission `1.3`: credits `null`, +10 reputation `relationship_each_met`, +5 `district`; mission `2.4`: credits `null`, "Memory event", +10 `district`. A `null` credit reward means no credit reward — never invent one |
+| `ledger_settlement` | The ledger's own functions only, reason `repayment` | Settles an existing debt; the amount is read from the ledger (`amount_ref` `ledger_debt_amount`) and is never stated in a line. Dialogue never creates or erases a debt (GDD-15 §4) |
+| `propose_goal` | None exists | See G7 — a conversation may propose a stage goal; the player accepts it or not, never silently applied (GDD-15 §7) |
+| `none` | Nothing | Explicitly no write (a decline, a refusal, a waiting answer) |
+
+**Node effects vs line effects — the precedence rule.** `data/dialogue-lines.json` duplicates effects at node level and at line level (for example `dlg_1_3_return` and `dlg_debt_repay_now` carry identical lists in both places), so the runtime must not apply both. The rule is: **apply the effects of the lines actually shown; if none of the shown lines carries any effect, apply the node's effects. Never apply both.** This is consistent across the shipped data: `dlg_1_3_accept`, `dlg_1_3_return`, `dlg_debt_player_pays`, `dlg_topic_work`, `dlg_topic_goals_help` and `dlg_apology_accepted` all resolve to exactly one application; `dlg_1_3_intro` and `dlg_topic_greet` resolve through the node fallback (their shown lines carry no effects, or carry the per-band drift respectively); `dlg_topic_goodbye` applies the `close`-band line's +1 affection only when that line shows. A `memory_write` effect names no owner in the data (see G5); the binding writes it to the speaking NPC's `character_memories`.
+
+**Drift discipline.** Drift amounts are data, per topic, small per GDD-01 §4 step 4 — big changes come only from events. The per-conversation drift cap GDD-15 §7 requires has no number in any source (see G9); until one is set, the shipped drift values (+1/+2 per line, +10/+10 only on mission `1.3` completion) are the cap in practice, because they are the only numbers the data carries.
+
+### 12.5 What the Session 01/02 sim supplies
+
+The headless sim is the reference implementation of the read and write functions this binding calls. The UE runtime reads the same tables (`data/schema.sql`); the sim's functions are the contract for *how*. Two tables the sim uses — `life_events` and `relationship_history` — have no `CREATE TABLE` in `data/schema.sql`; they exist only in the sim store, and the binding reaches them only through the sim functions below, never as schema tables.
+
+**`tools/sim/memory.py` (Unit 03) — episodic memory, GDD-01 §2.3:**
+- `record_memory()` — appends one `character_memories` row (Full tier only, otherwise `None`), clamps `emotional_weight` to −100..100, then enforces the cap.
+- `memories_about()` — what a character episodically remembers about another person, strongest first (`ABS(emotional_weight)` descending, then most recent), default limit 5. This is the read behind the NPC-lead check (§12.2 step 3), the `close`-band memory greeting (§3), and the `memory` condition (§12.3).
+- `recent_memories()` — top-weighted recent memories, default limit 10.
+- `prune()` / `MEMORY_CAP` (200) — retention priority is |weight| aged by recency (halves roughly every 90 days); the least important rows are forgotten first.
+- `log_life_event()` — the world's event log (`life_events`); memory is what an individual retains of it. Dialogue reads `character_memories`, never `life_events` directly.
+
+**`tools/sim/relationships.py` (Unit 07; Session 02 Unit 01 history) — edges and semantic memory, GDD-01 §6:**
+- `get_edge()` — one directed `relationships` row by (from, to, `relation_type`); scores trust/affection/respect −100..100, `flags` JSONB, `last_interaction_at_game_minutes`.
+- `adjust_scores()` — the only drift writer; clamps, stamps the interaction time, mirrors symmetric types.
+- `set_flag()` / `get_flag()` — semantic memory on the edge itself (GDD-01 §2.3).
+- `history_of()` — the recorded history of a pair from `relationship_history` (formation, status changes).
+- `add_edge()` / `weekly_drift()` — formation and slow settling between interactions; dialogue never calls them (formation is a life event, drift between conversations is the weekly tick, not a dialogue write).
+
+**Read-only at selection time.** Steps 1–7 of §12.2 only read: `get_edge()`, `get_flag()`, `memories_about()`, and table reads for `mission_progress`, `character_goals`, `employments`, `household_members`, `characters`. Writes happen only through the §12.4 effect functions. The sim supplies **no** function that writes `mission_progress`, generates a side-mission favour, proposes a goal, reduces a memory weight, or derives a debt flag from the ledger — those are the gaps in §12.8, and the sim must not be credited with them.
+
+### 12.6 Fallback — when no line's condition matches
+
+Deterministic, in order:
+
+1. **No line in the node matches.** The node contributes no line and applies no effects. Control returns to the topic menu. If the node had `ends: true`, the conversation closes through `dlg_topic_goodbye` instead — a conversation never ends mid-node on silence.
+2. **No choice matches.** The node's matching lines show, then control returns to the topic menu. A choice list that is empty after filtering is the same as no choices.
+3. **No topic is available.** `say_goodbye` (`dlg_topic_goodbye`) is always available, so the menu always has at least one entry.
+4. **The greeting cannot fail.** A pair with no edge reads as band `neutral` (§12.3), and all five bands have a greeting node (`dlg_topic_greet`, `dlg_topic_greet_wary`, `dlg_topic_greet_hostile`). A first meeting always has a line.
+5. **No `mission_progress` row exists.** Every `mission` condition that requires a row state is false. (`not_started` is the exception in name only — its evaluation is part of G1 and is undefined until the mapping exists.)
+6. **No randomness anywhere.** The same snapshot and the same data always produce the same lines, in the same order. If a line is missing, that is a data bug to fix in `dialogue-lines.json`, not a case for the runtime to improvise — the runtime never authors a line (GDD-15 §5).
+
+### 12.7 What dialogue can never change — and the LLM position
+
+Restated from GDD-15 §7 and §9, because the binding must enforce it, not just quote it:
+
+| Dialogue can never change | Authority |
+|---|---|
+| Currency balances directly | GDD-01 §8: only the server (Phase 9) / the single-player authority writes ledger rows. A dialogue line cannot mint, move or erase credits except through the ledger functions in §12.4 (`mission_reward`, `loan`, `repayment` reason codes) |
+| Property ownership / tenancy | GDD-01 §8. A conversation can start a purchase; the transaction is a server-validated ledger + property write and can still fail |
+| Reputation beyond the mission rules | Only via the GDD-04 reward table or the event rules |
+| Another character's memories or goals | Dialogue writes the speaker's and the player's rows only |
+| The world clock, weather, or season | Owned by the clock/weather/season systems; dialogue may comment on them, never set them |
+
+**LLM (GDD-15 §9, restated).** An LLM, if ever built, may only *rephrase* an authored line within the same node (same facts, same offer, same price), only on nodes flagged `rephrase_ok`, only for Full-tier NPCs, only with the authored line as the fallback when the API is unavailable or the output fails validation. It may never invent a fact, offer, price, mission, debt, or relationship change; never speak for a Scheduled/Ambient NPC; never replace the topic menu with free text; never make a network call in the shipped single-player path. If the LLM is off, the game is identical — that is the test. **Honest note: no node in `data/dialogue-lines.json` v1.0 carries a `rephrase_ok` flag, so today zero nodes are eligible for rephrasing.** No API, provider, or cost is chosen here; those are owner decisions with money attached, deferred honestly.
+
+### 12.8 Honest gaps
+
+These are inputs the binding needs that no source supplies. They are recorded here so Phase 6 does not invent them silently. None of them blocks this design; each blocks the nodes that depend on it until it is resolved by data or by an owner decision.
+
+- **G1 — Mission-state mapping.** `data/dialogue-lines.json` conditions use six mission states (`available`, `not_started`, `offered`, `accepted`, `objective_complete`, `completed`); `data/schema.sql` `mission_progress.status` allows four (`available`, `active`, `completed`, `failed`). No source maps one vocabulary onto the other, and no source defines the `progress` JSONB keys the sub-states would need. Until the mapping is defined, the nodes that depend on `offered` (`dlg_1_3_accept`, `dlg_1_3_decline`, `dlg_2_4_accept`, `dlg_2_4_decline`), `accepted` (`dlg_1_3_reminder`, `dlg_1_3_reminder_exit`, `dlg_2_4_progress`) and `objective_complete` (`dlg_1_3_return`, `dlg_2_4_return`) cannot be evaluated against the schema as written.
+- **G2 — Favour availability.** `favour_available` is a condition in `data/dialogue-lines.json` (`dlg_topic_favour`, `dlg_topic_favour_none`) and GDD-04 §3 describes side-mission generation, but no `tools/sim` module generates side missions or reports whether one exists for an NPC. The favour topic cannot be evaluated from sim state.
+- **G3 — Debt flags.** The flags `owes_player` and `player_owes` are dialogue vocabulary (GDD-15 §1, §4) and `set_flag()` can store them, but no sim function derives them from `economy_ledger` loan rows and no sim code ever sets them. Whether the runtime derives them from the ledger or the economy maintains them is undefined.
+- **G4 — Which edge supplies the band.** `get_edge()` requires a `relation_type`, and GDD-01 §6.1 allows several directed edges between one pair (for example `spouse` and `colleague`). No source names which edge supplies the greeting band, `relationship_mean_min`, or `respect_min` when more than one exists.
+- **G5 — `memory_write` is underspecified three ways.** `record_memory()` requires an `event_type` string and a `details` JSON object, but no source names the `event_type` for a conversation memory ("helped `<name>`", "met `<name>`"); no source gives the rule by which the runtime assigns a weight to a `memory_write` that carries none (only +40 for `dlg_1_3_return` is sourced); and no `memory_write` effect names whose memory it is — §12.4 assigns it to the speaking NPC, but the data carries no owner field.
+- **G6 — No weight reduction.** `memory_weight_reduce` (`dlg_apology_accepted`, `amount_ref` `runtime_rule`) has no number in any source and no sim function: `tools/sim/memory.py` can append, read, and prune, but cannot change a stored `emotional_weight`. The reduction step and its size are both undefined.
+- **G7 — Goal proposal has no accept path.** `propose_goal` (`dlg_topic_goals_help`) may propose a stage goal, and `character_goals` supports `goal_kind` `stage` with status `active`, but no sim function proposes a goal or records the player's acceptance of one. The accept step is UE-side and undefined.
+- **G8 — Current zone has no sim accessor.** GDD-06 §3 resolves location tokens to anchors from the live schedule instantiation, but no source read for this unit names a sim function returning an NPC's current zone at a given game time. The binding reads the zone from live schedule state; the headless sim exposes no single call for it.
+- **G9 — Per-conversation drift cap.** GDD-15 §7 requires drift to be capped per conversation, but no source gives the cap's number. The shipped drift values are the only numbers the data carries (§12.4).
+- **G10 — No mission deadlines.** GDD-15 §4 lets an NPC lead with a time-sensitive mission (deadline within 3 days), but no mission in `data/missions.json` carries a deadline field. That lead trigger cannot be evaluated from mission data today.
+
+*End of GDD-15 v1.0 + Unit AV §12 (Queue 9).*
