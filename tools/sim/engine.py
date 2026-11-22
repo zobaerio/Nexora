@@ -74,6 +74,7 @@ from . import social as social_mod
 from . import transport as transport_mod
 from . import environment as environment_mod
 from . import agents as agents_mod
+from . import integration as integration_mod
 from . import identity as identity_mod
 from . import interaction as interaction_mod
 from . import lifecycle
@@ -148,6 +149,14 @@ class Simulation:
         # the government). Hand-built worlds have no agent layer
         # and every Session 09 pass no-ops.
         stats["agents"] = agents_mod.setup_agents(
+            self.store, self.data, 480)
+        # Session 10: the integration layer seeds last of all —
+        # its event registry indexes every earlier layer's
+        # history tables, its technology derivation reads the
+        # research/education records, and its resource balance
+        # reads every layer's stores. Hand-built worlds have no
+        # integration layer and every Session 10 pass no-ops.
+        stats["integration"] = integration_mod.setup_integration(
             self.store, self.data, 480)
         return stats
 
@@ -393,6 +402,15 @@ class Simulation:
             self._monthly_transport(day)
             self._monthly_environment(day)
             self._monthly_agents(day)
+            self._monthly_integration(day)
+        # Session 10: the unified event registry syncs at the
+        # very end of the day — after every daily pass, the
+        # festival block and (on month-end days) every monthly
+        # pass — so the day's events from all subsystems are
+        # indexed the day they happen.
+        if integration_mod.is_setup(store):
+            integration_mod.daily_pass(store, data, self.rng, day,
+                                       day_end)
         store.set_world(game_minutes=day_end, day_index=day + 1,
                         weather_preset=preset)
         store.commit()
@@ -609,6 +627,21 @@ class Simulation:
         month_index = (last_day + 1) // 30
         agents_mod.monthly_pass(store, data, self.rng, month_index,
                                 game_minutes)
+
+    # -- Session 10 integration cadence -----------------------
+    # Monthly, last of all: technology levels are recomputed
+    # from the settled month's research + certification records,
+    # and configured global scenarios resolve after their
+    # duration. No-ops when the layer was never set up.
+
+    def _monthly_integration(self, last_day):
+        store, data = self.store, self.data
+        if not integration_mod.is_setup(store):
+            return
+        game_minutes = (last_day + 1) * 1440
+        month_index = (last_day + 1) // 30
+        integration_mod.monthly_pass(store, data, self.rng,
+                                     month_index, game_minutes)
 
     def run_days(self, n):
         for _ in range(n):
@@ -1134,6 +1167,27 @@ class Simulation:
             # set up).
             "agents": agents_mod.agents_summary(store)
             if agents_mod.is_setup(store) else {},
+            # Session 10 integration layer (empty when not
+            # set up).
+            "integration": self._integration_summary()
+            if integration_mod.is_setup(store) else {},
+        }
+
+    def _integration_summary(self):
+        store = self.store
+        by_source = {r["source"]: r["n"] for r in store.rows(
+            "SELECT source, COUNT(*) AS n FROM world_events"
+            " GROUP BY source ORDER BY source")}
+        return {
+            "registry_events": sum(by_source.values()),
+            "registry_by_source": by_source,
+            "technology": {f: v["level"] for f, v in
+                           integration_mod.latest_technology(
+                               store).items()},
+            "global_scenarios_active": store.row(
+                "SELECT COUNT(*) AS n FROM crisis_records WHERE"
+                " status = 'active' AND details LIKE"
+                " '%global_scenario%'")["n"],
         }
 
     def _humandev_summary(self):

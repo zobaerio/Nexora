@@ -96,6 +96,12 @@ class WorldData:
         # and assessment parameters, memory caps; every rate is
         # labelled SIM MODEL in the file itself.
         self.agents_config = _load_json("agents-config.json")
+        # Session 10: the integration layer's configuration —
+        # the unified event registry's sources, the technology
+        # derivation (fields, mapping, weights — a documented
+        # SIM MODEL index), the configured global scenarios and
+        # the resource-balance flag bases.
+        self.integration_config = _load_json("integration-config.json")
 
     # -- canonical accessors -------------------------------------------------
     # Employment tiers run 1..5 (professions.json progression), but

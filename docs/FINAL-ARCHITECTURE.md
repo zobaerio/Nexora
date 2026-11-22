@@ -1,0 +1,48 @@
+# NEXORA — Final Architecture (after Session 10)
+
+**Status:** the 10-session simulation programme is complete. This document maps the owner spec's 15 architecture layers to the real modules, tables and CLIs that implement them, states service ownership, and lists the honest boundaries. Everything named here exists in the repository (`zobaerio/Nexora`, `tools/sim/`); anything that does not exist is listed under Boundaries, not implied.
+
+## The system in one paragraph
+
+NEXORA's civilization core is a deterministic, single-process Python simulation (stdlib only) over a per-world SQLite database. One `Simulation` (engine.py) owns one world file; the file **is** the save. Every subsystem is a module with a `setup_*` seed (idempotent, recorded as a flag on the single `world_state` row), a daily and/or monthly pass driven by the engine's cadence, and read models exposed through the summary and observatory CLIs. Money moves only through the append-only double-entry ledger; every other history table is write-once in practice. The Unreal Engine 5 layer that renders this world in 3D is uncompiled scaffolding for the owner's PC (see Boundaries).
+
+## The 15 layers
+
+| # | Spec layer | Real implementation | Owner module(s) | Principal tables |
+|---|---|---|---|---|
+| 1 | World | One SQLite file per world; world registry, checkpoints, duplication, digests | `worlds.py`, `engine.Simulation` | `world_state` (+ registry JSON beside the worlds) |
+| 2 | Geography | Two cities from project data: zones, parcels, terrain, road graph (Dijkstra), intercity connections | `cities.py`, `citygen.py` | `cities`, `city_zones`, `land_parcels`, `terrain_regions`, `road_segments`, `regional_connections` |
+| 3 | Human | Life cycle birth→death, needs, personality, emotions, skills, memory, daily decisions | `lifecycle.py`, `identity.py`, `needs`/`decisions` in engine + `memory.py` | `characters`, `personality_profiles`, `emotional_state`, `needs_state`, `character_skills`, `character_memories`, `life_events`, `decision_log` |
+| 4 | Social | Families, households, relationships, communities, culture profiles + festivals | `family.py`, `relationships.py`, `culture.py`, `events.py` | `households`, `household_members`, `relationships`, `communities`, `social_events`, `household_culture` |
+| 5 | City | Properties/tenancies, construction lifecycle, infrastructure condition, municipal services, development | `cities.py`, `construction.py`, `infrastructure.py` | `properties`, `tenancies`, `construction_projects`, `building_state`, `infrastructure_state`, `city_statistics` |
+| 6 | Economic | Businesses, production, market pricing, labour, banking, investment, crises, indicators — all money via the ledger | `business.py`, `market.py`, `labour.py`, `banking.py`, `finance.py`, `crises.py`, `indicators.py` | `economy_ledger`, `businesses`, `business_inventory`, `inventory_movements`, `market_prices`, `employments`, `bank_accounts`, `economic_indicators`, `crisis_records` |
+| 7 | Government | One country, institutions/offices, parties + elections from citizens' state, budgets, treasury, policies, laws, courts, audits, diplomacy | `government.py`, `policies.py`, `justice.py`, `admin.py`, `integrity.py` | `countries`, `institutions`, `offices`, `parties`, `elections`, `ballots`, `budgets`, `treasuries`, `policies`, `laws`, `court_cases`, `audits`, `agreements` |
+| 8 | Education & Healthcare | Institutions, academics (learning/exams/certifications), health conditions + clinics, research, HDI | `education.py`, `academics.py`, `health.py`, `humandev.py`, `research.py` | `educational_institutions`, `education_records`, `examination_results`, `certifications`, `health_conditions`, `patient_visits`, `research_projects`, `research_records`, `human_development_indicators` |
+| 9 | Transportation | Physical trips on the road graph, vehicles + fuel quantities, transit, freight, congestion from the day's own trips | `transport.py` | `vehicles`, `trips`, `transit_routes`, `transit_runs`, `freight_shipments`, `transport_statistics`, `road_loads` |
+| 10 | Environmental | Regional weather, six-season calendar, hydrology/flooding, agriculture, pollution with source breakdowns, configured disaster scenarios + response | `environment.py` | `env_weather`, `env_water_state`, `env_soil`, `env_crops`, `env_pollution`, `env_snapshots`, `disaster_events`, `disaster_impacts`, `disaster_responses` |
+| 11 | Intelligence | Three tiers per the owner's doctrine — Simulation (rules), Advanced Agent (per-citizen decisions/goals/memory), Civilization (coordination: registry, assessments, forecasts, negotiation, contention). **No LLM calls anywhere.** | `agents.py` (+ S01 decision engine) | `agent_registry`, `agent_memories`, `character_goals`, `assessments`, `forecasts`, `negotiations`, `coordination_tasks` |
+| 12 | Event & Time | Single clock = the `world_state` row (`day_index`, `game_minutes`), written once per day; unified event registry indexing all major event classes across subsystems | `integration.py` (clock: `persistence.Store.set_world`) | `world_events`, `event_sync_state` (+ every source history table) |
+| 13 | Persistence | SQLite (WAL) per world; additive migrations only; named checkpoints with reconciled manifests; crash recovery to the last committed day | `persistence.py` (Store, SCHEMA, MIGRATIONS), `worlds.py` | all 149 tables; checkpoint files + manifests beside the world |
+| 14 | Visualization | **In this environment:** the observatory/data layer — summary JSON, `--events/--technology/--resources/--db-inspect` views, per-session report generators. **On the owner's PC:** the UE5 layer (below) | `integrationview.py`, `__main__.py` CLIs; `ue-project/` (scaffolding) | — |
+| 15 | Security & Administration | Platform administration is a property of the tooling, never of the simulated government: the sim has no in-world admin backdoor; the government's authority is enforced in code (`require_authority`) and audited; the ledger is append-only at the DB level (triggers) | `integrity.py`, `government.py` (authority), `persistence.py` (triggers) | `audits`, `integrity_reports`, `coi_records` |
+
+## Service ownership and contracts
+
+- **Engine (`engine.py`)** owns the cadence: per day — lifecycle, decisions, transport, environment, agents, then (weekly) relationships/infrastructure, festivals, and on month-end days the settlement chain (social → economy → city → economy close → government → humandev → transport → environment → agents → integration), and finally the registry sync and the clock write. A subsystem never calls another's pass; cross-system effects travel through tables and the documented accessor surfaces (e.g. `crises.active_effects`, `labour._eligible`, `integration.technology_factor`).
+- **The ledger (`persistence.Store.transfer`)** is the only money writer. Every transfer carries a reason code, an optional `event_ref`, and an idempotency `transfer_key`; balances are caches reconciled by `ledger_sum_check` and `finance.verify_conservation`.
+- **Configuration is data**: each layer reads its own JSON (`data/*-config.json`, validated by `tools/validate_data.py`); SIM MODEL parameters are labelled in their file's `basis` fields.
+- **Determinism contract:** all randomness flows from `SimRng` streams keyed by (system, entity, period); the same seed + inputs reproduce a world bit-for-bit in population + ledger state (digest-proven, including across restarts and a mid-run kill).
+- **The registry is a read model.** `world_events` indexes the history tables; it is never a source of truth and never feeds a simulation decision.
+
+## API surface (CLI, `python -m tools.sim`)
+
+World lifecycle: `--db`, `--seed`, `--population`, `--days` · Worlds: `--worlds`, `--register`, `--world-info`, `--checkpoint`, `--checkpoints`, `--restore-checkpoint`, `--duplicate-to`, `--from-checkpoint` · Observatory (read-only): default summary JSON, `--events`, `--technology`, `--resources`, `--db-inspect` · Scenario door: `--global-scenario ID`. There is no network API.
+
+## Honest boundaries
+
+1. **UE5 layer = owner's PC.** All UE C++ in `ue-project/` is uncompiled scaffolding written in a Linux VM without the engine. Rendering, MetaHuman, Chaos and 3D performance (including Session 03's deferred criterion 13) can only be verified on the owner's PC per `docs/PHASE1-BUILD-SHEET.md`. The Godot testbed (`rupsha-city/`, 8/8 tests passing) is preserved as the Phase 3 acceptance spec, untouched.
+2. **Scale is measured, not promised.** Verified: 365 days × 242 residents; 90 days × 342 residents (genesis is capped by the ~140-unit housing stock — a data limit). The spec's distributed processing, region aggregation and DB partitioning are **not built**; history growth (~0.58 MB/day at 242 residents) is the known pressure they would address.
+3. **No real-time mode.** Time modes are batch/step/paused/playback over persisted state (§ SESSION-10-REPORT 2.4). No server, no streaming, no multiplayer — the PostgreSQL server design in `data/schema.sql` remains a Phase 9 *design*, unbuilt.
+4. **One country, two cities.** The geographic hierarchy exists for what the data holds; continents/oceans/villages were not fabricated.
+5. **Security is local-scope.** No user accounts or network surface exist to secure; what exists — append-only money, audits, world isolation, platform-vs-government separation — is implemented and tested.
+6. **Simulation, not reality.** Weather totals, disease, HDI methodology, technology indices and similar are labelled SIM MODEL derivations from the sim's own records, documented where they are defined; none is presented as real-world data.

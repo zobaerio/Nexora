@@ -571,6 +571,44 @@ def main():
               and g["business_failure_memory_priority_cut"] > 0,
               "agents goal parameters are sane")
 
+    # -- Session 10: integration-config.json ----------------------
+    # Technology fields must map to research fields that exist in
+    # the education-health config; the derivation weights must be
+    # positive with a positive cap; global scenarios must carry a
+    # demand factor inside (0, 1] and a positive duration; the
+    # resource flag bases must be sane.
+    try:
+        data["integration-config.json"] = load(
+            "integration-config.json")
+        print("  ok: integration-config.json parses")
+    except Exception as e:
+        check(False, "integration-config.json parses", f"({e})")
+    if "integration-config.json" in data:
+        ic = data["integration-config.json"]
+        research_fields = set()
+        if "education-health-config.json" in data:
+            research_fields = set(data["education-health-config.json"]
+                                  ["research"]["fields"])
+        mapped = {f for spec in ic["technology"]["fields"].values()
+                  for f in spec["research_fields"]}
+        check(bool(mapped) and mapped <= research_fields,
+              "integration technology fields map to real research"
+              " fields", f"(mapped={sorted(mapped)})")
+        t = ic["technology"]
+        check(t["publications_weight"] > 0
+              and t["education_weight"] > 0 and t["max_level"] > 0
+              and t["capability_factor_per_level"] > 0,
+              "integration technology derivation weights positive")
+        sc = ic["global_scenarios"]["scenarios"]
+        check(bool(sc) and all(
+            0 < s["takings_factor"] <= 1 and s["duration_months"] > 0
+            and s["crisis_type"] and s["id"] for s in sc),
+            "integration global scenarios are sane")
+        r = ic["resources"]
+        check(0 < r["food_shortage_min_months_cover"] <= 1
+              and 0 < r["water_stress_max_groundwater_index"] < 1,
+              "integration resource flag bases are sane")
+
     return finish()
 
 

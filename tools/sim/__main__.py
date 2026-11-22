@@ -97,9 +97,115 @@ def main(argv=None):
                          " negotiations, forecasts with scores,"
                          " assessments, coordination tasks,"
                          " multi-level memory, learning records")
+    # Session 10 integration observation: real sim data only.
+    ap.add_argument("--events", action="store_true",
+                    help="unified event registry: counts by type/"
+                         " source/city + recent events")
+    ap.add_argument("--technology", action="store_true",
+                    help="technology levels with their derivation"
+                         " basis + history")
+    ap.add_argument("--resources", action="store_true",
+                    help="per-city resource balances (food, water,"
+                         " fuel, materials) from existing records")
+    ap.add_argument("--db-inspect", action="store_true",
+                    help="database inspection: table census,"
+                         " indexes, orphan scans (read-only)")
+    ap.add_argument("--global-scenario", metavar="SCENARIO_ID",
+                    help="trigger a configured global scenario"
+                         " (integration-config) in this world at"
+                         " its current month, then exit")
+    # Session 10 world operations: file-level, no simulation run.
+    ap.add_argument("--registry", default="worlds.json",
+                    help="world registry file (default"
+                         " worlds.json in the working directory)")
+    ap.add_argument("--worlds", action="store_true",
+                    help="list the worlds in the registry")
+    ap.add_argument("--register", metavar="NAME",
+                    help="register this --db world in the registry"
+                         " under NAME")
+    ap.add_argument("--world-info", action="store_true",
+                    help="read-only facts about this --db world")
+    ap.add_argument("--checkpoint", metavar="NAME",
+                    help="snapshot this world into a named"
+                         " checkpoint (with manifest)")
+    ap.add_argument("--checkpoints", action="store_true",
+                    help="list this world's checkpoints")
+    ap.add_argument("--restore-checkpoint", metavar="NAME",
+                    help="replace this world file with a named"
+                         " checkpoint snapshot")
+    ap.add_argument("--duplicate-to", metavar="PATH",
+                    help="create an independent world file at PATH"
+                         " from this world (or from"
+                         " --from-checkpoint)")
+    ap.add_argument("--from-checkpoint", metavar="NAME",
+                    help="source checkpoint for --duplicate-to")
     args = ap.parse_args(argv)
 
+    # Session 10 world operations are file-level: they never
+    # start a simulation, and restore/duplicate must not run
+    # while a Simulation holds the world open — this CLI process
+    # is the only holder here.
+    if args.worlds or args.register or args.world_info \
+            or args.checkpoint or args.checkpoints \
+            or args.restore_checkpoint or args.duplicate_to:
+        from tools.sim import worlds as worlds_mod
+        if args.worlds:
+            out = worlds_mod.list_worlds(args.registry)
+        elif args.register:
+            out = worlds_mod.register_world(args.registry, args.db,
+                                            name=args.register)
+        elif args.world_info:
+            out = worlds_mod.world_info(args.db)
+        elif args.checkpoint:
+            out = worlds_mod.create_checkpoint(args.db,
+                                               args.checkpoint)
+        elif args.checkpoints:
+            out = worlds_mod.list_checkpoints(args.db)
+        elif args.restore_checkpoint:
+            out = worlds_mod.restore_checkpoint(
+                args.db, args.restore_checkpoint)
+        else:
+            out = worlds_mod.duplicate_world(
+                args.db, args.duplicate_to,
+                from_checkpoint=args.from_checkpoint)
+        print(json.dumps(out, indent=1, sort_keys=True,
+                         default=str))
+        return 0
+
     sim = Simulation(args.db, seed=args.seed)
+    if args.global_scenario:
+        from tools.sim import integration as integration_mod
+        world = sim.store.world()
+        cid = integration_mod.trigger_global_scenario(
+            sim.store, sim.data, args.global_scenario,
+            world["day_index"] // 30, world["game_minutes"])
+        sim.store.commit()
+        print(json.dumps({"global_scenario": args.global_scenario,
+                          "crisis_id": cid}, indent=1,
+                         sort_keys=True))
+        sim.close()
+        return 0
+    if args.events or args.technology or args.resources:
+        from tools.sim import integrationview
+        if args.events:
+            out = integrationview.events_view(sim.store, sim.data)
+        elif args.technology:
+            out = integrationview.technology_view(sim.store,
+                                                  sim.data)
+        else:
+            out = integrationview.resources_view(sim.store,
+                                                 sim.data)
+        print(json.dumps(out, indent=1, sort_keys=True,
+                         default=str))
+        sim.close()
+        return 0
+    if args.db_inspect:
+        from tools.sim import dbinspect
+        sim.close()
+        out = dbinspect.inspect_world(args.db)
+        print(json.dumps(out, indent=1, sort_keys=True,
+                         default=str))
+        return 0
     if args.agents:
         from tools.sim import agentsview
         out = agentsview.agents_view(sim.store, sim.data)

@@ -20,6 +20,12 @@ therefore lives at the college, in the spec's shape:
   a rule, not hidden in a formula elsewhere.
 - When the college has no lecturer, no project starts: research
   does not conjure researchers.
+- Session 10: the capability gain from a completion is scaled
+  by the technology factor for the project's field
+  (integration.technology_factor — derived from the world's own
+  accumulated publications + credentialed share). The factor is
+  exactly 1.0 when the integration layer is absent or no level
+  is recorded yet, so pre-Session-10 behaviour is unchanged.
 """
 import json
 
@@ -61,10 +67,14 @@ def monthly_pass(store, data, rng, month_index, game_minutes):
                           proj["lead_character_id"],
                           "budget_ncr": proj["budget_ncr"]},
                          sort_keys=True))
+        from . import integration as integration_mod
+        gain = rcfg["capability_gain_per_completion"] \
+            * integration_mod.technology_factor(
+                store, data, proj["field"])
         store.execute("UPDATE educational_institutions SET"
                       " research_capability = research_capability + ?"
                       " WHERE institution_id = ?",
-                      (rcfg["capability_gain_per_completion"], iid))
+                      (gain, iid))
         out["completed"] += 1
     # One active project at a time; start the next when a lecturer
     # exists and the budget share is unspent.
