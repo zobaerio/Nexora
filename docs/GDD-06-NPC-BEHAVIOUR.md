@@ -182,4 +182,46 @@ These limits are the design's boundaries, stated so no later phase is planned ag
 5. Needs: starve an NPC's social need for 3 in-game days → their template bends (social leisure anchor) on day 4's tick.
 6. Pilot honesty: pilot NPCs never appear at a District 1 workplace; their template runs with zero unresolved-anchor errors.
 
-*End of GDD-06 v1.0.*
+## 11. Addendum — Full NPC Cast (Unit AN, Queue 7, 2026-11-22)
+
+The Phase 6 full tier is now data, not just a count. `data/npc-cast.json` names the ~25 Full NPCs per district this document has always budgeted (§5): **25 fictional characters** for Rupsha City District 1, each with a profession from `data/professions.json`, a home property from `data/buildings-district1.json`, a schedule template from `data/npc-schedules.json`, a workplace property where one exists, a life goal (GDD-01 §2.2), and relationship edges to other cast members (GDD-01 §6.1 types, §6.2 scores). Every character is invented for the game; no real person is depicted.
+
+| ID | Name | Profession | Home |
+|---|---|---|---|
+| `npc_01` | Arif Hasan | civil_engineer | `b_d1_riverfront_houses` |
+| `npc_02` | Nusrat Hasan | teacher | `b_d1_riverfront_houses` |
+| `npc_03` | Farhana Akter | doctor | `b_d1_uptown_luxury_apts` |
+| `npc_04` | Tanvir Ahmed | doctor | `b_d1_uptown_tier4_houses` |
+| `npc_05` | Rahim Uddin | construction_worker | `b_d1_oldtown_walkups` |
+| `npc_06` | Selina Begum | teacher | `b_d1_midtown_block_b` |
+| `npc_07` | Kamal Hossain | police_officer | `b_d1_oldtown_tier2` |
+| `npc_08` | Rashed Khan | police_officer | `b_d1_midtown_tier2_block` |
+| `npc_09` | Jamal Mia | taxi_driver | `b_d1_oldtown_walkups` |
+| `npc_10` | Shafiq Alam | taxi_driver | `b_d1_midtown_starter_block` |
+| `npc_11` | Nasrin Akter | taxi_driver | `b_d1_midtown_block_b` |
+| `npc_12` | Ayesha Siddiqua | chef | `b_d1_midtown_starter_block` |
+| `npc_13` | Imran Chowdhury | chef | `b_d1_oldtown_rowhouses` |
+| `npc_14` | Mehedi Hasan | software_developer | `b_d1_uptown_rooftop_flat` |
+| `npc_15` | Priya Das | software_developer | `b_d1_education_hostels` |
+| `npc_16` | Abdul Karim | shop_owner | `b_d1_oldtown_rowhouses` |
+| `npc_17` | Rina Akter | shop_owner | `b_d1_midtown_tier2_block` |
+| `npc_18` | Faruk Ahmed | business_owner | `b_d1_uptown_tier4_houses` |
+| `npc_19` | Sharmin Sultana | business_owner | `b_d1_uptown_luxury_apts` |
+| `npc_20` | Rakibul Islam | pilot | `b_d1_oldtown_tier2` |
+| `npc_21` | Sadia Rahman | civil_engineer | `b_d1_midtown_block_b` |
+| `npc_22` | Karim Uddin | construction_worker | `b_d1_oldtown_walkups` |
+| `npc_23` | Monir Hossain | teacher | `b_d1_oldtown_tier2` |
+| `npc_24` | Bilkis Begum | construction_worker | `b_d1_oldtown_walkups` |
+| `npc_25` | Rehana Begum | civil_engineer (retired) | `b_d1_riverfront_houses` |
+
+**How the cast plugs into this document:**
+- **Tiers (§5):** all 25 are Full tier — schedule, needs, goals, both memory kinds, full MetaHuman LOD0/1. Scheduled and Ambient tiers are unchanged: the cast does not add residents, it *names* 25 of them. The district's population counts in GDD-02 already include these people; naming them changes no number.
+- **Schedules (§3):** each cast member's `schedule_template_id` is their profession's template, instantiated with per-NPC jitter exactly as §3 describes — except `npc_25` Rehana Begum (68, retired), whose template is the `elder_day` life-stage template. Her `profession_id` stays `civil_engineer` (her former profession, for the profile card and skill history) but her day runs the elder template.
+- **Workplaces (§4):** `workplace_property_id` is the §3 anchor resolution made explicit per person — clinic, school, police station, depot, market hall, offices, staged plot, construction yard. It is null for exactly two cast members, both for stated reasons: `npc_20` the pilot (no District 1 airport, §4.11) and `npc_25` the retiree.
+- **Dialogue (GDD-15):** the cast is the dialogue system's Full-tier population — episodic-memory lines (§3 greeting bands), the `ask_about_goals` topics (each member carries a `life_goal`), and the mission-offer conditions (mission `1.3`'s neighbour is any cast member whose relationship edge qualifies, not a named person). The cast reuses the §5 tree library; no NPC carries bespoke fiction beyond their one-line `note`.
+- **Relationships (§6, GDD-01 §6):** 30 declared pairs, 60 directed edges — spouses (Arif↔Nusrat, Shafiq↔Ayesha), partners (Imran↔Sharmin), siblings (Rahim↔Karim), parent/child (Rehana→Nusrat), colleagues, friends, one best-friend pair (Mehedi↔Rakibul), one rival pair (Abdul Karim↔Rina Akter, market competition), and acquaintances. Spouse/partner/sibling edges are mirrored; parent/child edges mirror as child/parent. The graph is one connected component: every cast member reaches every other through relationship edges, so no Full NPC is socially isolated by data.
+- **Households (GDD-01 §5):** spouses share a home property (Arif+Nusrat+Rehana at the riverfront houses; Shafiq+Ayesha in the starter block), and siblings share a block (Rahim+Karim in the old-town walkups). Shared homes are households in the data sense — one home property, one expense pool — not a claim about interior layouts, which GDD-02 owns.
+
+**What the cast does not do:** it contains no child or teen (children exist in data and household simulation per GDD-01 §3 but are not Full-tier 3D characters until the asset gate clears — the §4.12 child-dialogue rule still applies to them); it does not change any wage, rent, price, or schedule template; and it invents no new building, zone, or profession — every id resolves to merged data, guarded by `tools/validate_data.py` (5 checks: 25 unique ids, refs resolve, all 11 professions covered, edges resolve/score/reciprocate, one component).
+
+*End of GDD-06 v1.0 + Unit AN addendum (§11).*
