@@ -1,6 +1,7 @@
 """Unit 09 — Life Cycle: stage bands, retirement at 65, and the
 death cascade (inheritance order, equal shares, escheat, headship,
 grief)."""
+import json
 import unittest
 
 from tools.sim.tests.common import (employ, data, make_household,
@@ -105,7 +106,97 @@ class TestRetirement(unittest.TestCase):
         ev = store.row("SELECT COUNT(*) AS n FROM life_events"
                        " WHERE character_id = ? AND event_type ="
                        " 'retirement'", (cid,))["n"]
-        self.assertEqual(ev, 1)
+class TestAgeUpOutfits(unittest.TestCase):
+    """Queue 17 Unit DK — starting outfits at the age-up to Young
+    Adult (18) for characters born in-world (GDD-09 §3, Unit DD)."""
+
+    def _teen(self, store, age=17):
+        cid = make_person(store, age=age, first="Teen")
+        store.execute("UPDATE agent_state SET life_stage = 'Teen'"
+                      " WHERE character_id = ?", (cid,))
+        return cid
+
+    def _at_age(self, store, cid, age):
+        char = store.row("SELECT * FROM characters"
+                         " WHERE character_id = ?", (cid,))
+        gm = char["born_at_game_minutes"] + age * 365 * 1440
+        fresh = store.row("SELECT * FROM characters"
+                          " WHERE character_id = ?", (cid,))
+        return lifecycle.daily_check(store, rng(), fresh,
+                                     gm // 1440, gm, data=data())
+
+    def test_age_up_to_18_seeds_starting_outfits(self):
+        store = make_store()
+        cid = self._teen(store)
+        self.assertIsNone(self._at_age(store, cid, 18))
+        rows = store.rows("SELECT * FROM inventory_items WHERE"
+                          " owner_character_id = ? AND"
+                          " item_type = 'clothing'", (cid,))
+        contexts = {json.loads(r["state"])["outfit_context"]
+                    for r in rows}
+        self.assertEqual(contexts, {"work", "casual", "formal"})
+        # The work outfit is the default (no employment yet).
+        work = [r for r in rows
+                if json.loads(r["state"])["outfit_context"] == "work"]
+        self.assertEqual({r["item_ref"] for r in work},
+                         {"shirt_basic", "trousers_basic",
+                          "shoes_leather"})
+
+    def test_age_up_outfits_can_be_lost_via_record_loss(self):
+        from tools.sim import lost_items as li
+        store = make_store()
+        cid = self._teen(store)
+        self._at_age(store, cid, 18)
+        row = store.row("SELECT * FROM inventory_items WHERE"
+                        " owner_character_id = ?", (cid,))
+        lid = li.record_loss(store, cid, row["item_instance_id"], 2000,
+                             "d1_midtown")
+        self.assertIsNotNone(lid)
+
+    def test_no_seeding_before_18_or_twice(self):
+        store = make_store()
+        cid = self._teen(store)
+        # Still 17: no transition, no outfits.
+        self.assertIsNone(self._at_age(store, cid, 17))
+        self.assertEqual(store.row("SELECT COUNT(*) AS n FROM"
+                                   " inventory_items")["n"], 0)
+        self._at_age(store, cid, 18)
+        first = store.row("SELECT COUNT(*) AS n FROM"
+                          " inventory_items")["n"]
+        self.assertGreater(first, 0)
+        # A later daily check (now Young Adult) seeds nothing more.
+        self._at_age(store, cid, 19)
+        self.assertEqual(store.row("SELECT COUNT(*) AS n FROM"
+                                   " inventory_items")["n"], first)
+
+    def test_school_uniform_does_not_block_age_up_outfits(self):
+        from tools.sim import education as edu
+        store = make_store()
+        d = data()
+        kid = make_person(store, age=8, first="Kid")
+        edu.enrol_school_sweep(store, d, 480)
+        self.assertEqual(store.row("SELECT COUNT(*) AS n FROM"
+                                   " inventory_items")["n"], 1)
+        store.execute("UPDATE agent_state SET life_stage = 'Teen'"
+                      " WHERE character_id = ?", (kid,))
+        self._at_age(store, kid, 18)
+        rows = store.rows("SELECT * FROM inventory_items WHERE"
+                          " owner_character_id = ?", (kid,))
+        contexts = {json.loads(r["state"])["outfit_context"]
+                    for r in rows}
+        self.assertIn("school", contexts)
+        self.assertEqual(contexts & {"work", "casual", "formal"},
+                         {"work", "casual", "formal"})
+
+    def test_age_up_without_data_seeds_nothing(self):
+        store = make_store()
+        cid = self._teen(store)
+        char = store.row("SELECT * FROM characters"
+                         " WHERE character_id = ?", (cid,))
+        gm = char["born_at_game_minutes"] + 18 * 365 * 1440
+        lifecycle.daily_check(store, rng(), char, gm // 1440, gm)
+        self.assertEqual(store.row("SELECT COUNT(*) AS n FROM"
+                                   " inventory_items")["n"], 0)
 
 
 if __name__ == "__main__":

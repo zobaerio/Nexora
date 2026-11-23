@@ -297,6 +297,13 @@ def generate(store, data, rng, target_population=240, game_minutes=480):
             link_parent_child(e, a)
             for _ in range(stream.randint(1, 2)):
                 child(2, 14, [a, b])
+        # Queue 17 Unit DJ: the household's move-in furnishes its
+        # home — the F1 "Basic" set (GDD-10 §5: the starter flat
+        # seeds at F1) for a head who holds no furniture rows.
+        # Genesis places households by direct inserts, not by
+        # move_household, so this is the genesis seeding point.
+        lost_items_mod.seed_furniture_at_move_in(
+            store, data, hid, prop_id, game_minutes)
         stats["households"] += 1
 
     store.set_world(population_generated=1)

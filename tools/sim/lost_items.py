@@ -543,3 +543,286 @@ def seed_uniform_rows(store, data, character_id, profession_id, tier,
             store, data, character_id, [item_id], "work", "employer",
             game_minutes))
     return made
+
+
+# -- Queue 17 Unit DJ: furniture / tool / document seeding ----------
+# Unit DE (Queue 16) authored the three catalogues; this unit wires
+# the seeding points, so the BX branches for these types can fire.
+# One inventory row per piece / tool / document, item_type
+# 'furniture' | 'tool' | 'document', following the CX record shape.
+# The decisions this unit takes (no source decides them) are stated
+# here, not hidden:
+#
+# - Furniture: GDD-10 §5 prices PACKAGES (F0 0, F1 2x, F2 4x, F3 7x
+#   monthly rent) and the starter flat seeds at F1; no source maps
+#   a property tier to a furniture tier, and no purchase point for
+#   an F2/F3 upgrade exists in the sim. So every move-in seeds the
+#   F1 "Basic" set — the starter-flat rule, generalised — for a
+#   household whose head holds no furniture rows at all. Furniture
+#   moves with the household (GDD-10 §4), so a household that
+#   already holds furniture keeps it and is never re-seeded; F2/F3
+#   upgrades wait for a purchase point (a later unit's job). The
+#   rows are owned by the household head (the CX custody rule) and
+#   carry location_property_id = the home they were seeded into.
+# - Tools: a tool is the trade's instrument, issued by the employer
+#   at hiring (the GDD-09 §5 uniform economics, applied by
+#   analogy — no source prices or assigns tools), no ledger charge.
+#   The seeded set is exactly the tools whose `professions` list in
+#   data/tools.json names the hired profession; items already held
+#   are skipped, as with uniforms.
+# - Documents: a document row is written at the event that issues
+#   it — the business licence at founding (register_business, for
+#   a real-character owner only: a system-founded firm is owned by
+#   SYS-MARKET, which is not a character and holds no inventory),
+#   the credential at certification (Unit DN, academics.py). The
+#   property deed has NO issuing event in the sim yet — there is no
+#   property purchase (households rent tenancies; GDD-03 §4.3's
+#   mortgage is unimplemented) and mission 3.2's deed reward is a
+#   Phase 6 mission-system write — so the helper exists and is
+#   tested, but no live call site seeds a deed; that gap is
+#   recorded in GDD-04 §3.3, not filled by inventing a purchase.
+
+def _furniture_items(data):
+    """{furniture id: catalogue row} from the loaded furniture file."""
+    return {i["id"]: i for i in
+            data.furniture_file.get("items", [])}
+
+
+def furniture_tier_items(data, furniture_tier):
+    """The cumulative piece ids of a furniture tier — the tier's own
+    pieces plus every lower tier's (GDD-10 §5: each tier's set is
+    cumulative; F2 holds F1 + its own pieces). Unknown tier -> []."""
+    tiers = data.furniture_file.get("tiers", {})
+    order = ("F0", "F1", "F2", "F3")
+    if furniture_tier not in order:
+        return []
+    out = []
+    for t in order[:order.index(furniture_tier) + 1]:
+        out.extend(tiers.get(t, []))
+    return out
+
+
+def seed_furniture_rows(store, data, character_id, item_ids,
+                        furniture_tier, property_id, game_minutes):
+    """Write one inventory row per furniture piece, item_type
+    "furniture", owned by the household head, located at the
+    property. An unknown catalogue id raises ValueError (the CX
+    rule, as with clothing). Pieces the owner already holds a
+    standing furniture row for are skipped. Returns the new item
+    ids, in catalogue order as passed."""
+    catalogue = _furniture_items(data)
+    made = []
+    for item_id in item_ids:
+        item = catalogue.get(item_id)
+        if item is None:
+            raise ValueError(
+                f"unknown furniture item {item_id!r}: no catalogue row")
+        held = store.row(
+            "SELECT 1 FROM inventory_items WHERE"
+            " owner_character_id = ? AND item_type = 'furniture'"
+            " AND item_ref = ?", (character_id, item_id))
+        if held is not None:
+            continue
+        iid = store.next_id("INV", "inventory_items", "item_instance_id")
+        store.insert("inventory_items", item_instance_id=iid,
+                     item_type="furniture", item_ref=item_id,
+                     owner_character_id=character_id,
+                     location_property_id=property_id,
+                     state=json.dumps({"furniture_tier": furniture_tier}),
+                     acquired_at_game_minutes=game_minutes)
+        made.append(iid)
+    return made
+
+
+def seed_furniture_at_move_in(store, data, household_id, property_id,
+                              game_minutes):
+    """Seed the F1 "Basic" set at a household move-in (GDD-10 §5:
+    the starter flat seeds at F1). Called from the three points a
+    household takes a home — the genesis placement in
+    ``population`` (households are placed by direct inserts there,
+    not by ``move_household``), ``households.move_household`` and
+    ``households.leave_home``. A household whose head already holds
+    any furniture row is not re-seeded (furniture moves with the
+    household, GDD-10 §4); a headless household seeds nothing (the
+    CX custody rule). Returns the new item ids."""
+    head = household_head(store, household_id)
+    if head is None:
+        return []
+    held = store.row(
+        "SELECT 1 FROM inventory_items WHERE owner_character_id = ?"
+        " AND item_type = 'furniture'", (head,))
+    if held is not None:
+        return []
+    return seed_furniture_rows(
+        store, data, head, furniture_tier_items(data, "F1"), "F1",
+        property_id, game_minutes)
+
+
+def _tools_items(data):
+    """{tool id: catalogue row} from the loaded tools file."""
+    return {i["id"]: i for i in data.tools_file.get("items", [])}
+
+
+def tool_items(data, profession_id):
+    """The tool ids whose `professions` list names this profession
+    (data/tools.json — every entry there is authored, Unit DE).
+    [] when the profession carries no tool of the trade."""
+    if profession_id is None:
+        return []
+    return [i["id"] for i in data.tools_file.get("items", [])
+            if profession_id in i.get("professions", [])]
+
+
+def seed_tool_rows(store, data, character_id, profession_id,
+                   game_minutes):
+    """Seed the trade's instruments at hiring, issued by the
+    employer (no ledger charge — the GDD-09 §5 uniform rule by
+    analogy, this unit's decision). Called from the two hiring
+    passes beside ``seed_uniform_rows``. An unknown catalogue id
+    raises ValueError; tools the character already holds are
+    skipped. Returns the new item ids."""
+    catalogue = _tools_items(data)
+    made = []
+    for item_id in tool_items(data, profession_id):
+        if item_id not in catalogue:
+            raise ValueError(
+                f"unknown tool {item_id!r}: no catalogue row")
+        held = store.row(
+            "SELECT 1 FROM inventory_items WHERE"
+            " owner_character_id = ? AND item_type = 'tool'"
+            " AND item_ref = ?", (character_id, item_id))
+        if held is not None:
+            continue
+        iid = store.next_id("INV", "inventory_items", "item_instance_id")
+        store.insert("inventory_items", item_instance_id=iid,
+                     item_type="tool", item_ref=item_id,
+                     owner_character_id=character_id,
+                     location_property_id=None,
+                     state=json.dumps({"issued": "employer"}),
+                     acquired_at_game_minutes=game_minutes)
+        made.append(iid)
+    return made
+
+
+def _documents_items(data):
+    """{document id: catalogue row} from the loaded documents file."""
+    return {i["id"]: i for i in data.documents_file.get("items", [])}
+
+
+def seed_document_row(store, data, character_id, document_id,
+                      game_minutes, state_extra=None):
+    """Write one inventory row for a document, item_type
+    "document". ``state_extra`` carries the issuing record (e.g.
+    {"certification_id": ...} for a credential,
+    {"business_id": ...} for a licence) so two documents of the
+    same kind for different records are distinct rows. An unknown
+    catalogue id raises ValueError. Refuses when the owner already
+    holds a document row of the same kind with the identical state
+    (the same issuing record seeded twice is a duplicate, not a
+    second document). Returns the new item id, or None on refusal.
+    The inventory row is the paper; the issuing record (the
+    certification, the business) stands on its own — losing the
+    paper loses nothing else (Unit DN's rule)."""
+    catalogue = _documents_items(data)
+    if document_id not in catalogue:
+        raise ValueError(
+            f"unknown document {document_id!r}: no catalogue row")
+    state = dict(state_extra or {})
+    for row in store.rows(
+            "SELECT state FROM inventory_items WHERE"
+            " owner_character_id = ? AND item_type = 'document'"
+            " AND item_ref = ?", (character_id, document_id)):
+        try:
+            if json.loads(row["state"]) == state:
+                return None
+        except ValueError:
+            continue
+    iid = store.next_id("INV", "inventory_items", "item_instance_id")
+    store.insert("inventory_items", item_instance_id=iid,
+                 item_type="document", item_ref=document_id,
+                 owner_character_id=character_id,
+                 location_property_id=None,
+                 state=json.dumps(state),
+                 acquired_at_game_minutes=game_minutes)
+    return iid
+
+
+# -- Queue 17 Unit DK: school uniform + age-up outfits --------------
+# Unit DD seeds starting outfits for genesis adults and uniforms at
+# hiring, but children get no rows and adults who age up from
+# childhood get none either. This unit closes both gaps.
+#
+# - School uniform: GDD-09 §5 — students wear `uniform_school`,
+#   bought by their household (issued "household" in the CX shape,
+#   outfit_context "school"). The issue point is Unit AB's student
+#   loop: education.enrol_school_sweep enrols 3–17-year-olds, and
+#   the uniform is seeded beside the enrolment, in the same call.
+#   One set per student; a student who already holds the set is
+#   not issued a second one (a lost set's replacement is a purchase
+#   at the catalogue price — no purchase point exists yet, so this
+#   unit does not re-issue after a loss).
+# - Age-up outfits: a character born in-world reaches Young Adult
+#   (18) in lifecycle.daily_check, which detects the stage
+#   transition. At that transition — and only there — the character
+#   is seeded the creator's three starting outfits
+#   (seed_starting_outfits), with the profession/tier of their
+#   current employment where one stands, else the work default.
+#   The guard is "holds no starting-outfit row": a genesis adult
+#   already seeded at creation is never seeded again, and the
+#   school uniform (context "school") does not count as a starting
+#   outfit.
+
+def seed_school_uniform(store, data, character_id, game_minutes):
+    """Seed the school uniform set for a newly enrolled student
+    (GDD-09 §5: bought by the household). Returns the new item ids
+    (0 or 1 — the set is a single catalogue item, slot
+    `uniform_set`). Skips a student who already holds the set."""
+    held = store.row(
+        "SELECT 1 FROM inventory_items WHERE owner_character_id = ?"
+        " AND item_type = 'clothing' AND item_ref = 'uniform_school'",
+        (character_id,))
+    if held is not None:
+        return []
+    return seed_clothing_rows(store, data, character_id,
+                              ["uniform_school"], "school", "household",
+                              game_minutes)
+
+
+def _has_starting_outfit_rows(store, character_id):
+    """True when the character holds any clothing row whose state
+    names a starting-outfit context (work/casual/formal). A school
+    uniform (context "school") does not count — a child who ages up
+    holds a uniform and still needs starting outfits."""
+    for row in store.rows(
+            "SELECT state FROM inventory_items WHERE"
+            " owner_character_id = ? AND item_type = 'clothing'",
+            (character_id,)):
+        try:
+            state = json.loads(row["state"])
+        except ValueError:
+            continue
+        if state.get("outfit_context") in ("work", "casual", "formal"):
+            return True
+    return False
+
+
+def seed_age_up_outfits(store, data, character_id, game_minutes):
+    """Seed the starting outfits at the age-up transition to Young
+    Adult (18). Called from lifecycle.daily_check when the stage
+    transition is detected. No-ops when the character already holds
+    starting-outfit rows. Returns the new item ids."""
+    if _has_starting_outfit_rows(store, character_id):
+        return []
+    char = store.row("SELECT sim_tier FROM characters"
+                     " WHERE character_id = ?", (character_id,))
+    if char is None:
+        return []
+    emp = store.row("SELECT profession_id, tier FROM employments"
+                    " WHERE character_id = ?"
+                    " AND ended_at_game_minutes IS NULL",
+                    (character_id,))
+    return seed_starting_outfits(
+        store, data, character_id,
+        emp["profession_id"] if emp else None,
+        emp["tier"] if emp else 1,
+        char["sim_tier"], game_minutes)

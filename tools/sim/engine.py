@@ -341,7 +341,7 @@ class Simulation:
                 storm_today=storm, game_minutes=day_end)
             emotions_mod.daily_regress(store, cid)
             if lifecycle.daily_check(store, self.rng, fresh, day,
-                                     day_end) == "died":
+                                     day_end, data=data) == "died":
                 continue
             decisions_mod.decide(store, data, self.rng, fresh, day,
                                  day_end, used_names)

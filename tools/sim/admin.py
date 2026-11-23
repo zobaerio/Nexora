@@ -148,6 +148,10 @@ def match_vacancies(store, data, rng, month_index, game_minutes):
         from . import lost_items as lost_items_mod
         lost_items_mod.seed_uniform_rows(
             store, data, best, v["profession_id"], 1, game_minutes)
+        # Queue 17 Unit DJ: the trade's instruments, issued by the
+        # employer at hiring beside the uniform (no ledger charge).
+        lost_items_mod.seed_tool_rows(
+            store, data, best, v["profession_id"], game_minutes)
         rid = store.next_id("CS", "civil_service", "record_id")
         store.insert(
             "civil_service", record_id=rid, character_id=best,

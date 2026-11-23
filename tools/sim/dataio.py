@@ -115,6 +115,16 @@ class WorldData:
         # the profession_uniforms mapping and the starting_outfits
         # defaults from here.
         self.clothing_file = _load_json("clothing.json")
+        # Queue 17 Unit DJ: the furniture / tool / document
+        # catalogues (Unit DE) — the seeding helpers in
+        # lost_items.py read the item ids and the tool-profession
+        # mapping from here; prices live only in prices.json.
+        self.furniture_file = _load_json("furniture.json")
+        self.tools_file = _load_json("tools.json")
+        self.documents_file = _load_json("documents.json")
+        # Queue 17 Unit DL: the mission table — the mission writer
+        # reads deadline_days (GDD-04 §3.2) from here.
+        self.missions_file = _load_json("missions.json")
 
     # -- canonical accessors -------------------------------------------------
     # Employment tiers run 1..5 (professions.json progression), but

@@ -1216,6 +1216,28 @@ def main():
     check(all(dprices[i["id"]]["price_ncr"] == 0
               for i in documents["items"]),
           "every document is unpriced (0 = unpriced, not free)")
+    # Queue 17 Units DJ/DK/DL: the seeding points resolve — the
+    # riverfront tea stall anchor for mission 1.4, the school
+    # uniform item for the student loop, and the 1.4 dialogue tree.
+    blockout = data["district1-blockout.json"]
+    anchors = {a["id"] for a in blockout.get("service_anchors", [])}
+    check("anchor_tea_stall_riverfront_1" in anchors,
+          "mission 1.4 tea stall anchor exists in the blockout")
+    check("uniform_school" in by_id,
+          "school uniform item exists in the clothing catalogue")
+    check(by_id["uniform_school"]["slot"] == "uniform_set",
+          "school uniform is a uniform_set (worn alone)")
+    check("school" in by_id["uniform_school"]["contexts"],
+          "school uniform carries the school context")
+    dlg = data["dialogue-lines.json"]
+    check("mission_1_4_river_at_dusk" in dlg["trees"],
+          "mission 1.4 dialogue tree exists")
+    check([n["node_id"] for n in
+           dlg["trees"]["mission_1_4_river_at_dusk"]["nodes"]] ==
+          ["dlg_1_4_intro", "dlg_1_4_offer", "dlg_1_4_accept",
+           "dlg_1_4_decline", "dlg_1_4_hello", "dlg_1_4_reminder",
+           "dlg_1_4_reminder_exit", "dlg_1_4_return"],
+          "mission 1.4 tree has the 8 AO-pattern nodes")
 
     vehicle_prices = {v["id"] for v in prices["vehicles"]}
     bad = []

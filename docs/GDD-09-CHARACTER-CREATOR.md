@@ -68,7 +68,7 @@ The mapping is data: `clothing.json` `profession_uniforms`. Summary (the JSON is
 | `construction_worker` | Construction PPE set | Employer (site contractor) |
 | `civil_engineer` | PPE set on site; own formal clothes in the office (a dress code, not a uniform — the split day of GDD-06 §4.2) | Employer (project) for the PPE |
 | `doctor` | Medical scrubs + white coat | Employer (clinic) |
-| `teacher` | None — formal dress code in own clothes | — (students wear `uniform_school`, bought by their household; the student loop is Unit AB's) |
+| `teacher` | None — formal dress code in own clothes | — (students wear `uniform_school`, bought by their household; the student loop is Unit AB's) | *(Update, Unit DK · Queue 17: implemented — `education.enrol_school_sweep` seeds `uniform_school` beside the enrolment, context "school", issued "household", one set per student; a student who already holds it is not issued a second.)* |
 | `police_officer` | Police uniform set | Police service (city) |
 | `taxi_driver` | Depot driver uniform — **from progression tier 2** (depot car); tier-1 rented-CNG drivers wear their own clothes | Depot (`d1_industry`) |
 | `chef` | Chef whites + apron | Employer (restaurant) |

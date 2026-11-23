@@ -210,5 +210,105 @@ class TestCertificationsAndDropout(unittest.TestCase):
         self.assertEqual(rows[0]["status"], "dropped_out")
 
 
+class TestCertificationDocumentRow(unittest.TestCase):
+    """Queue 17 Unit DN — certification writes a losable document
+    row (GDD-04 §3.3, Unit DE). A lost credential is NOT a revoked
+    one: the certifications row stands, so the qualification holds
+    whatever happens to the paper."""
+
+    def test_school_leaving_writes_a_document_row(self):
+        import json
+        store, d = hd_world()
+        citizen(store, age=35, profession_id="teacher")
+        cid, rid = _school_student(store, d, age=17)
+        acad.monthly_pass(store, d, rng(), 3, 90 * 1440)
+        store.execute("UPDATE examination_results SET score = 72"
+                      " WHERE character_id = ?", (cid,))
+        store.execute("UPDATE education_records SET status ="
+                      " 'completed', completed_at_game_minutes = ?"
+                      " WHERE record_id = ?", (90 * 1440, rid))
+        n = acad.issue_certifications(store, d, 4, 120 * 1440)
+        self.assertEqual(n, 1)
+        cert = store.row("SELECT * FROM certifications WHERE"
+                         " character_id = ?", (cid,))
+        rows = store.rows("SELECT * FROM inventory_items WHERE"
+                          " owner_character_id = ? AND"
+                          " item_type = 'document'", (cid,))
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(rows[0]["item_ref"],
+                         "school_leaving_certificate")
+        self.assertEqual(json.loads(rows[0]["state"]),
+                         {"certification_id":
+                          cert["certification_id"],
+                          "kind": "school_leaving",
+                          "programme": None})
+
+    def test_college_credential_writes_a_document_row(self):
+        import json
+        store, d = hd_world()
+        cid = citizen(store, age=21, first="Student")
+        edu.enrol_college(store, d, cid, "doctor", 480)
+        store.execute("UPDATE education_records SET status ="
+                      " 'completed', completed_at_game_minutes = ?"
+                      " WHERE character_id = ?",
+                      (90 * 1440, cid))
+        n = acad.issue_certifications(store, d, 4, 120 * 1440)
+        self.assertEqual(n, 1)
+        rows = store.rows("SELECT * FROM inventory_items WHERE"
+                          " owner_character_id = ? AND"
+                          " item_type = 'document'", (cid,))
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(rows[0]["item_ref"], "college_credential")
+        state = json.loads(rows[0]["state"])
+        self.assertEqual(state["kind"], "college_credential")
+        self.assertEqual(state["programme"], "doctor")
+
+    def test_lost_credential_is_not_revoked(self):
+        from tools.sim import lost_items as li
+        store, d = hd_world()
+        cid = citizen(store, age=21, first="Student")
+        edu.enrol_college(store, d, cid, "doctor", 480)
+        store.execute("UPDATE education_records SET status ="
+                      " 'completed', completed_at_game_minutes = ?"
+                      " WHERE character_id = ?",
+                      (90 * 1440, cid))
+        acad.issue_certifications(store, d, 4, 120 * 1440)
+        row = store.row("SELECT * FROM inventory_items WHERE"
+                        " owner_character_id = ?", (cid,))
+        lid = li.record_loss(store, cid, row["item_instance_id"],
+                             130 * 1440, "d1_midtown")
+        self.assertIsNotNone(lid)
+        # The paper is lost; the qualification stands.
+        self.assertTrue(edu.has_credential(store, cid, "doctor"))
+        self.assertIsNotNone(store.row(
+            "SELECT * FROM certifications WHERE character_id = ?",
+            (cid,)))
+        # And the paper is recoverable through DF's wiring.
+        self.assertEqual(li.find_lost_item(store, lid, cid,
+                                           131 * 1440, "d1_midtown"),
+                         lid)
+        self.assertEqual(li.return_lost_item(store, lid, 132 * 1440),
+                         lid)
+
+    def test_reissue_writes_no_second_document_row(self):
+        store, d = hd_world()
+        citizen(store, age=35, profession_id="teacher")
+        cid, rid = _school_student(store, d, age=17)
+        acad.monthly_pass(store, d, rng(), 3, 90 * 1440)
+        store.execute("UPDATE examination_results SET score = 72"
+                      " WHERE character_id = ?", (cid,))
+        store.execute("UPDATE education_records SET status ="
+                      " 'completed', completed_at_game_minutes = ?"
+                      " WHERE record_id = ?", (90 * 1440, rid))
+        self.assertEqual(acad.issue_certifications(store, d, 4,
+                                                  120 * 1440), 1)
+        self.assertEqual(acad.issue_certifications(store, d, 5,
+                                                  150 * 1440), 0)
+        rows = store.rows("SELECT * FROM inventory_items WHERE"
+                          " owner_character_id = ? AND"
+                          " item_type = 'document'", (cid,))
+        self.assertEqual(len(rows), 1)
+
+
 if __name__ == "__main__":
     unittest.main()

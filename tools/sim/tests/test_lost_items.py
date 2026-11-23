@@ -743,5 +743,284 @@ class TestRecovery(unittest.TestCase):
         self.assertFalse(li.favour_objective_complete(store, "LI999"))
 
 
+class TestFurnitureSeeding(unittest.TestCase):
+    """Queue 17 Unit DJ — furniture seeding at move-in (GDD-10 §5)."""
+
+    def test_tier_items_are_cumulative(self):
+        d = data()
+        self.assertEqual(li.furniture_tier_items(d, "F0"),
+                         ["floor_mattress", "single_burner",
+                          "crate_table"])
+        self.assertEqual(li.furniture_tier_items(d, "F1"),
+                         ["floor_mattress", "single_burner",
+                          "crate_table", "bed", "table_chairs",
+                          "stove", "wardrobe", "fan"])
+        self.assertEqual(len(li.furniture_tier_items(d, "F3")), 18)
+        self.assertEqual(li.furniture_tier_items(d, "F9"), [])
+
+    def test_move_in_seeds_f1_for_a_bare_head(self):
+        store = make_store()
+        head = make_person(store, age=35, first="Head")
+        hid, pid = make_household(store, [head])
+        made = li.seed_furniture_at_move_in(store, data(), hid, pid, GM)
+        self.assertEqual(len(made), 8)  # F0 + F1 pieces
+        rows = store.rows("SELECT * FROM inventory_items WHERE"
+                          " owner_character_id = ?"
+                          " ORDER BY item_instance_id", (head,))
+        self.assertTrue(all(r["item_type"] == "furniture" for r in rows))
+        self.assertEqual({r["item_ref"] for r in rows},
+                         set(li.furniture_tier_items(data(), "F1")))
+        self.assertTrue(all(r["location_property_id"] == pid
+                            for r in rows))
+        self.assertEqual(json.loads(rows[0]["state"]),
+                         {"furniture_tier": "F1"})
+
+    def test_move_in_never_reseeds_a_furnished_head(self):
+        store = make_store()
+        head = make_person(store, age=35, first="Head")
+        hid, pid = make_household(store, [head])
+        li.seed_furniture_at_move_in(store, data(), hid, pid, GM)
+        again = li.seed_furniture_at_move_in(store, data(), hid, pid,
+                                             GM + 1000)
+        self.assertEqual(again, [])
+        self.assertEqual(store.row("SELECT COUNT(*) AS n FROM"
+                                   " inventory_items")["n"], 8)
+
+    def test_furniture_can_be_lost_via_record_loss(self):
+        store = make_store()
+        head = make_person(store, age=35, first="Head")
+        hid, pid = make_household(store, [head])
+        made = li.seed_furniture_at_move_in(store, data(), hid, pid, GM)
+        lid = li.record_loss(store, head, made[0], 2000, "d1_midtown")
+        self.assertIsNotNone(lid)
+        row = store.row("SELECT * FROM lost_items WHERE lost_item_id = ?",
+                        (lid,))
+        self.assertEqual(row["status"], "lost")
+
+    def test_move_household_furnishes_the_new_home(self):
+        store, d, ids = _stocked_store()
+        head = make_person(store, age=35, first="Mover")
+        hid = store.next_id("HH", "households", "household_id")
+        pricey = store.row("SELECT * FROM properties WHERE property_id = ?",
+                           (ids["pricey"],))
+        store.insert("households", household_id=hid, name="Movers",
+                     home_property_id=ids["pricey"],
+                     district_id=pricey["district_id"],
+                     created_at_game_minutes=GM)
+        store.insert("household_members", household_id=hid,
+                     character_id=head, role="head",
+                     joined_at_game_minutes=GM)
+        store.execute("UPDATE characters SET household_id = ?"
+                      " WHERE character_id = ?", (hid, head))
+        store.execute("UPDATE properties SET status = 'rented'"
+                      " WHERE property_id = ?", (ids["pricey"],))
+        tid = store.next_id("TN", "tenancies", "tenancy_id")
+        store.insert("tenancies", tenancy_id=tid,
+                     property_id=ids["pricey"], tenant_household_id=hid,
+                     rent_per_month=12000, started_at_game_minutes=GM)
+        self.assertEqual(hh.move_household(store, d, hid, ids["cheap"],
+                                           2000), 2500)
+        rows = store.rows("SELECT * FROM inventory_items WHERE"
+                          " owner_character_id = ? AND"
+                          " item_type = 'furniture'", (head,))
+        self.assertEqual(len(rows), 8)
+        self.assertTrue(all(r["location_property_id"] == ids["cheap"]
+                            for r in rows))
+
+    def test_seed_furniture_rows_refuses_unknown_item(self):
+        store = make_store()
+        owner = make_person(store, age=30, first="Owner")
+        with self.assertRaises(ValueError):
+            li.seed_furniture_rows(store, data(), owner,
+                                   ["not_a_piece"], "F1", None, GM)
+
+
+class TestToolSeeding(unittest.TestCase):
+    """Queue 17 Unit DJ — tool seeding at hiring (data/tools.json)."""
+
+    def test_tool_items_follow_the_catalogue_mapping(self):
+        d = data()
+        self.assertEqual(
+            li.tool_items(d, "construction_worker"),
+            ["hammer", "handsaw", "measuring_tape", "trowel",
+             "spirit_level", "wrench_set", "screwdriver_set",
+             "toolbox", "paint_brush_set"])
+        self.assertEqual(li.tool_items(d, "chef"),
+                         ["kitchen_knife_set"])
+        self.assertEqual(li.tool_items(d, "teacher"), [])
+        self.assertEqual(li.tool_items(d, None), [])
+
+    def test_seed_tool_rows_issues_the_trade_instruments(self):
+        store = make_store()
+        worker = make_person(store, age=30, first="Worker")
+        made = li.seed_tool_rows(store, data(), worker,
+                                "construction_worker", GM)
+        self.assertEqual(len(made), 9)
+        rows = store.rows("SELECT * FROM inventory_items WHERE"
+                          " owner_character_id = ?", (worker,))
+        self.assertTrue(all(r["item_type"] == "tool" for r in rows))
+        self.assertEqual(json.loads(rows[0]["state"]),
+                         {"issued": "employer"})
+
+    def test_seed_tool_rows_skips_already_held_tools(self):
+        store = make_store()
+        worker = make_person(store, age=30, first="Worker")
+        li.seed_tool_rows(store, data(), worker, "construction_worker",
+                         GM)
+        again = li.seed_tool_rows(store, data(), worker,
+                                  "construction_worker", GM + 1000)
+        self.assertEqual(again, [])
+        self.assertEqual(store.row("SELECT COUNT(*) AS n FROM"
+                                   " inventory_items")["n"], 9)
+
+    def test_tool_can_be_lost_via_record_loss(self):
+        store = make_store()
+        worker = make_person(store, age=30, first="Worker")
+        made = li.seed_tool_rows(store, data(), worker,
+                                "taxi_driver", GM)
+        self.assertEqual(len(made), 3)  # wrench, screwdriver, toolbox
+        lid = li.record_loss(store, worker, made[0], 2000, "d1_market")
+        self.assertIsNotNone(lid)
+
+
+class TestDocumentSeeding(unittest.TestCase):
+    """Queue 17 Unit DJ — document rows at the issuing events."""
+
+    def test_seed_document_row_writes_the_paper(self):
+        store = make_store()
+        owner = make_person(store, age=40, first="Owner")
+        iid = li.seed_document_row(store, data(), owner,
+                                   "business_licence", GM,
+                                   {"business_id": "BZ1"})
+        row = store.row("SELECT * FROM inventory_items"
+                        " WHERE item_instance_id = ?", (iid,))
+        self.assertEqual(row["item_type"], "document")
+        self.assertEqual(row["item_ref"], "business_licence")
+        self.assertEqual(json.loads(row["state"]),
+                         {"business_id": "BZ1"})
+
+    def test_seed_document_row_refuses_the_same_record_twice(self):
+        store = make_store()
+        owner = make_person(store, age=40, first="Owner")
+        first = li.seed_document_row(store, data(), owner,
+                                     "business_licence", GM,
+                                     {"business_id": "BZ1"})
+        second = li.seed_document_row(store, data(), owner,
+                                      "business_licence", GM + 100,
+                                      {"business_id": "BZ1"})
+        self.assertIsNotNone(first)
+        self.assertIsNone(second)
+        # A different issuing record is a different document.
+        third = li.seed_document_row(store, data(), owner,
+                                     "business_licence", GM + 200,
+                                     {"business_id": "BZ2"})
+        self.assertIsNotNone(third)
+
+    def test_seed_document_row_refuses_unknown_document(self):
+        store = make_store()
+        owner = make_person(store, age=40, first="Owner")
+        with self.assertRaises(ValueError):
+            li.seed_document_row(store, data(), owner,
+                                 "not_a_document", GM)
+
+    def test_document_can_be_lost_and_found_and_returned(self):
+        store = make_store()
+        owner = make_person(store, age=40, first="Owner")
+        iid = li.seed_document_row(store, data(), owner,
+                                   "property_deed", GM,
+                                   {"property_id": "PR1"})
+        lid = li.record_loss(store, owner, iid, 2000, "d1_midtown")
+        self.assertIsNotNone(lid)
+        self.assertIsNone(li.return_lost_item(store, lid, 2100))
+        self.assertEqual(
+            li.find_lost_item(store, lid, owner, 2100, "d1_midtown"),
+            lid)
+        self.assertEqual(li.return_lost_item(store, lid, 2200), lid)
+        self.assertTrue(li.favour_objective_complete(store, lid))
+
+    def test_register_business_issues_a_licence_to_a_real_owner(self):
+        from tools.sim import business as biz
+        store = make_store()
+        owner = make_person(store, age=40, first="Owner")
+        bid = biz.register_business(
+            store, name="Owner Shop", business_type="shop_owner",
+            category="retail", owner_character_id=owner,
+            property_id=None, game_minutes=GM,
+            founded_by="owner_profession", data=data())
+        rows = store.rows("SELECT * FROM inventory_items WHERE"
+                          " owner_character_id = ? AND"
+                          " item_type = 'document'", (owner,))
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(rows[0]["item_ref"], "business_licence")
+        self.assertEqual(json.loads(rows[0]["state"]),
+                         {"business_id": bid})
+
+    def test_system_founded_firm_gets_no_licence_row(self):
+        # SYS-MARKET is not a character and holds no inventory.
+        from tools.sim import business as biz
+        store = make_store()
+        biz.register_business(
+            store, name="System Firm", business_type="system_firm",
+            category="retail", owner_character_id="SYS-MARKET",
+            property_id=None, game_minutes=GM, founded_by="system",
+            data=data())
+        self.assertEqual(store.row("SELECT COUNT(*) AS n FROM"
+                                   " inventory_items")["n"], 0)
+
+
+class TestSchoolUniform(unittest.TestCase):
+    """Queue 17 Unit DK — school uniform at enrolment (GDD-09 §5)."""
+
+    def test_enrolment_issues_the_uniform(self):
+        from tools.sim import education as edu
+        store = make_store()
+        d = data()
+        kid = make_person(store, age=8, first="Kid")
+        self.assertEqual(edu.enrol_school_sweep(store, d, 480), 1)
+        rows = store.rows("SELECT * FROM inventory_items WHERE"
+                          " owner_character_id = ? AND"
+                          " item_type = 'clothing'", (kid,))
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(rows[0]["item_ref"], "uniform_school")
+        self.assertEqual(json.loads(rows[0]["state"]),
+                         {"slot": "uniform_set",
+                          "outfit_context": "school",
+                          "issued": "household"})
+
+    def test_uniform_can_be_lost_via_record_loss(self):
+        from tools.sim import education as edu
+        store = make_store()
+        d = data()
+        kid = make_person(store, age=8, first="Kid")
+        edu.enrol_school_sweep(store, d, 480)
+        row = store.row("SELECT * FROM inventory_items WHERE"
+                        " owner_character_id = ?", (kid,))
+        lid = li.record_loss(store, kid, row["item_instance_id"], 2000,
+                             "d1_midtown")
+        self.assertIsNotNone(lid)
+
+    def test_re_enrolment_issues_no_second_uniform(self):
+        from tools.sim import education as edu
+        store = make_store()
+        d = data()
+        kid = make_person(store, age=8, first="Kid")
+        edu.enrol_school_sweep(store, d, 480)
+        # The sweep is idempotent, and so is the uniform issue.
+        self.assertEqual(edu.enrol_school_sweep(store, d, 1000), 0)
+        self.assertEqual(li.seed_school_uniform(store, d, kid, 1000),
+                         [])
+        self.assertEqual(store.row("SELECT COUNT(*) AS n FROM"
+                                   " inventory_items")["n"], 1)
+
+    def test_adult_enrolment_issues_no_uniform(self):
+        from tools.sim import education as edu
+        store = make_store()
+        d = data()
+        adult = make_person(store, age=30, first="Adult")
+        self.assertEqual(edu.enrol_school_sweep(store, d, 480), 0)
+        self.assertEqual(store.row("SELECT COUNT(*) AS n FROM"
+                                   " inventory_items")["n"], 0)
+
+
 if __name__ == "__main__":
     unittest.main()
