@@ -309,7 +309,7 @@ def _normalise(blocks, day_start):
 
 
 def instantiate(data, character, day_index, rng, needs=None, traits=None,
-                weather_effects=None, rest_day=False):
+                weather_effects=None, rest_day=False, broken_tool=False):
     """Build one character's schedule blocks for one day.
 
     `character` needs: character_id, template_id (profession id or
@@ -342,6 +342,19 @@ def instantiate(data, character, day_index, rng, needs=None, traits=None,
                 b["activity"] = "home"
                 b["location"] = "home"
                 b["rest_day"] = True
+    if broken_tool:
+        # Queue 19 Unit EE (GDD-04 §3.3, Unit DQ): a work block
+        # that requires a broken tool is refused — the scheduler's
+        # existing bend applies, and the block bends to rest. Only
+        # work blocks bend (a study block uses no tool of the
+        # trade); the `tool_broken` life event was logged when the
+        # tool broke (lost_items.apply_tool_wear), so this bend
+        # logs nothing further.
+        for b in blocks:
+            if b["activity"] == "work":
+                b["activity"] = "home"
+                b["location"] = "home"
+                b["broken_tool"] = True
     # Per-NPC fixed jitter on boundaries, then normalise.
     jitter = jitter_for(rng, character["character_id"])
     for b in blocks:

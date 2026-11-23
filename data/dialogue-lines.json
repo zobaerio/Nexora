@@ -1179,6 +1179,352 @@
         }
       ]
     },
+    "mission_2_2_rainy_day_fund": {
+      "mission_id": "2.2",
+      "title": "Rainy Day Fund",
+      "objectives_quoted": [
+        "Save 15,000 NCr above your starting balance"
+      ],
+      "rewards_quoted": {
+        "credits_ncr": 1500,
+        "other": [
+          "Reward is an interest bonus (GDD-04 §2)"
+        ],
+        "reputation": []
+      },
+      "unlocks_quoted": [
+        "Bank savings account (4% annual, GDD-03 §4.4)"
+      ],
+      "nodes": [
+        {
+          "node_id": "dlg_2_2_intro",
+          "speaker": "npc",
+          "condition": {
+            "flag": "met_player",
+            "value": false
+          },
+          "lines": [
+            {
+              "speaker": "npc",
+              "text": "I'm <name>. We met at the market — I put a little aside every month, rain or shine.",
+              "condition": {
+                "flag": "met_player",
+                "value": false
+              },
+              "effects": [
+                {
+                  "type": "none"
+                }
+              ]
+            }
+          ],
+          "choices": [
+            {
+              "text": "Saving? Tell me more.",
+              "condition": {
+                "always": true
+              },
+              "next": "dlg_2_2_offer"
+            },
+            {
+              "text": "Just passing through.",
+              "condition": {
+                "always": true
+              },
+              "next": "dlg_2_2_hello"
+            }
+          ],
+          "effects": [
+            {
+              "type": "set_flag",
+              "flag": "met_player",
+              "value": true
+            }
+          ],
+          "ends": false
+        },
+        {
+          "node_id": "dlg_2_2_offer",
+          "speaker": "npc",
+          "condition": {
+            "mission": "2.2",
+            "state": "available"
+          },
+          "lines": [
+            {
+              "speaker": "npc",
+              "text": "A rainy-day fund. Put aside enough above what you started with, and the bank pays you for it.",
+              "condition": {
+                "mission": "2.2",
+                "state": "available"
+              },
+              "effects": [
+                {
+                  "type": "none"
+                }
+              ]
+            },
+            {
+              "speaker": "npc",
+              "text": "It's 'Rainy Day Fund': save above your starting balance — a safety net for a rainy day. It pays an interest bonus and unlocks a bank savings account.",
+              "condition": {
+                "mission": "2.2",
+                "state": "available"
+              },
+              "effects": [
+                {
+                  "type": "none"
+                }
+              ]
+            }
+          ],
+          "choices": [
+            {
+              "text": "I'll start saving.",
+              "condition": {
+                "always": true
+              },
+              "next": "dlg_2_2_accept"
+            },
+            {
+              "text": "Not yet.",
+              "condition": {
+                "always": true
+              },
+              "next": "dlg_2_2_decline"
+            }
+          ],
+          "effects": [
+            {
+              "type": "none"
+            }
+          ],
+          "ends": false
+        },
+        {
+          "node_id": "dlg_2_2_accept",
+          "speaker": "npc",
+          "condition": {
+            "mission": "2.2",
+            "state": "offered"
+          },
+          "lines": [
+            {
+              "speaker": "npc",
+              "text": "Good. A little aside every month, and the fund grows. I'll be watching for it.",
+              "condition": {
+                "mission": "2.2",
+                "state": "offered"
+              },
+              "effects": [
+                {
+                  "type": "mission_progress",
+                  "mission_id": "2.2",
+                  "state": "accepted"
+                }
+              ]
+            }
+          ],
+          "choices": [],
+          "effects": [
+            {
+              "type": "mission_progress",
+              "mission_id": "2.2",
+              "state": "accepted"
+            }
+          ],
+          "ends": true
+        },
+        {
+          "node_id": "dlg_2_2_decline",
+          "speaker": "npc",
+          "condition": {
+            "mission": "2.2",
+            "state": "offered"
+          },
+          "lines": [
+            {
+              "speaker": "npc",
+              "text": "No rush. The fund waits — it always does.",
+              "condition": {
+                "mission": "2.2",
+                "state": "offered"
+              },
+              "effects": [
+                {
+                  "type": "none"
+                }
+              ]
+            }
+          ],
+          "choices": [],
+          "effects": [
+            {
+              "type": "none"
+            }
+          ],
+          "ends": true
+        },
+        {
+          "node_id": "dlg_2_2_hello",
+          "speaker": "npc",
+          "condition": {
+            "flag": "met_player",
+            "value": false
+          },
+          "lines": [
+            {
+              "speaker": "npc",
+              "text": "Save a little every month and the rainy day never catches you out.",
+              "condition": {
+                "flag": "met_player",
+                "value": false
+              },
+              "effects": [
+                {
+                  "type": "set_flag",
+                  "flag": "met_player",
+                  "value": true
+                },
+                {
+                  "type": "relationship_drift",
+                  "trust": 1,
+                  "affection": 1
+                }
+              ]
+            }
+          ],
+          "choices": [],
+          "effects": [
+            {
+              "type": "set_flag",
+              "flag": "met_player",
+              "value": true
+            },
+            {
+              "type": "relationship_drift",
+              "trust": 1,
+              "affection": 1
+            }
+          ],
+          "ends": true
+        },
+        {
+          "node_id": "dlg_2_2_reminder",
+          "speaker": "npc",
+          "condition": {
+            "mission": "2.2",
+            "state": "accepted"
+          },
+          "lines": [
+            {
+              "speaker": "npc",
+              "text": "Still short of the fund? Keep at it — the balance grows from the saving, not from talking about it.",
+              "condition": {
+                "mission": "2.2",
+                "state": "accepted"
+              },
+              "effects": [
+                {
+                  "type": "none"
+                }
+              ]
+            }
+          ],
+          "choices": [
+            {
+              "text": "On my way.",
+              "condition": {
+                "always": true
+              },
+              "next": "dlg_2_2_reminder_exit"
+            }
+          ],
+          "effects": [
+            {
+              "type": "none"
+            }
+          ],
+          "ends": false
+        },
+        {
+          "node_id": "dlg_2_2_reminder_exit",
+          "speaker": "npc",
+          "condition": {
+            "mission": "2.2",
+            "state": "accepted"
+          },
+          "lines": [
+            {
+              "speaker": "npc",
+              "text": "Good. The bank is waiting.",
+              "condition": {
+                "mission": "2.2",
+                "state": "accepted"
+              },
+              "effects": [
+                {
+                  "type": "none"
+                }
+              ]
+            }
+          ],
+          "choices": [],
+          "effects": [
+            {
+              "type": "none"
+            }
+          ],
+          "ends": true
+        },
+        {
+          "node_id": "dlg_2_2_return",
+          "speaker": "npc",
+          "condition": {
+            "mission": "2.2",
+            "state": "objective_complete"
+          },
+          "lines": [
+            {
+              "speaker": "npc",
+              "text": "The fund is there — I can see it in the balance now. A rainy day holds no fear for you.",
+              "condition": {
+                "mission": "2.2",
+                "state": "objective_complete"
+              },
+              "effects": [
+                {
+                  "type": "mission_complete",
+                  "mission_id": "2.2",
+                  "rewards": {
+                    "credits_ncr": 1500,
+                    "other": [
+                      "Reward is an interest bonus (GDD-04 §2)"
+                    ],
+                    "reputation": []
+                  }
+                }
+              ]
+            }
+          ],
+          "choices": [],
+          "effects": [
+            {
+              "type": "mission_complete",
+              "mission_id": "2.2",
+              "rewards": {
+                "credits_ncr": 1500,
+                "other": [
+                  "Reward is an interest bonus (GDD-04 §2)"
+                ],
+                "reputation": []
+              }
+            }
+          ],
+          "ends": true
+        }
+      ]
+    },
     "mission_2_4_friendship": {
       "mission_id": "2.4",
       "title": "A Friend in the City",

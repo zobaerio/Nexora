@@ -186,6 +186,13 @@ def move_household(store, data, household_id, new_property_id,
     # (furniture moves with the household, GDD-10 §4, so a household
     # that already holds it is never re-seeded).
     from . import lost_items as lost_items_mod
+    # Queue 19 Unit EF: the move wears the furniture the household
+    # carries (−2 per move, DQ) — before the move-in seeding below,
+    # so newly seeded rows (new furniture, condition 100) are never
+    # worn by the move that furnished the home.
+    lost_items_mod.apply_furniture_move_wear(
+        store, data, household_id, game_minutes,
+        new_property_id=prop["property_id"])
     lost_items_mod.seed_furniture_at_move_in(
         store, data, household_id, prop["property_id"], game_minutes)
     for m in members(store, household_id):

@@ -12,7 +12,7 @@ condition must have a registered verifier. A mission that ships a
 verifier without a condition — or a condition without a verifier —
 breaks this suite loudly, by design.
 
-Missions with dialogue trees but no §3.6 condition (1.3, 2.4) are
+Missions with dialogue trees but no §3.6 condition (2.4) are
 outside this suite's scope: their verification is still Phase 6
 work, and the suite asserts that limit rather than claiming to
 cover them.
@@ -25,6 +25,7 @@ from pathlib import Path
 from tools.sim import environment as env
 from tools.sim import missions as ms
 from tools.sim import photographs as ph
+from tools.sim import relationships as rel
 from tools.sim.tests.common import data, make_person, make_store
 
 ROOT = Path(__file__).resolve().parents[3]
@@ -95,11 +96,13 @@ class TestRegistryTripwire(unittest.TestCase):
                          "the writer cannot complete")
 
     def test_trees_without_conditions_are_out_of_scope(self):
-        # 1.3 and 2.4 have dialogue trees but no §3.6 condition and
-        # no verifier: the suite records that limit, it does not
-        # pretend to cover them.
-        self.assertNotIn("1.3", ms.CONDITIONED_MISSIONS)
+        # 2.4 has a dialogue tree but no §3.6 condition and no
+        # verifier: the suite records that limit, it does not
+        # pretend to cover it. 1.3 used to be here too (Queue 18);
+        # Unit EB gave it a condition and a verifier, so it is
+        # covered now — the suite asserts that, not the old limit.
         self.assertNotIn("2.4", ms.CONDITIONED_MISSIONS)
+        self.assertIn("1.3", ms.CONDITIONED_MISSIONS)
         dlg = json.loads(
             (ROOT / "data" / "dialogue-lines.json").read_text())
         self.assertIn("mission_1_3_neighbour_help", dlg["trees"])
@@ -145,6 +148,54 @@ class TestWriterCompletesConditionedMissions(unittest.TestCase):
         self.assertTrue(ms.verify_mission_2_1(store, d, cid, GM + 300))
         self.assertTrue(ms.complete_mission(store, cid, "2.1", GM + 300))
         self.assertEqual(ms.get_status(store, cid, "2.1"), "completed")
+
+    def test_1_3_completes_only_with_3_neighbours_and_a_help(self):
+        store = make_store()
+        d = data()
+        cid = make_person(store, age=25, first="Player")
+        neighbours = []
+        for i in range(3):
+            n = make_person(store, age=30 + i, first=f"Neighbour{i}")
+            rel.add_edge(store, cid, n, "neighbour", GM)
+            neighbours.append(n)
+        key = ms.create_favour_instance(store, d, cid, "errands",
+                                        neighbours[0], GM)
+        ms.accept_mission(store, cid, key, GM + 100)
+        ms.set_objectives_complete(store, cid, key, GM + 200)
+        ms.complete_mission(store, cid, key, GM + 300)
+        _active(store, cid, "1.3")
+        self.assertTrue(ms.verify_mission_1_3(store, d, cid, GM + 400))
+        self.assertTrue(ms.complete_mission(store, cid, "1.3", GM + 400))
+        self.assertEqual(ms.get_status(store, cid, "1.3"), "completed")
+
+    def test_1_3_does_not_complete_without_the_help(self):
+        store = make_store()
+        d = data()
+        cid = make_person(store, age=25, first="Player")
+        for i in range(3):
+            n = make_person(store, age=30 + i, first=f"Neighbour{i}")
+            rel.add_edge(store, cid, n, "neighbour", GM)
+        _active(store, cid, "1.3")
+        # Three neighbours, no completed errand: not verified.
+        self.assertFalse(ms.verify_mission_1_3(store, d, cid, GM + 200))
+        self.assertFalse(ms.complete_mission(store, cid, "1.3", GM + 200))
+
+    def test_2_2_completes_only_at_starting_balance_plus_15000(self):
+        store = make_store()
+        d = data()
+        cid = make_person(store, age=25, first="Player")
+        _employ(store, cid, "civil_engineer", {"engineering": 5})
+        # Civil engineer starts at 25,000; the target is 40,000.
+        store.execute("UPDATE characters SET balance_cached = 39999"
+                      " WHERE character_id = ?", (cid,))
+        _active(store, cid, "2.2")
+        self.assertFalse(ms.verify_mission_2_2(store, d, cid, GM + 200))
+        self.assertFalse(ms.complete_mission(store, cid, "2.2", GM + 200))
+        store.execute("UPDATE characters SET balance_cached = 40000"
+                      " WHERE character_id = ?", (cid,))
+        self.assertTrue(ms.verify_mission_2_2(store, d, cid, GM + 300))
+        self.assertTrue(ms.complete_mission(store, cid, "2.2", GM + 300))
+        self.assertEqual(ms.get_status(store, cid, "2.2"), "completed")
 
     def test_a_conditioned_mission_never_completes_unverified(self):
         # Neither conditioned mission completes from `active` without
@@ -193,6 +244,39 @@ class TestGateStaysClosedOtherwise(unittest.TestCase):
         _active(store, cid, "1.4")
         ms.fail_mission(store, cid, "1.4", GM + 200)
         self.assertEqual(ms.get_status(store, cid, "1.4"), "failed")
+        self.assertFalse(ph.photo_mode_unlocked(store, cid))
+
+    def test_completing_1_3_does_not_open_the_gate(self):
+        store = make_store()
+        d = data()
+        cid = make_person(store, age=25, first="Player")
+        neighbours = []
+        for i in range(3):
+            n = make_person(store, age=30 + i, first=f"Neighbour{i}")
+            rel.add_edge(store, cid, n, "neighbour", GM)
+            neighbours.append(n)
+        key = ms.create_favour_instance(store, d, cid, "errands",
+                                        neighbours[0], GM)
+        ms.accept_mission(store, cid, key, GM + 100)
+        ms.set_objectives_complete(store, cid, key, GM + 200)
+        ms.complete_mission(store, cid, key, GM + 300)
+        _active(store, cid, "1.3")
+        ms.verify_mission_1_3(store, d, cid, GM + 400)
+        ms.complete_mission(store, cid, "1.3", GM + 400)
+        self.assertEqual(ms.get_status(store, cid, "1.3"), "completed")
+        self.assertFalse(ph.photo_mode_unlocked(store, cid))
+
+    def test_completing_2_2_does_not_open_the_gate(self):
+        store = make_store()
+        d = data()
+        cid = make_person(store, age=25, first="Player")
+        _employ(store, cid, "civil_engineer", {"engineering": 5})
+        store.execute("UPDATE characters SET balance_cached = 40000"
+                      " WHERE character_id = ?", (cid,))
+        _active(store, cid, "2.2")
+        ms.verify_mission_2_2(store, d, cid, GM + 200)
+        ms.complete_mission(store, cid, "2.2", GM + 300)
+        self.assertEqual(ms.get_status(store, cid, "2.2"), "completed")
         self.assertFalse(ph.photo_mode_unlocked(store, cid))
 
     def test_completing_2_1_does_not_open_the_gate(self):

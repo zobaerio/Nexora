@@ -14,6 +14,7 @@ from tools.sim import environment as env
 from tools.sim import lost_items as li
 from tools.sim import missions as ms
 from tools.sim import photographs as ph
+from tools.sim import relationships as rel
 from tools.sim.tests.common import (data, make_person, make_store, rng)
 
 GM = 480
@@ -443,6 +444,232 @@ class TestMission21(unittest.TestCase):
         ms.verify_mission_2_1(store, d, cid, GM + 200)
         ms.complete_mission(store, cid, "2.1", GM + 300)
         # The gate reads the 1.4 row only (DO §3.6).
+        self.assertFalse(ph.photo_mode_unlocked(store, cid))
+
+
+class TestMission13(unittest.TestCase):
+    # Queue 19 Unit EB — mission 1.3 "Know Your Neighbours"
+    # (GDD-04 §3.6): meet 3 neighbours AND help one of them with
+    # a small task (a completed errands favour for a neighbour).
+
+    def _neighbours(self, store, cid, count=3):
+        made = []
+        for i in range(count):
+            n = make_person(store, age=30 + i, first=f"Neighbour{i}")
+            rel.add_edge(store, cid, n, "neighbour", GM)
+            made.append(n)
+        return made
+
+    def _completed_errand(self, store, d, cid, giver):
+        key = ms.create_favour_instance(store, d, cid, "errands",
+                                        giver, GM)
+        ms.accept_mission(store, cid, key, GM + 100)
+        # The errands favour has no sim verification predicate yet
+        # (no other kind does either — DL) — so the test completes
+        # it the way the Phase 6 system would: the objectives are
+        # verified against world state and the row moves to
+        # completed through the writer.
+        ms.set_objectives_complete(store, cid, key, GM + 200)
+        ms.complete_mission(store, cid, key, GM + 300)
+        return key
+
+    def _active_13(self, store, d, cid):
+        ms.make_available(store, cid, "1.3", GM)
+        ms.accept_mission(store, cid, "1.3", GM + 100)
+
+    def test_three_neighbours_and_a_helped_one_complete_1_3(self):
+        store = make_store()
+        d = data()
+        cid = make_person(store, age=25, first="Player")
+        neighbours = self._neighbours(store, cid, 3)
+        self._completed_errand(store, d, cid, neighbours[0])
+        self._active_13(store, d, cid)
+        self.assertEqual(ms.neighbours_of(store, cid),
+                         set(neighbours))
+        self.assertTrue(ms.verify_mission_1_3(store, d, cid, GM + 400))
+        before = store.row("SELECT balance_cached FROM characters"
+                           " WHERE character_id = ?", (cid,))[
+                               "balance_cached"]
+        self.assertTrue(ms.complete_mission(store, cid, "1.3", GM + 500))
+        self.assertEqual(ms.get_status(store, cid, "1.3"), "completed")
+        # The writer pays no credits or reputation for 1.3: the
+        # +10/+5 reputation are the Phase 6 reward step (DL
+        # boundary, GDD-04 §3.6) — the balance does not move.
+        after = store.row("SELECT balance_cached FROM characters"
+                          " WHERE character_id = ?", (cid,))[
+                              "balance_cached"]
+        self.assertEqual(before, after)
+
+    def test_two_neighbours_do_not_verify(self):
+        store = make_store()
+        d = data()
+        cid = make_person(store, age=25, first="Player")
+        neighbours = self._neighbours(store, cid, 2)
+        self._completed_errand(store, d, cid, neighbours[0])
+        self._active_13(store, d, cid)
+        self.assertFalse(ms.verify_mission_1_3(store, d, cid, GM + 400))
+        self.assertFalse(ms.complete_mission(store, cid, "1.3", GM + 400))
+
+    def test_helping_a_stranger_does_not_verify(self):
+        store = make_store()
+        d = data()
+        cid = make_person(store, age=25, first="Player")
+        self._neighbours(store, cid, 3)
+        stranger = make_person(store, age=40, first="Stranger")
+        self._completed_errand(store, d, cid, stranger)
+        self._active_13(store, d, cid)
+        self.assertFalse(ms.verify_mission_1_3(store, d, cid, GM + 400))
+
+    def test_an_active_errand_does_not_verify(self):
+        store = make_store()
+        d = data()
+        cid = make_person(store, age=25, first="Player")
+        neighbours = self._neighbours(store, cid, 3)
+        # Accepted but not completed: the help is not done.
+        key = ms.create_favour_instance(store, d, cid, "errands",
+                                        neighbours[0], GM)
+        ms.accept_mission(store, cid, key, GM + 100)
+        self._active_13(store, d, cid)
+        self.assertFalse(ms.verify_mission_1_3(store, d, cid, GM + 400))
+
+    def test_help_before_acceptance_still_verifies(self):
+        # A completed favour is a fact about the world: the help
+        # may predate the mission's acceptance (the 2.1 precedent).
+        store = make_store()
+        d = data()
+        cid = make_person(store, age=25, first="Player")
+        neighbours = self._neighbours(store, cid, 3)
+        self._completed_errand(store, d, cid, neighbours[1])
+        self._active_13(store, d, cid)
+        self.assertTrue(ms.verify_mission_1_3(store, d, cid, GM + 400))
+
+    def test_verify_needs_an_active_row(self):
+        store = make_store()
+        d = data()
+        cid = make_person(store, age=25, first="Player")
+        neighbours = self._neighbours(store, cid, 3)
+        self._completed_errand(store, d, cid, neighbours[0])
+        # Available but never accepted: no verification.
+        ms.make_available(store, cid, "1.3", GM)
+        self.assertFalse(ms.verify_mission_1_3(store, d, cid, GM + 400))
+
+    def test_1_3_completion_does_not_open_the_da_gate(self):
+        store = make_store()
+        d = data()
+        cid = make_person(store, age=25, first="Player")
+        neighbours = self._neighbours(store, cid, 3)
+        self._completed_errand(store, d, cid, neighbours[0])
+        self._active_13(store, d, cid)
+        self.assertFalse(ph.photo_mode_unlocked(store, cid))
+        ms.verify_mission_1_3(store, d, cid, GM + 400)
+        ms.complete_mission(store, cid, "1.3", GM + 500)
+        # The gate reads the 1.4 row only (EB §3.6).
+        self.assertFalse(ph.photo_mode_unlocked(store, cid))
+
+
+class TestMission22(unittest.TestCase):
+    # Queue 19 Unit EC — mission 2.2 "Rainy Day Fund" (GDD-04
+    # §3.6): save 15,000 NCr above the starting balance (the
+    # current profession's starting_balance_ncr, GDD-03 §2).
+
+    def _employ(self, store, cid, profession_id):
+        store.insert("employments",
+                     employment_id=store.next_id(
+                         "EM", "employments", "employment_id"),
+                     character_id=cid, profession_id=profession_id,
+                     tier=1, wage_per_month=10000,
+                     started_at_game_minutes=GM,
+                     ended_at_game_minutes=None)
+
+    def _set_balance(self, store, cid, amount):
+        store.execute("UPDATE characters SET balance_cached = ?"
+                      " WHERE character_id = ?", (amount, cid))
+
+    def _active_22(self, store, d, cid):
+        ms.make_available(store, cid, "2.2", GM)
+        ms.accept_mission(store, cid, "2.2", GM + 100)
+
+    def test_starting_balance_plus_15000_completes_2_2(self):
+        store = make_store()
+        d = data()
+        cid = make_person(store, age=25, first="Player")
+        self._employ(store, cid, "civil_engineer")
+        # Civil engineer starts at 25,000 (Unit W); the target is
+        # 40,000.
+        self.assertEqual(ms.starting_balance_of(d, "civil_engineer"),
+                         25000)
+        self._set_balance(store, cid, 40000)
+        self._active_22(store, d, cid)
+        self.assertTrue(ms.verify_mission_2_2(store, d, cid, GM + 200))
+        before = store.balance(cid)
+        self.assertTrue(ms.complete_mission(store, cid, "2.2", GM + 300))
+        self.assertEqual(ms.get_status(store, cid, "2.2"), "completed")
+        # The writer pays no interest bonus for 2.2: the 1,500 NCr
+        # is the Phase 6 reward step (DL boundary, GDD-04 §3.6).
+        self.assertEqual(store.balance(cid), before)
+
+    def test_one_short_does_not_verify_then_target_does(self):
+        store = make_store()
+        d = data()
+        cid = make_person(store, age=25, first="Player")
+        self._employ(store, cid, "civil_engineer")
+        self._set_balance(store, cid, 39999)
+        self._active_22(store, d, cid)
+        self.assertFalse(ms.verify_mission_2_2(store, d, cid, GM + 200))
+        self.assertFalse(ms.complete_mission(store, cid, "2.2", GM + 200))
+        self._set_balance(store, cid, 40000)
+        self.assertTrue(ms.verify_mission_2_2(store, d, cid, GM + 300))
+
+    def test_target_follows_the_current_profession(self):
+        store = make_store()
+        d = data()
+        cid = make_person(store, age=25, first="Player")
+        # A teacher starts at 11,000 — the target is 26,000, not
+        # the civil engineer's 40,000.
+        self._employ(store, cid, "teacher")
+        self.assertEqual(ms.starting_balance_of(d, "teacher"), 11000)
+        self._set_balance(store, cid, 26000)
+        self._active_22(store, d, cid)
+        self.assertTrue(ms.verify_mission_2_2(store, d, cid, GM + 200))
+        # And 26,000 is NOT enough for a civil engineer: the same
+        # row, still active, now measures against 25,000 + 15,000.
+        store.execute("UPDATE employments SET ended_at_game_minutes = ?"
+                      " WHERE character_id = ?", (GM, cid))
+        self._employ(store, cid, "civil_engineer")
+        self.assertFalse(ms.verify_mission_2_2(store, d, cid, GM + 200))
+
+    def test_unemployed_cannot_verify(self):
+        store = make_store()
+        d = data()
+        cid = make_person(store, age=25, first="Player")
+        # A fat balance with no profession has no starting balance
+        # to measure against.
+        self._set_balance(store, cid, 100000)
+        self._active_22(store, d, cid)
+        self.assertIsNone(ms.current_profession_id(store, cid))
+        self.assertFalse(ms.verify_mission_2_2(store, d, cid, GM + 200))
+
+    def test_verify_needs_an_active_row(self):
+        store = make_store()
+        d = data()
+        cid = make_person(store, age=25, first="Player")
+        self._employ(store, cid, "civil_engineer")
+        self._set_balance(store, cid, 40000)
+        # Available but never accepted: no verification.
+        ms.make_available(store, cid, "2.2", GM)
+        self.assertFalse(ms.verify_mission_2_2(store, d, cid, GM + 200))
+
+    def test_2_2_completion_does_not_open_the_da_gate(self):
+        store = make_store()
+        d = data()
+        cid = make_person(store, age=25, first="Player")
+        self._employ(store, cid, "civil_engineer")
+        self._set_balance(store, cid, 40000)
+        self._active_22(store, d, cid)
+        self.assertFalse(ph.photo_mode_unlocked(store, cid))
+        ms.verify_mission_2_2(store, d, cid, GM + 200)
+        ms.complete_mission(store, cid, "2.2", GM + 300)
+        # The gate reads the 1.4 row only (EC §3.6).
         self.assertFalse(ph.photo_mode_unlocked(store, cid))
 
 
