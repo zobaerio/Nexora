@@ -847,6 +847,18 @@ def daily_pass(store, data, rng, day_index, game_minutes):
                         " 'severe_storm') ORDER BY disaster_id"):
         lost_items_mod.storm_market_losses(
             store, data, rng, d["disaster_id"], day_index, game_minutes)
+    # Queue 19 Unit EF: furniture standing in an exposed zone wears
+    # (−1 per exposed day, DQ) — the same exposure the pass applies
+    # to buildings, read off the row's location property. One call
+    # per active flood / cyclone / severe_storm disaster, over that
+    # disaster's exposed zones (floodplain/wetland zones).
+    for d in store.rows("SELECT * FROM disaster_events WHERE status"
+                        " = 'active' AND disaster_type IN ('flood',"
+                        " 'cyclone', 'severe_storm')"
+                        " ORDER BY disaster_id"):
+        lost_items_mod.apply_furniture_exposure_wear(
+            store, data, exposed_zones(store, data, d["city_id"]),
+            game_minutes)
     # Disaster phase transitions + recovery.
     for d in store.rows("SELECT * FROM disaster_events WHERE status"
                         " = 'active' AND ends_day IS NOT NULL AND"

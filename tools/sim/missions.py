@@ -58,6 +58,33 @@ reaches ``completed`` with ``objectives_complete`` true, and the
 "Skill training (evening classes)" unlock is a Phase 6 system, not
 a row this writer writes.
 
+Mission 1.3 "Know Your Neighbours" (GDD-04 §2, Unit EB Queue 19) is
+the third mission with a specified completion condition:
+``verify_mission_1_3()`` checks both objectives — meet 3 neighbours
+(distinct ``neighbour`` relationship edges, either direction: the
+type is symmetric, so an edge is stored both ways) and help one of
+them with a small task (a COMPLETED ``errands`` favour instance
+whose giver is one of the met neighbours — the favour instance key
+carries the giver, ``side:errands:<giver>:<minute>``). The help may
+have happened before the mission was accepted: the mission system
+verifies against world state, and a completed favour is a fact
+about the world, not about the mission's window (the 2.1
+precedent — a skill of 20 reached before accepting still
+verifies). Completing 1.3 pays nothing here: its +10 relationship
+(each met) and +5 district reputation are the Phase 6 reward step,
+and the "Neighbour favour system" unlock is a Phase 6 system.
+
+Mission 2.2 "Rainy Day Fund" (GDD-04 §2, Unit EC Queue 19) is the
+fourth: ``verify_mission_2_2()`` checks the single objective —
+save 15,000 NCr above the starting balance — against the ledger:
+``store.balance()`` (the ledger balance cache) must reach the
+current profession's ``starting_balance_ncr`` (GDD-03 §2, Unit W)
+plus 15,000, the mission's own number. An unemployed player has
+no profession and therefore no starting balance, so the condition
+cannot hold. Completing 2.2 pays nothing here: its 1,500 NCr
+interest bonus is the Phase 6 reward step, and the "Bank savings
+account (4% annual, GDD-03 §4.4)" unlock is a Phase 6 system.
+
 Favour instances are rows too (DG §3.6): the generator asks this
 module to create the row (``side:<type>:<giver>:<minute>``), and the
 same transitions move it. Verification for the two favour kinds
@@ -96,6 +123,14 @@ MISSION_1_4_MEMORY_TEXT = "First evening in Rupsha"
 # GDD-04 §2 mission 2.1: "Reach skill 20 in your profession's
 # primary skill" (data/missions.json, id "2.1", one objective).
 MISSION_2_1_SKILL_LEVEL = 20
+# GDD-04 §2 mission 1.3: "Meet 3 neighbours" (data/missions.json,
+# id "1.3", first objective) — the count is the mission's own
+# number.
+MISSION_1_3_NEIGHBOURS_TO_MEET = 3
+# GDD-04 §2 mission 2.2: "Save 15,000 NCr above your starting
+# balance" (data/missions.json, id "2.2", one objective) — the
+# amount is the mission's own number.
+MISSION_2_2_SAVINGS_TARGET = 15000
 
 
 # GDD-04 §3.6: the missions with a specified completion condition —
@@ -106,12 +141,14 @@ MISSION_2_1_SKILL_LEVEL = 20
 # tools/verify_queue18_ds.py) fails loudly when the registry, the
 # §3.6 text, and the verifiers disagree — a mission that ships a
 # verifier without a condition, or a condition without a verifier,
-# breaks the suite. Missions with dialogue trees but no §3.6
-# condition (1.3, 2.4) are NOT here: their verification is still
-# Phase 6 work, and this suite does not claim to cover them.
+# breaks the suite. Mission 2.4 has a dialogue tree but no §3.6
+# condition and no verifier: its verification is still Phase 6
+# work, and this suite does not claim to cover it.
 CONDITIONED_MISSIONS = {
+    "1.3": "verify_mission_1_3",
     "1.4": "verify_mission_1_4",
     "2.1": "verify_mission_2_1",
+    "2.2": "verify_mission_2_2",
 }
 
 
@@ -282,6 +319,97 @@ def verify_mission_2_1(store, data, character_id, game_minutes):
             < MISSION_2_1_SKILL_LEVEL:
         return False
     return set_objectives_complete(store, character_id, "2.1",
+                                   game_minutes)
+
+
+def neighbours_of(store, character_id):
+    """The character's met neighbours — distinct characters joined
+    to them by a ``neighbour`` relationship edge in either
+    direction. The type is symmetric (relationships.SYMMETRIC), so
+    the live writer stores both directions; the union read covers
+    hand-built rows that carry one direction only. An empty set
+    when the character has met no neighbour."""
+    rows = store.rows(
+        "SELECT to_character_id AS other FROM relationships"
+        " WHERE from_character_id = ? AND relation_type = 'neighbour'"
+        " UNION SELECT from_character_id AS other FROM relationships"
+        " WHERE to_character_id = ? AND relation_type = 'neighbour'",
+        (character_id, character_id))
+    return {r["other"] for r in rows}
+
+
+def verify_mission_1_3(store, data, character_id, game_minutes):
+    """Verify mission 1.3's objectives against world state (GDD-04
+    §3.6, Unit EB): (1) the character has met at least 3 neighbours
+    (distinct ``neighbour`` edges); (2) the character has helped
+    one of those neighbours with a small task — a COMPLETED
+    ``errands`` favour instance (``side:errands:<giver>:<minute>``)
+    whose giver is one of the met neighbours. Both must hold, in
+    either order; the help may predate the mission's acceptance (a
+    completed favour is a fact about the world, verified like 2.1's
+    pre-existing skill level). On success sets
+    ``objectives_complete`` while the row is still `active` and
+    returns True. Returns False when the row is not `active`, fewer
+    than 3 neighbours are met, or no completed errand names a met
+    neighbour as its giver — including a completed errand for a
+    stranger, which is a different neighbour's help, not this
+    mission's."""
+    row = get_row(store, character_id, "1.3")
+    if row is None or row["status"] != "active":
+        return False
+    neighbours = neighbours_of(store, character_id)
+    if len(neighbours) < MISSION_1_3_NEIGHBOURS_TO_MEET:
+        return False
+    for favour in store.rows(
+            "SELECT mission_id FROM mission_progress"
+            " WHERE character_id = ? AND status = 'completed'"
+            " AND mission_id LIKE 'side:errands:%'",
+            (character_id,)):
+        parts = favour["mission_id"].split(":")
+        if len(parts) == 4 and parts[2] in neighbours:
+            return set_objectives_complete(store, character_id, "1.3",
+                                           game_minutes)
+    return False
+
+
+def starting_balance_of(data, profession_id):
+    """The profession's ``starting_balance_ncr`` (data/professions.
+    json; GDD-03 §2, Unit W — the per-profession starting balance,
+    sized from the simulator's month-1 dip). None when the
+    profession is unknown or carries none."""
+    prof = data.professions.get(profession_id)
+    if not prof:
+        return None
+    return prof.get("starting_balance_ncr")
+
+
+def verify_mission_2_2(store, data, character_id, game_minutes):
+    """Verify mission 2.2's objective against world state (GDD-04
+    §3.6, Unit EC): the single objective "Save 15,000 NCr above
+    your starting balance" holds iff the character's ledger balance
+    (``store.balance()``, the ledger balance cache) is at least the
+    current profession's ``starting_balance_ncr`` plus 15,000, the
+    mission's own number. On success sets ``objectives_complete``
+    while the row is still `active` and returns True. Returns False
+    when the row is not `active`, the character is unemployed (no
+    profession, so no starting balance), the profession names no
+    starting balance, or the balance is short — including a balance
+    exactly 15,000 above a DIFFERENT profession's starting balance,
+    which is not this character's. The 1,500 NCr interest bonus is
+    not paid here (the Phase 6 reward step, per the DL boundary)."""
+    row = get_row(store, character_id, "2.2")
+    if row is None or row["status"] != "active":
+        return False
+    profession_id = current_profession_id(store, character_id)
+    if profession_id is None:
+        return False
+    starting = starting_balance_of(data, profession_id)
+    if starting is None:
+        return False
+    if store.balance(character_id) \
+            < starting + MISSION_2_2_SAVINGS_TARGET:
+        return False
+    return set_objectives_complete(store, character_id, "2.2",
                                    game_minutes)
 
 

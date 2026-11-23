@@ -78,6 +78,7 @@ from . import integration as integration_mod
 from . import identity as identity_mod
 from . import interaction as interaction_mod
 from . import lifecycle
+from . import lost_items as lost_items_mod
 from . import memory as memory_mod
 from . import needs as needs_mod
 from . import population as population_mod
@@ -220,7 +221,9 @@ class Simulation:
                 data, ctx, day, self.rng,
                 needs=needs_mod.get_needs(store, cid), traits=char,
                 weather_effects=effects,
-                rest_day=bool(state and state["rest_day"]))
+                rest_day=bool(state and state["rest_day"]),
+                broken_tool=bool(
+                    lost_items_mod.broken_tools_for(store, data, cid)))
             total = sum(b["end"] - b["start"] for b in blocks)
             assert total == 1440, f"schedule coverage broken for {cid}"
             schedules[cid] = blocks
@@ -299,6 +302,14 @@ class Simulation:
                 if len(skills) > 1:
                     decisions_mod.add_skill_xp(store, cid, skills[1],
                                                int(hours * 0.25))
+        # Queue 19 Unit EE: a worked day wears the worker's tools
+        # of the trade (−1 per worked day, DQ). Only characters
+        # with a work block today wear — a rest day, a work block
+        # bent by a broken tool, or an unemployed character wears
+        # nothing — and the wear logs `tool_broken` when a tool
+        # reaches 0.
+        for cid in work_hours:
+            lost_items_mod.apply_tool_wear(store, data, cid, day_end)
         for cid, hours in study_hours.items():
             # Session 02 Unit 08: study accrues by enrolment —
             # school students into subject_knowledge under the

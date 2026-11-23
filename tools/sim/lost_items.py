@@ -58,6 +58,17 @@ EXPOSED_MODES = ("walk", "cycle", "rickshaw")
 
 DEFAULT_LOSS_RATE = 0.0
 
+# Queue 19 Units EE/EF — condition & decay (GDD-04 §3.3, Unit DQ).
+# Thresholds adopted from the vehicle precedent
+# (data/transport-config.json `maintenance`: service_threshold 60.0,
+# restored_condition 90.0): a tool or piece at 60 or below is due a
+# service; a repair restores it to 90, never to 100 — a repaired
+# thing is not a new thing. New furniture/tool rows seed at 100
+# (vehicles seed at 92.0 — bought used stock, not new).
+CONDITION_NEW = 100
+SERVICE_THRESHOLD = 60
+RESTORED_CONDITION = 90
+
 
 def cfg(data):
     """The lost-items config, defaulting to {} when the data object
@@ -87,16 +98,32 @@ def household_head(store, household_id):
     return row["character_id"] if row else None
 
 
+def _has_standing_found_row(store, item_instance_id):
+    """True when a ``lost_items`` row for the item stands ``found``
+    (Unit EA, Queue 19 — DP's hand-back custody rule): the item is
+    in the finder's hands, awaiting hand-back, and cannot be lost
+    again until it is returned. A ``returned`` row is not standing,
+    so a returned item may be lost again."""
+    return store.row(
+        "SELECT 1 FROM lost_items WHERE item_instance_id = ?"
+        " AND status = 'found'", (item_instance_id,)) is not None
+
+
 def eligible_items(store, owner_character_id, allowed_types):
     """The owner's standing inventory rows of the allowed types, in
     loss priority: BX's listing order for the event, then
     item_instance_id. Only standing rows count — a row is never
-    deleted on loss, so eligibility is simply 'the row exists'."""
+    deleted on loss, so eligibility is simply 'the row exists' —
+    except an item with a standing ``found`` row (Unit EA): it is
+    in the finder's custody and cannot be lost again until it is
+    returned, so the events' eligible sets exclude it."""
     priority = {t: i for i, t in enumerate(allowed_types)}
     rows = store.rows(
         "SELECT * FROM inventory_items WHERE owner_character_id = ?",
         (owner_character_id,))
-    kept = [r for r in rows if r["item_type"] in priority]
+    kept = [r for r in rows if r["item_type"] in priority
+            and not _has_standing_found_row(store,
+                                            r["item_instance_id"])]
     kept.sort(key=lambda r: (priority[r["item_type"]],
                              r["item_instance_id"]))
     return kept
@@ -113,7 +140,11 @@ def record_loss(store, owner_character_id, item_instance_id,
       item to satisfy it);
     - a ``lost`` row already stands for the item (it is already
       lost; it cannot be lost twice — a returned item may be lost
-      again, only a standing loss blocks).
+      again, only a standing loss blocks);
+    - a ``found`` row already stands for the item (Unit EA, Queue
+      19 — DP's hand-back custody rule: the item is in the
+      finder's hands, awaiting hand-back, and cannot be lost again
+      until it is returned).
 
     ``lost_zone`` validity is the caller's responsibility: every
     caller passes a zone its own records already name (a trip's
@@ -131,6 +162,8 @@ def record_loss(store, owner_character_id, item_instance_id,
         "SELECT 1 FROM lost_items WHERE item_instance_id = ?"
         " AND status = 'lost'", (item_instance_id,))
     if standing is not None:
+        return None
+    if _has_standing_found_row(store, item_instance_id):
         return None
     lid = store.next_id("LI", "lost_items", "lost_item_id")
     store.insert("lost_items", lost_item_id=lid,
@@ -220,6 +253,98 @@ def favour_objective_complete(store, lost_item_id):
     row = store.row("SELECT status FROM lost_items"
                     " WHERE lost_item_id = ?", (lost_item_id,))
     return row is not None and row["status"] == "returned"
+
+
+# -- Queue 19 Unit ED: hand-back wiring (GDD-04 §3.3, Unit DP) ------
+# DP designed the hand-back; no sim function performed it. These two
+# functions are the performance: the finder carries the item to the
+# owner's CURRENT home (the open tenancy — never the origin zone of
+# the loss), or, where the owner holds no tenancy, to the owner's
+# current zone (GDD-15 §18). The deceased-owner case refuses
+# (orphaned favour — the DP rule, enforced not just stated). The
+# caller supplies the finder's presence — the same
+# caller-supplies-presence pattern as find_lost_item — because the
+# sim has no live player position to read.
+
+def current_zone_at(store, character_id, game_minutes):
+    """The GDD-15 §18 accessor, implemented against the stored
+    schedule state (the §18 design added no sim function; this unit
+    is its first sim implementation, for the hand-back fallback).
+    Reads the ``instantiated_schedules`` row for the day and returns
+    the ``zone`` of the block containing ``game_minutes`` (starts
+    and ends are absolute game minutes). None when the day was never
+    run (no row) or no block contains the minute — never a
+    re-instantiation, never a recomputed jitter (§18.1)."""
+    day_index = game_minutes // 1440
+    row = store.row(
+        "SELECT blocks_json FROM instantiated_schedules"
+        " WHERE character_id = ? AND day_index = ?",
+        (character_id, day_index))
+    if row is None:
+        return None
+    try:
+        blocks = json.loads(row["blocks_json"])
+    except ValueError:
+        return None
+    for block in blocks:
+        if block["start"] <= game_minutes < block["end"]:
+            return block.get("zone")
+    return None
+
+
+def hand_back_lost_item(store, lost_item_id, finder_character_id,
+                        game_minutes, finder_property_id=None,
+                        finder_zone=None):
+    """Perform the DP hand-back: the finder carries a ``found`` item
+    to its owner, and only then does ``return_lost_item()`` write
+    ``returned``. Returns the lost_item_id, or None when the
+    hand-back is refused:
+
+    - no such row, or the row is not ``found`` (an item never found
+      cannot be handed back — the finder must hold it first);
+    - the caller is not the recorded finder (``found_by_-
+      character_id`` holds the item; nobody else can hand it back);
+    - the owner is deceased (DP: the favour is orphaned — the
+      inheritance cascade moves money + property, never inventory,
+      so no heir owns the item and no hand-back to the heir exists);
+    - the owner holds a tenancy and the finder does not stand at
+      that property (``finder_property_id`` must equal the open
+      tenancy's ``property_id`` — the CURRENT home, re-routed after
+      a move, never the loss's origin zone);
+    - the owner holds no tenancy and the finder is not in the
+      owner's current zone (``finder_zone`` must equal
+      ``current_zone_at()`` for the owner at the return minute).
+
+    On success writes ``returned`` with the minute (the §3.1 favour
+    completes off that write, as DF specifies). The inventory row is
+    untouched."""
+    row = store.row("SELECT * FROM lost_items WHERE lost_item_id = ?",
+                    (lost_item_id,))
+    if row is None or row["status"] != "found":
+        return None
+    if row["found_by_character_id"] != finder_character_id:
+        return None
+    owner = row["owner_character_id"]
+    char = store.row(
+        "SELECT household_id, died_at_game_minutes FROM characters"
+        " WHERE character_id = ?", (owner,))
+    if char is None or char["died_at_game_minutes"] is not None:
+        return None
+    tenancy = None
+    if char["household_id"]:
+        tenancy = store.row(
+            "SELECT property_id FROM tenancies WHERE"
+            " tenant_household_id = ?"
+            " AND ended_at_game_minutes IS NULL",
+            (char["household_id"],))
+    if tenancy is not None:
+        if finder_property_id != tenancy["property_id"]:
+            return None
+    else:
+        zone = current_zone_at(store, owner, game_minutes)
+        if zone is None or finder_zone != zone:
+            return None
+    return return_lost_item(store, lost_item_id, game_minutes)
 
 
 def _resolve_rng(store, rng):
@@ -628,7 +753,8 @@ def seed_furniture_rows(store, data, character_id, item_ids,
                      item_type="furniture", item_ref=item_id,
                      owner_character_id=character_id,
                      location_property_id=property_id,
-                     state=json.dumps({"furniture_tier": furniture_tier}),
+                     state=json.dumps({"furniture_tier": furniture_tier,
+                                       "condition": CONDITION_NEW}),
                      acquired_at_game_minutes=game_minutes)
         made.append(iid)
     return made
@@ -698,7 +824,8 @@ def seed_tool_rows(store, data, character_id, profession_id,
                      item_type="tool", item_ref=item_id,
                      owner_character_id=character_id,
                      location_property_id=None,
-                     state=json.dumps({"issued": "employer"}),
+                     state=json.dumps({"issued": "employer",
+                                       "condition": CONDITION_NEW}),
                      acquired_at_game_minutes=game_minutes)
         made.append(iid)
     return made
@@ -826,3 +953,250 @@ def seed_age_up_outfits(store, data, character_id, game_minutes):
         emp["profession_id"] if emp else None,
         emp["tier"] if emp else 1,
         char["sim_tier"], game_minutes)
+
+
+# -- Queue 19 Units EE/EF: condition & decay wiring (GDD-04 §3.3,
+# Unit DQ design) -------------------------------------------------
+# DQ designed the model; these functions apply it. The condition
+# lives in the inventory row's `state` JSON — the same shape the
+# vehicle rows already use — so no table changes anywhere. Two
+# scope notes, recorded not hidden:
+#
+# - Only the causes each unit's brief assigns are wired here: tools
+#   wear by USE (EE, −1 per worked day); furniture wears by MOVES
+#   (EF, −2 per household move) and by EXPOSURE (EF, −1 per exposed
+#   day). DQ's weather cause for TOOLS (−1 per exposed day) is NOT
+#   wired by either brief — it stays an open gap for a later unit
+#   (Queue 20 candidate), not silently dropped.
+# - There is no passive time decay: condition falls only on the
+#   causes above (DQ). There is no repair function yet either: DQ
+#   prices repair (restores to 90, no ledger row; a replaced part
+#   is a catalogue-price purchase) but no sim function performs it
+#   — a later unit's job (Queue 20 candidate). A broken tool
+#   therefore stays broken until a repair function lands; the
+#   refusal below is the standing consequence, not a dead end
+#   hidden from the docs.
+
+def item_condition(row):
+    """The condition of an inventory row (0–100), read from its
+    `state` JSON. Rows seeded before Queue 19 carry no `condition`
+    key (DJ seeded `{"issued": "employer"}` / `{"furniture_tier":
+    "F1"}`) — a missing key reads as 100 (new, un-worn), the
+    honest migration-free reading: those rows were seeded new and
+    no wear pass has ever run over them. An unparseable state also
+    reads 100, never 0 — wear must never break a row it cannot
+    read."""
+    try:
+        state = json.loads(row["state"] or "{}")
+    except ValueError:
+        state = {}
+    try:
+        value = int(state.get("condition", CONDITION_NEW))
+    except (TypeError, ValueError):
+        return CONDITION_NEW
+    return max(0, min(100, value))
+
+
+def _set_condition(store, row, new_condition):
+    """Write a new condition into a row's `state` JSON, keeping
+    every other key (issued, furniture_tier, slot, ...)."""
+    try:
+        state = json.loads(row["state"] or "{}")
+    except ValueError:
+        state = {}
+    state["condition"] = max(0, min(100, int(new_condition)))
+    store.execute("UPDATE inventory_items SET state = ?"
+                  " WHERE item_instance_id = ?",
+                  (json.dumps(state), row["item_instance_id"]))
+
+
+def _current_profession_id(store, character_id):
+    """The character's current profession — the open employments
+    row, latest start first. Mirrors
+    ``missions.current_profession_id`` (duplicated, not imported:
+    missions.py lazily imports this module, so a top-level import
+    here would be circular). None when the character holds no open
+    employment."""
+    row = store.row(
+        "SELECT profession_id FROM employments WHERE character_id = ?"
+        " AND ended_at_game_minutes IS NULL"
+        " ORDER BY started_at_game_minutes DESC LIMIT 1",
+        (character_id,))
+    return row["profession_id"] if row else None
+
+
+def _profession_tool_rows(store, data, character_id):
+    """The character's standing tool rows for their current
+    profession — the tools whose catalogue `professions` list names
+    it (DJ's seeding rule, read back). [] when the character is
+    unemployed, the profession carries no tool, or no rows stand."""
+    profession_id = _current_profession_id(store, character_id)
+    if profession_id is None:
+        return []
+    wanted = set(tool_items(data, profession_id))
+    if not wanted:
+        return []
+    return [r for r in store.rows(
+        "SELECT * FROM inventory_items WHERE owner_character_id = ?"
+        " AND item_type = 'tool'", (character_id,))
+        if r["item_ref"] in wanted]
+
+
+def broken_tools_for(store, data, character_id):
+    """The character's tools of the trade at condition 0 — unusable
+    (DQ): a work block that requires one is refused (the scheduler
+    bend, wired in engine.run_day). [] when nothing is broken."""
+    return [r for r in _profession_tool_rows(store, data, character_id)
+            if item_condition(r) == 0]
+
+
+def tool_needs_service(store, data, character_id):
+    """The character's tools of the trade at or below the service
+    threshold (DQ: condition 60 or below is due a service — the
+    vehicle precedent, adopted). A broken tool (0) is included: it
+    is due the repair that restores it to 90 (RESTORED_CONDITION),
+    not a routine service — the predicate answers "due attention",
+    and the caller distinguishes broken from worn by condition."""
+    return [r for r in _profession_tool_rows(store, data, character_id)
+            if item_condition(r) <= SERVICE_THRESHOLD]
+
+
+def apply_tool_wear(store, data, character_id, game_minutes):
+    """Apply one worked day of use to the character's tools of the
+    trade (DQ: −1 per worked day). Called from engine.run_day for
+    every character who worked at least one work block that day —
+    the run_day hook is the only caller, so a rest day, a bent
+    work block, or an unemployed character wears nothing. Each worn
+    row's condition falls by 1 (floored at 0); a tool that reaches
+    0 on this wear logs the `tool_broken` life event once — the
+    break is the event, and the work refusal is its standing
+    consequence (the scheduler bend logs nothing further, so a tool
+    broken for ten days is one event, not ten). Returns the worn
+    item ids."""
+    from . import memory as memory_mod
+    worn = []
+    for row in _profession_tool_rows(store, data, character_id):
+        before = item_condition(row)
+        if before <= 0:
+            continue
+        after = before - 1
+        _set_condition(store, row, after)
+        worn.append(row["item_instance_id"])
+        if after == 0:
+            memory_mod.log_life_event(
+                store, character_id, "tool_broken", game_minutes,
+                details={"item_instance_id": row["item_instance_id"],
+                         "item_ref": row["item_ref"]})
+    return worn
+
+
+def apply_furniture_move_wear(store, data, household_id, game_minutes,
+                              new_property_id=None):
+    """Apply one household move to the head's furniture rows (DQ:
+    −2 per move — the packed load). Called from
+    ``households.move_household`` BEFORE the move-in seeding, so
+    newly seeded rows (new furniture, condition 100) are never
+    worn by the move that furnished the home — only the furniture
+    the household carried wears. A headless household wears
+    nothing (the CX custody rule). When ``new_property_id`` is
+    given, every carried row — worn or already broken — is
+    relocated to the new home (furniture moves with the household,
+    GDD-10 §4); without it, locations are left untouched. Returns
+    the worn item ids."""
+    head = household_head(store, household_id)
+    if head is None:
+        return []
+    worn = []
+    for row in store.rows(
+            "SELECT * FROM inventory_items WHERE owner_character_id = ?"
+            " AND item_type = 'furniture'", (head,)):
+        before = item_condition(row)
+        if before > 0:
+            _set_condition(store, row, before - 2)
+            worn.append(row["item_instance_id"])
+        if new_property_id is not None:
+            store.execute(
+                "UPDATE inventory_items SET location_property_id = ?"
+                " WHERE item_instance_id = ?",
+                (new_property_id, row["item_instance_id"]))
+    return worn
+
+
+def apply_furniture_exposure_wear(store, data, zones, game_minutes):
+    """Apply one exposed day to the furniture standing in the given
+    zones (DQ: −1 per exposed day — the item's location is a zone
+    under an active flood episode or a cyclone/severe_storm
+    disaster impact; the same exposure rule the environment pass
+    applies to buildings, read off the row's
+    ``location_property_id`` property's district). Called from
+    ``environment.daily_pass`` for each active disaster's exposed
+    zones. Rows with no location are skipped — furniture without a
+    home has no zone to expose. Returns the worn item ids."""
+    zones = set(zones)
+    if not zones:
+        return []
+    worn = []
+    for row in store.rows(
+            "SELECT * FROM inventory_items WHERE item_type ="
+            " 'furniture' AND location_property_id IS NOT NULL"):
+        prop = store.row("SELECT district_id FROM properties"
+                         " WHERE property_id = ?",
+                         (row["location_property_id"],))
+        if prop is None or prop["district_id"] not in zones:
+            continue
+        before = item_condition(row)
+        if before <= 0:
+            continue
+        _set_condition(store, row, before - 1)
+        worn.append(row["item_instance_id"])
+    return worn
+
+
+# GDD-10 §5: the home restore multipliers follow the EFFECTIVE
+# furnishing tier — the highest tier whose pieces ALL stand
+# (condition > 0). A tier counts only when the household head holds
+# every piece of that tier (cumulative: F1 holds F0 + F1) and each
+# stands. The multipliers are GDD-10's own numbers, never copied
+# from prices.json: F0 ×0.7, F1 ×1.0, F2 ×1.15, F3 ×1.3.
+FURNITURE_RESTORE_MULTIPLIERS = {"F0": 0.7, "F1": 1.0,
+                                 "F2": 1.15, "F3": 1.3}
+
+
+def effective_furniture_tier(store, data, character_id):
+    """The household head's effective furnishing tier (DQ): the
+    highest tier whose pieces ALL stand — every piece of the tier
+    (cumulative, so F1 means the F0 + F1 pieces) is held by the
+    character with condition > 0. A broken piece drops the tier to
+    the highest tier below it that fully stands; a broken F0 piece
+    leaves no tier standing, and the function returns None (the
+    home loop must decide that case — no multiplier is invented
+    here). A piece's absence (never seeded) counts the same as a
+    broken one: the tier does not stand. A lost piece still counts
+    as standing — its inventory row stands and the piece returns
+    with the hand-back; whether loss should drop the tier is an
+    open question for a later unit, recorded not decided (see
+    GDD-04 §3.3)."""
+    held = {}
+    for row in store.rows(
+            "SELECT * FROM inventory_items WHERE owner_character_id = ?"
+            " AND item_type = 'furniture'", (character_id,)):
+        held[row["item_ref"]] = item_condition(row)
+    for tier in ("F3", "F2", "F1", "F0"):
+        pieces = furniture_tier_items(data, tier)
+        if pieces and all(held.get(p, 0) > 0 for p in pieces):
+            return tier
+    return None
+
+
+def furniture_restore_multiplier(store, data, character_id):
+    """The GDD-10 §5 restore multiplier for the character's
+    effective furnishing tier (0.7 / 1.0 / 1.15 / 1.3). None when
+    no tier stands — the caller (the Phase 5/6 home loop, which
+    does not scale restores by furniture today) must decide that
+    case; this module invents no fallback rate. No live consumer
+    reads this yet: the needs engine applies fixed home restores,
+    and wiring the multiplier into it is Phase 5/6 work."""
+    tier = effective_furniture_tier(store, data, character_id)
+    if tier is None:
+        return None
+    return FURNITURE_RESTORE_MULTIPLIERS[tier]

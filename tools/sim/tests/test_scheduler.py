@@ -221,6 +221,37 @@ class TestScheduler(unittest.TestCase):
         self.assertNotIn("tea_stall", scheduler.LEISURE_ZONE)
         self.assertNotIn("restaurant", scheduler.LEISURE_ZONE)
 
+    def test_broken_tool_bends_work_blocks_to_rest(self):
+        # Queue 19 Unit EE (GDD-04 §3.3, Unit DQ): a work block
+        # that requires a broken tool is refused — the scheduler's
+        # existing bend applies, and the block bends to rest.
+        d = data()
+        plain, _ = scheduler.instantiate(d, ctx_for("civil_engineer"),
+                                         0, rng(), needs=FULL_NEEDS)
+        self.assertIn("work", {b["activity"] for b in plain})
+        bent, _ = scheduler.instantiate(d, ctx_for("civil_engineer"),
+                                        0, rng(), needs=FULL_NEEDS,
+                                        broken_tool=True)
+        self.assertNotIn("work", {b["activity"] for b in bent})
+        self.assertEqual(sum(b["end"] - b["start"] for b in bent), 1440)
+        refused = [b for b in bent if b.get("broken_tool")]
+        self.assertEqual(len(refused), 2)  # the two work blocks
+        self.assertTrue(all(b["activity"] == "home"
+                            and b["location"] == "home" for b in refused))
+
+    def test_broken_tool_leaves_study_blocks_alone(self):
+        # Only work blocks require a tool of the trade: a study
+        # block bends for illness (rest_day), never for a tool.
+        d = data()
+        blocks, _ = scheduler.instantiate(d, ctx_for("student_day"),
+                                          0, rng(), needs=FULL_NEEDS,
+                                          broken_tool=True)
+        study = [b for b in blocks if b["activity"] == "study"]
+        self.assertTrue(study, "student day has study blocks")
+        self.assertFalse(any(b.get("broken_tool") for b in blocks))
+        self.assertEqual(sum(b["end"] - b["start"] for b in blocks),
+                         1440)
+
 
 if __name__ == "__main__":
     unittest.main()

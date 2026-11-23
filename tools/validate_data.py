@@ -1259,6 +1259,28 @@ def main():
     check(dlg["trees"]["mission_2_1_learn_the_trade"]
           ["unlocks_quoted"] == m21["unlocks"],
           "mission 2.1 unlocks quoted verbatim")
+    # Queue 19 Unit EC: the mission 2.2 dialogue tree (the next
+    # mission in GDD-04 §2 after 2.1 — "Rainy Day Fund", save above
+    # the starting balance).
+    check("mission_2_2_rainy_day_fund" in dlg["trees"],
+          "mission 2.2 dialogue tree exists")
+    check([n["node_id"] for n in
+           dlg["trees"]["mission_2_2_rainy_day_fund"]["nodes"]] ==
+          ["dlg_2_2_intro", "dlg_2_2_offer", "dlg_2_2_accept",
+           "dlg_2_2_decline", "dlg_2_2_hello", "dlg_2_2_reminder",
+           "dlg_2_2_reminder_exit", "dlg_2_2_return"],
+          "mission 2.2 tree has the 8 AO-pattern nodes")
+    m22 = next(m for m in data["missions.json"]["missions"]
+               if m["id"] == "2.2")
+    check(dlg["trees"]["mission_2_2_rainy_day_fund"]
+          ["objectives_quoted"] == m22["objectives"],
+          "mission 2.2 objectives quoted verbatim")
+    check(dlg["trees"]["mission_2_2_rainy_day_fund"]
+          ["rewards_quoted"] == m22["rewards"],
+          "mission 2.2 rewards quoted verbatim")
+    check(dlg["trees"]["mission_2_2_rainy_day_fund"]
+          ["unlocks_quoted"] == m22["unlocks"],
+          "mission 2.2 unlocks quoted verbatim")
 
     vehicle_prices = {v["id"] for v in prices["vehicles"]}
     bad = []
