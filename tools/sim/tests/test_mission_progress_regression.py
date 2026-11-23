@@ -12,10 +12,9 @@ condition must have a registered verifier. A mission that ships a
 verifier without a condition — or a condition without a verifier —
 breaks this suite loudly, by design.
 
-Missions with dialogue trees but no §3.6 condition (2.4) are
-outside this suite's scope: their verification is still Phase 6
-work, and the suite asserts that limit rather than claiming to
-cover them.
+Every shipped mission tree now has a §3.6 condition (Unit EJ,
+Queue 20, closed the last one — 2.4): the suite asserts that, and
+no mission with a tree is out of scope any more.
 """
 import json
 import re
@@ -95,18 +94,29 @@ class TestRegistryTripwire(unittest.TestCase):
                          "verifier — a mission shipped a condition "
                          "the writer cannot complete")
 
-    def test_trees_without_conditions_are_out_of_scope(self):
-        # 2.4 has a dialogue tree but no §3.6 condition and no
-        # verifier: the suite records that limit, it does not
-        # pretend to cover it. 1.3 used to be here too (Queue 18);
-        # Unit EB gave it a condition and a verifier, so it is
-        # covered now — the suite asserts that, not the old limit.
-        self.assertNotIn("2.4", ms.CONDITIONED_MISSIONS)
+    def test_every_shipped_mission_tree_has_a_condition(self):
+        # Every mission with a dialogue tree has a §3.6 condition
+        # and a registered verifier — 2.4 was the last one without
+        # (Queue 18/19), and Unit EJ (Queue 20) closed it. 1.3 used
+        # to be out of scope too (Queue 18); Unit EB gave it a
+        # condition and a verifier, so it is covered now — the suite
+        # asserts that, not the old limit.
+        self.assertIn("2.4", ms.CONDITIONED_MISSIONS)
         self.assertIn("1.3", ms.CONDITIONED_MISSIONS)
         dlg = json.loads(
             (ROOT / "data" / "dialogue-lines.json").read_text())
         self.assertIn("mission_1_3_neighbour_help", dlg["trees"])
         self.assertIn("mission_2_4_friendship", dlg["trees"])
+        self.assertIn("mission_2_1_learn_the_trade", dlg["trees"])
+        self.assertIn("mission_2_2_rainy_day_fund", dlg["trees"])
+        for tree in ("mission_1_3_neighbour_help",
+                     "mission_2_4_friendship",
+                     "mission_2_1_learn_the_trade",
+                     "mission_2_2_rainy_day_fund"):
+            mission_id = tree.split("_")[1] + "." \
+                + tree.split("_")[2]
+            self.assertIn(mission_id, ms.CONDITIONED_MISSIONS,
+                          f"{tree} ships a tree but no §3.6 condition")
 
 
 class TestWriterCompletesConditionedMissions(unittest.TestCase):
@@ -196,6 +206,23 @@ class TestWriterCompletesConditionedMissions(unittest.TestCase):
         self.assertTrue(ms.verify_mission_2_2(store, d, cid, GM + 300))
         self.assertTrue(ms.complete_mission(store, cid, "2.2", GM + 300))
         self.assertEqual(ms.get_status(store, cid, "2.2"), "completed")
+
+    def test_2_4_completes_only_with_a_friend_at_mean_40(self):
+        store = make_store()
+        d = data()
+        cid = make_person(store, age=25, first="Player")
+        friend = make_person(store, age=30, first="Friend")
+        rel.add_edge(store, cid, friend, "friend", GM, trust=45,
+                     affection=34)
+        _active(store, cid, "2.4")
+        # Mean 39.5: no verification, no completion.
+        self.assertFalse(ms.verify_mission_2_4(store, d, cid, GM + 200))
+        self.assertFalse(ms.complete_mission(store, cid, "2.4",
+                                            GM + 200))
+        rel.adjust_scores(store, cid, friend, GM + 200, affection=1)
+        self.assertTrue(ms.verify_mission_2_4(store, d, cid, GM + 300))
+        self.assertTrue(ms.complete_mission(store, cid, "2.4", GM + 300))
+        self.assertEqual(ms.get_status(store, cid, "2.4"), "completed")
 
     def test_a_conditioned_mission_never_completes_unverified(self):
         # Neither conditioned mission completes from `active` without
@@ -288,6 +315,19 @@ class TestGateStaysClosedOtherwise(unittest.TestCase):
         ms.verify_mission_2_1(store, d, cid, GM + 200)
         ms.complete_mission(store, cid, "2.1", GM + 300)
         self.assertEqual(ms.get_status(store, cid, "2.1"), "completed")
+        self.assertFalse(ph.photo_mode_unlocked(store, cid))
+
+    def test_completing_2_4_does_not_open_the_gate(self):
+        store = make_store()
+        d = data()
+        cid = make_person(store, age=25, first="Player")
+        friend = make_person(store, age=30, first="Friend")
+        rel.add_edge(store, cid, friend, "friend", GM, trust=40,
+                     affection=40)
+        _active(store, cid, "2.4")
+        ms.verify_mission_2_4(store, d, cid, GM + 200)
+        ms.complete_mission(store, cid, "2.4", GM + 300)
+        self.assertEqual(ms.get_status(store, cid, "2.4"), "completed")
         self.assertFalse(ph.photo_mode_unlocked(store, cid))
 
     def test_completing_a_favour_does_not_open_the_gate(self):

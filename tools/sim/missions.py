@@ -85,6 +85,26 @@ cannot hold. Completing 2.2 pays nothing here: its 1,500 NCr
 interest bonus is the Phase 6 reward step, and the "Bank savings
 account (4% annual, GDD-03 §4.4)" unlock is a Phase 6 system.
 
+Mission 2.4 "A Friend in the City" (GDD-04 §2, Unit EJ Queue 20)
+is the fifth — and the last mission with a dialogue tree to gain a
+specified completion condition: ``verify_mission_2_4()`` checks
+the single objective — "Raise one friendship to 40+ (trust/
+affection)" — against the relationship edges: a ``friend`` edge
+in either direction whose mean of trust and affection is at
+least 40, the mission's own number. The mean is the dialogue
+condition's own reading (GDD-15 §12.3: ``relationship_mean_min``
+is the mean of trust and affection on the selected edge), and the
+tree's entry node requires exactly that mean of 40 — so the
+§3.6 condition and the tree's gate agree on the number, and the
+condition adds only what the objective names: the edge must be
+a friendship (a spouse or colleague edge at mean 40 does not
+verify it — the mission is about a friend, and the tree's entry
+gate is the dialogue's offer rule, not the completion rule).
+Completing 2.4 pays nothing here: its +10 district reputation
+and memory event are the Phase 6 reward step, and the "Friend
+favour missions" unlock is a Phase 6 system. After this unit
+every shipped mission tree has a §3.6 condition and a verifier.
+
 Favour instances are rows too (DG §3.6): the generator asks this
 module to create the row (``side:<type>:<giver>:<minute>``), and the
 same transitions move it. Verification for the two favour kinds
@@ -131,6 +151,11 @@ MISSION_1_3_NEIGHBOURS_TO_MEET = 3
 # balance" (data/missions.json, id "2.2", one objective) — the
 # amount is the mission's own number.
 MISSION_2_2_SAVINGS_TARGET = 15000
+# GDD-04 §2 mission 2.4: "Raise one friendship to 40+
+# (trust/affection)" (data/missions.json, id "2.4", one objective)
+# — the threshold is the mission's own number, and the mean is the
+# dialogue condition's own reading (GDD-15 §12.3).
+MISSION_2_4_FRIENDSHIP_MEAN = 40
 
 
 # GDD-04 §3.6: the missions with a specified completion condition —
@@ -141,14 +166,14 @@ MISSION_2_2_SAVINGS_TARGET = 15000
 # tools/verify_queue18_ds.py) fails loudly when the registry, the
 # §3.6 text, and the verifiers disagree — a mission that ships a
 # verifier without a condition, or a condition without a verifier,
-# breaks the suite. Mission 2.4 has a dialogue tree but no §3.6
-# condition and no verifier: its verification is still Phase 6
-# work, and this suite does not claim to cover it.
+# breaks the suite. Every shipped mission tree now has a condition
+# (Unit EJ, Queue 20, closed the last one — 2.4).
 CONDITIONED_MISSIONS = {
     "1.3": "verify_mission_1_3",
     "1.4": "verify_mission_1_4",
     "2.1": "verify_mission_2_1",
     "2.2": "verify_mission_2_2",
+    "2.4": "verify_mission_2_4",
 }
 
 
@@ -413,6 +438,66 @@ def verify_mission_2_2(store, data, character_id, game_minutes):
                                    game_minutes)
 
 
+def friendship_mean(store, character_id, other_id):
+    """The mean of trust and affection on the `friend` edge between
+    two characters (GDD-15 §12.3: `relationship_mean_min` is the
+    mean of trust and affection). The type is symmetric, so the
+    live writer stores both directions; this reads the union of
+    both directions and takes the higher mean where both exist
+    (they carry the same scores when written by `add_edge` with
+    both_ways, and a hand-built one-direction row still counts).
+    None when no `friend` edge joins the pair in either direction
+    — a spouse, colleague, or neighbour edge is not a friendship,
+    however warm it is."""
+    best = None
+    for row in store.rows(
+            "SELECT trust, affection FROM relationships WHERE"
+            " relation_type = 'friend' AND ((from_character_id = ?"
+            " AND to_character_id = ?) OR (from_character_id = ?"
+            " AND to_character_id = ?))",
+            (character_id, other_id, other_id, character_id)):
+        mean = (row["trust"] + row["affection"]) / 2
+        best = mean if best is None else max(best, mean)
+    return best
+
+
+def verify_mission_2_4(store, data, character_id, game_minutes):
+    """Verify mission 2.4's objective against world state (GDD-04
+    §3.6, Unit EJ): the single objective "Raise one friendship to
+    40+ (trust/affection)" holds iff the character holds a
+    `friend` edge whose mean of trust and affection is at least
+    40, the mission's own number. On success sets
+    ``objectives_complete`` while the row is still `active` and
+    returns True. Returns False when the row is not `active`, no
+    `friend` edge reaches a mean of 40 — including a spouse or
+    colleague edge at mean 40+, which is a different relationship,
+    not a friendship — or the mean falls short (trust 45 /
+    affection 34 is a mean of 39.5, not 40). The friendship may
+    predate the mission's acceptance (a warm friendship is a fact
+    about the world, verified like 2.1's pre-existing skill level
+    and 1.3's pre-existing help). The +10 district reputation and
+    the memory event are not paid here (the Phase 6 reward step,
+    per the DL boundary)."""
+    row = get_row(store, character_id, "2.4")
+    if row is None or row["status"] != "active":
+        return False
+    for other in store.rows(
+            "SELECT to_character_id AS other FROM relationships"
+            " WHERE from_character_id = ?"
+            " AND relation_type = 'friend'"
+            " UNION SELECT from_character_id AS other FROM"
+            " relationships WHERE to_character_id = ?"
+            " AND relation_type = 'friend'",
+            (character_id, character_id)):
+        mean = friendship_mean(store, character_id,
+                               other["other"])
+        if mean is not None \
+                and mean >= MISSION_2_4_FRIENDSHIP_MEAN:
+            return set_objectives_complete(store, character_id,
+                                           "2.4", game_minutes)
+    return False
+
+
 def complete_mission(store, character_id, mission_id, game_minutes):
     """`active` -> `completed` (the dialogue `mission_complete`
     effect, GDD-15 §13.4), only when ``objectives_complete`` is
@@ -538,12 +623,21 @@ def create_favour_instance(store, data, character_id, favour_type,
     — the generator must not invent a type). Returns the instance
     key, or None when a row with that key already exists (the same
     giver generating the same type in the same minute is one
-    favour, not two)."""
+    favour, not two) or when the giver is deceased or unknown
+    (Unit EK, Queue 20 — DP's rule, enforced not just stated: a
+    deceased giver cannot offer a favour, so the generator must
+    never offer a lost-item favour — or any favour — for a giver
+    who has died; a living giver is unaffected)."""
     types = [s["type"] for s in
              data.missions_file.get("side_mission_types", [])]
     if favour_type not in types:
         raise ValueError(
             f"unknown favour type {favour_type!r}: not a §3.1 type")
+    giver = store.row("SELECT died_at_game_minutes FROM characters"
+                      " WHERE character_id = ?",
+                      (giver_character_id,))
+    if giver is None or giver["died_at_game_minutes"] is not None:
+        return None
     key = favour_instance_key(favour_type, giver_character_id,
                               game_minutes)
     if make_available(store, character_id, key, game_minutes):

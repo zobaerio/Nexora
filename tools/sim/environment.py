@@ -852,11 +852,18 @@ def daily_pass(store, data, rng, day_index, game_minutes):
     # to buildings, read off the row's location property. One call
     # per active flood / cyclone / severe_storm disaster, over that
     # disaster's exposed zones (floodplain/wetland zones).
+    # Queue 20 Unit EG: the same exposure wears the tools of
+    # characters whose home stands in an exposed zone (DQ's weather
+    # cause for tools, beside the furniture wear — one call per
+    # active disaster, same zones, same −1).
     for d in store.rows("SELECT * FROM disaster_events WHERE status"
                         " = 'active' AND disaster_type IN ('flood',"
                         " 'cyclone', 'severe_storm')"
                         " ORDER BY disaster_id"):
         lost_items_mod.apply_furniture_exposure_wear(
+            store, data, exposed_zones(store, data, d["city_id"]),
+            game_minutes)
+        lost_items_mod.apply_tool_weather_wear(
             store, data, exposed_zones(store, data, d["city_id"]),
             game_minutes)
     # Disaster phase transitions + recovery.

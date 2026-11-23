@@ -831,7 +831,10 @@ class Simulation:
             if biz is None or biz["status"] == "closed":
                 paid[emp["employment_id"]] = 0
                 continue
-            due = emp["wage_per_month"]
+            due = emp["wage_per_month"] \
+                - labour_mod.broken_tool_wage_dock(
+                    store, emp["character_id"], month_index,
+                    emp["wage_per_month"])
             amount = min(due, store.business_balance(bid))
             if amount > 0:
                 store.transfer(
@@ -967,7 +970,16 @@ class Simulation:
                                            game_minutes,
                                            note="income tax")
                     else:
-                        gross = emp["wage_per_month"]
+                        # Queue 20 Unit EL: the no-dock rule — a
+                        # broken tool's bent blocks do not dock the
+                        # day's wages (GDD-04 §3.3, GDD-03 §2). The
+                        # settlement consults the rule at the point
+                        # of payment; the dock is 0 today, so the
+                        # gross is the full monthly wage.
+                        gross = emp["wage_per_month"] \
+                            - labour_mod.broken_tool_wage_dock(
+                                store, cid, (last_day + 1) // 30,
+                                emp["wage_per_month"])
                         if pid == "taxi_driver":
                             gross = round(gross * taxi_factor)
                         tax = econ.monthly_tax(gross, brackets)

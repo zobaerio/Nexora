@@ -73,6 +73,63 @@ class TestDecisions(unittest.TestCase):
         self.assertIsNotNone(ten["ended_at_game_minutes"])
         self.assertEqual(store.balance(cid), 2000000 - 500000)
         self.assertEqual(store.ledger_sum_check(), [])
+        # Queue 20 Unit EN: the purchase issues a property deed —
+        # issued, not bought: the row names the bought property and
+        # the balance fell by exactly the price (no deed charge).
+        import json as _json
+        deed = store.row("SELECT * FROM inventory_items WHERE"
+                         " owner_character_id = ? AND"
+                         " item_type = 'document' AND"
+                         " item_ref = 'property_deed'", (cid,))
+        self.assertIsNotNone(deed)
+        self.assertEqual(_json.loads(deed["state"]),
+                         {"property_id": pid})
+        self.assertEqual(store.row(
+            "SELECT COUNT(*) AS n FROM economy_ledger WHERE"
+            " reason_code = 'purchase'")["n"], 1)
+
+    def test_buy_home_mortgage_seeds_the_deed(self):
+        # Queue 20 Unit EN: the mortgage purchase issues the same
+        # deed row as the cash purchase (one helper, two call sites).
+        store = make_store()
+        d = data()
+        cid = make_person(store, age=40)
+        hid, pid = make_household(store, [cid], market_value=500000)
+        employ(store, d, cid, "doctor", tier=5)
+        store.execute("UPDATE employments SET tier = 5 WHERE character_id"
+                      " = ?", (cid,))
+        # Below the cash price (500,000 x 1.1) but above the 20%
+        # deposit + 5,000: cash refuses, mortgage is the path.
+        store.transfer("SYS-EMPLOYERS", cid, 200000, "seed", 480)
+        # Three months of wage history, so the credit assessment
+        # sees a monthly income; the bank holds the loan.
+        for i, minute in enumerate((480, 480 + 43200, 480 + 86400)):
+            store.transfer("SYS-EMPLOYERS", cid, 30000, "wage",
+                           minute, transfer_key=f"test-wage-{i}")
+        store.transfer(None, "SYS-BANK", 1000000, "seed", 480)
+        store.execute("UPDATE world_state SET economy_setup = 1")
+        set_profile(store, cid, ambition=30, risk_tolerance=30)
+        set_needs(store, cid, financial=95, social=95, sleep=95, rest=95,
+                  safety=95, development=95, education=95)
+        result = dec.decide(store, d, rng(), _char(store, cid), 0, 480, set())
+        self.assertEqual(result, "buy_home_mortgage")
+        prop = store.row("SELECT * FROM properties WHERE property_id = ?",
+                         (pid,))
+        self.assertEqual(prop["status"], "owned")
+        self.assertEqual(prop["owner_household_id"], hid)
+        loan = store.row("SELECT * FROM loans WHERE"
+                         " borrower_character_id = ? AND kind ="
+                         " 'mortgage'", (cid,))
+        self.assertIsNotNone(loan)
+        import json as _json
+        deed = store.row("SELECT * FROM inventory_items WHERE"
+                         " owner_character_id = ? AND"
+                         " item_type = 'document' AND"
+                         " item_ref = 'property_deed'", (cid,))
+        self.assertIsNotNone(deed)
+        self.assertEqual(_json.loads(deed["state"]),
+                         {"property_id": pid})
+        self.assertEqual(store.ledger_sum_check(), [])
 
     def test_rest_decision_sets_rest_day(self):
         store = make_store()

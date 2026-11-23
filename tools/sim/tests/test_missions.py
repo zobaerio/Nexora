@@ -327,6 +327,37 @@ class TestFavourInstances(unittest.TestCase):
         self.assertFalse(ms.verify_favour_objectives(store, cid, "1.4",
                                                     GM + 200))
 
+    def test_create_favour_instance_refuses_a_deceased_giver(self):
+        # Queue 20 Unit EK — DP's rule, enforced: a deceased giver
+        # cannot offer a favour, so no row is created.
+        store = make_store()
+        d = data()
+        cid = make_person(store, age=25, first="Player")
+        giver = make_person(store, age=40, first="Giver")
+        store.execute("UPDATE characters SET died_at_game_minutes = ?"
+                      " WHERE character_id = ?", (GM - 100, giver))
+        self.assertIsNone(ms.create_favour_instance(
+            store, d, cid, "favours", giver, GM))
+        self.assertIsNone(ms.get_row(
+            store, cid, f"side:favours:{giver}:{GM}"))
+
+    def test_create_favour_instance_refuses_an_unknown_giver(self):
+        store = make_store()
+        d = data()
+        cid = make_person(store, age=25, first="Player")
+        self.assertIsNone(ms.create_favour_instance(
+            store, d, cid, "favours", "CH-NO-SUCH-GIVER", GM))
+
+    def test_a_living_giver_is_unaffected(self):
+        store = make_store()
+        d = data()
+        cid = make_person(store, age=25, first="Player")
+        giver = make_person(store, age=40, first="Giver")
+        key = ms.create_favour_instance(store, d, cid,
+                                        "favours", giver, GM)
+        self.assertEqual(key, f"side:favours:{giver}:{GM}")
+        self.assertEqual(ms.get_status(store, cid, key), "available")
+
 
 class TestMission21(unittest.TestCase):
     # Queue 18 Unit DO — mission 2.1 "Learn the Trade" (GDD-04
@@ -670,6 +701,97 @@ class TestMission22(unittest.TestCase):
         ms.verify_mission_2_2(store, d, cid, GM + 200)
         ms.complete_mission(store, cid, "2.2", GM + 300)
         # The gate reads the 1.4 row only (EC §3.6).
+        self.assertFalse(ph.photo_mode_unlocked(store, cid))
+
+
+class TestMission24(unittest.TestCase):
+    # Queue 20 Unit EJ — mission 2.4 "A Friend in the City"
+    # (GDD-04 §3.6): raise one friendship to 40+ (trust/affection)
+    # — a `friend` edge whose mean of trust and affection is at
+    # least 40, the mission's own number (GDD-15 §12.3).
+
+    def _active_24(self, store, cid):
+        ms.make_available(store, cid, "2.4", GM)
+        ms.accept_mission(store, cid, "2.4", GM + 100)
+
+    def test_a_friend_at_mean_40_completes_2_4(self):
+        store = make_store()
+        d = data()
+        cid = make_person(store, age=25, first="Player")
+        friend = make_person(store, age=30, first="Friend")
+        rel.add_edge(store, cid, friend, "friend", GM, trust=45,
+                     affection=35)
+        self.assertEqual(ms.friendship_mean(store, cid, friend), 40)
+        self._active_24(store, cid)
+        self.assertTrue(ms.verify_mission_2_4(store, d, cid, GM + 200))
+        self.assertTrue(ms.complete_mission(store, cid, "2.4", GM + 300))
+        self.assertEqual(ms.get_status(store, cid, "2.4"), "completed")
+
+    def test_one_short_of_the_mean_does_not_verify(self):
+        store = make_store()
+        d = data()
+        cid = make_person(store, age=25, first="Player")
+        friend = make_person(store, age=30, first="Friend")
+        # Trust 45 / affection 34 is a mean of 39.5, not 40.
+        rel.add_edge(store, cid, friend, "friend", GM, trust=45,
+                     affection=34)
+        self._active_24(store, cid)
+        self.assertFalse(ms.verify_mission_2_4(store, d, cid, GM + 200))
+        self.assertFalse(ms.complete_mission(store, cid, "2.4", GM + 200))
+        # One more point of affection reaches the mean exactly.
+        rel.adjust_scores(store, cid, friend, GM + 200, affection=1)
+        self.assertTrue(ms.verify_mission_2_4(store, d, cid, GM + 300))
+
+    def test_a_spouse_or_colleague_at_40_does_not_verify(self):
+        store = make_store()
+        d = data()
+        cid = make_person(store, age=25, first="Player")
+        spouse = make_person(store, age=30, first="Spouse")
+        rel.add_edge(store, cid, spouse, "spouse", GM, trust=50,
+                     affection=50)
+        colleague = make_person(store, age=32, first="Colleague")
+        rel.add_edge(store, cid, colleague, "colleague", GM, trust=50,
+                     affection=50)
+        self._active_24(store, cid)
+        self.assertFalse(ms.verify_mission_2_4(store, d, cid, GM + 200))
+        # A friend edge at mean 40 verifies, beside the warm
+        # non-friendships.
+        friend = make_person(store, age=28, first="Friend")
+        rel.add_edge(store, cid, friend, "friend", GM, trust=40,
+                     affection=40)
+        self.assertTrue(ms.verify_mission_2_4(store, d, cid, GM + 300))
+
+    def test_no_friend_edge_does_not_verify(self):
+        store = make_store()
+        d = data()
+        cid = make_person(store, age=25, first="Player")
+        self.assertIsNone(ms.friendship_mean(store, cid, "CH-NOBODY"))
+        self._active_24(store, cid)
+        self.assertFalse(ms.verify_mission_2_4(store, d, cid, GM + 200))
+
+    def test_verify_needs_an_active_row(self):
+        store = make_store()
+        d = data()
+        cid = make_person(store, age=25, first="Player")
+        friend = make_person(store, age=30, first="Friend")
+        rel.add_edge(store, cid, friend, "friend", GM, trust=40,
+                     affection=40)
+        # Available but never accepted: no verification.
+        ms.make_available(store, cid, "2.4", GM)
+        self.assertFalse(ms.verify_mission_2_4(store, d, cid, GM + 200))
+
+    def test_2_4_completion_does_not_open_the_da_gate(self):
+        store = make_store()
+        d = data()
+        cid = make_person(store, age=25, first="Player")
+        friend = make_person(store, age=30, first="Friend")
+        rel.add_edge(store, cid, friend, "friend", GM, trust=40,
+                     affection=40)
+        self._active_24(store, cid)
+        self.assertFalse(ph.photo_mode_unlocked(store, cid))
+        ms.verify_mission_2_4(store, d, cid, GM + 200)
+        ms.complete_mission(store, cid, "2.4", GM + 300)
+        # The gate reads the 1.4 row only (EJ §3.6).
         self.assertFalse(ph.photo_mode_unlocked(store, cid))
 
 
