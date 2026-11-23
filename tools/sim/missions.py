@@ -41,6 +41,23 @@ other missions is NOT wired here: 1.4 carries no credits and no
 reputation, and paying other missions' rewards is the Phase 6
 mission system's reward step, not this writer.
 
+Mission 2.1 "Learn the Trade" (GDD-04 §2, Unit DO Queue 18) is the
+second mission with a specified completion condition, and the second
+one this writer verifies: ``verify_mission_2_1()`` checks the single
+objective — skill 20 in the player's profession's primary skill —
+against world state while the row is still ``active``. The primary
+skill is ``primary_skills[0]`` of the player's current profession
+(``data/professions.json``; GDD-11 calls the second entry the
+"second primary skill", so the first entry is the primary one), read
+from ``character_skills``. An unemployed player has no profession
+and cannot verify; a level of 20 in the second primary skill does
+not verify either. Completing 2.1 pays nothing here: its 2,000 NCr
+and +10 profession reputation are credit/reputation rewards, and
+paying those is the Phase 6 reward step (see above) — the row
+reaches ``completed`` with ``objectives_complete`` true, and the
+"Skill training (evening classes)" unlock is a Phase 6 system, not
+a row this writer writes.
+
 Favour instances are rows too (DG §3.6): the generator asks this
 module to create the row (``side:<type>:<giver>:<minute>``), and the
 same transitions move it. Verification for the two favour kinds
@@ -76,6 +93,26 @@ PROGRESS_KEYS = ("available_at_game_minutes",
 # need no row (see the module note).
 MISSION_1_4_MEMORY_EVENT = "first_evening_in_rupsha"
 MISSION_1_4_MEMORY_TEXT = "First evening in Rupsha"
+# GDD-04 §2 mission 2.1: "Reach skill 20 in your profession's
+# primary skill" (data/missions.json, id "2.1", one objective).
+MISSION_2_1_SKILL_LEVEL = 20
+
+
+# GDD-04 §3.6: the missions with a specified completion condition —
+# the only missions this writer verifies. A mission gains an entry
+# here only when its condition is specified in GDD-04 §3.6 AND its
+# verify_mission_* function exists below; the DS regression suite
+# (tools/sim/tests/test_mission_progress_regression.py +
+# tools/verify_queue18_ds.py) fails loudly when the registry, the
+# §3.6 text, and the verifiers disagree — a mission that ships a
+# verifier without a condition, or a condition without a verifier,
+# breaks the suite. Missions with dialogue trees but no §3.6
+# condition (1.3, 2.4) are NOT here: their verification is still
+# Phase 6 work, and this suite does not claim to cover them.
+CONDITIONED_MISSIONS = {
+    "1.4": "verify_mission_1_4",
+    "2.1": "verify_mission_2_1",
+}
 
 
 def _progress(row):
@@ -186,6 +223,65 @@ def verify_mission_1_4(store, data, character_id, current_zone,
     if current_anchor != RIVERFRONT_TEA_STALL_ANCHOR:
         return False
     return set_objectives_complete(store, character_id, "1.4",
+                                   game_minutes)
+
+
+def primary_skill_of(data, profession_id):
+    """The primary skill of a profession — ``primary_skills[0]`` in
+    data/professions.json. GDD-11 calls the second entry the "second
+    primary skill" (the teacher's ``subject_knowledge``), so the
+    first entry is the primary one; GDD-03 §2's promotion rule reads
+    the same slot ("skill 40 in the profession's primary skill").
+    None when the profession is unknown or lists no skills."""
+    prof = data.professions.get(profession_id)
+    if not prof:
+        return None
+    skills = prof.get("primary_skills") or []
+    return skills[0] if skills else None
+
+
+def current_profession_id(store, character_id):
+    """The character's current profession — the open employments row
+    (``ended_at_game_minutes IS NULL``), latest start first. None
+    when the character holds no open employment."""
+    row = store.row(
+        "SELECT profession_id FROM employments WHERE character_id = ?"
+        " AND ended_at_game_minutes IS NULL"
+        " ORDER BY started_at_game_minutes DESC LIMIT 1",
+        (character_id,))
+    return row["profession_id"] if row else None
+
+
+def verify_mission_2_1(store, data, character_id, game_minutes):
+    """Verify mission 2.1's objective against world state (GDD-04
+    §3.6, Unit DO): the single objective "Reach skill 20 in your
+    profession's primary skill" holds iff the character's current
+    profession (open employments row) has a primary skill whose
+    ``character_skills`` level is at least 20. On success sets
+    ``objectives_complete`` while the row is still `active` and
+    returns True. Returns False when the row is not `active`, the
+    character is unemployed (no profession, so no primary skill),
+    the profession names no primary skill, or the level is below
+    20 — including a level of 20 in the profession's *second*
+    primary skill, which is a different skill and does not verify.
+    Skill levels are read through ``decisions.skill_level`` (the
+    same read the decision engine uses); the threshold is the
+    mission's own number (``MISSION_2_1_SKILL_LEVEL``), not a
+    tuning call."""
+    from . import decisions as decisions_mod
+    row = get_row(store, character_id, "2.1")
+    if row is None or row["status"] != "active":
+        return False
+    profession_id = current_profession_id(store, character_id)
+    if profession_id is None:
+        return False
+    skill_id = primary_skill_of(data, profession_id)
+    if skill_id is None:
+        return False
+    if decisions_mod.skill_level(store, character_id, skill_id) \
+            < MISSION_2_1_SKILL_LEVEL:
+        return False
+    return set_objectives_complete(store, character_id, "2.1",
                                    game_minutes)
 
 

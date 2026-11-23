@@ -182,7 +182,7 @@ The migration plan (Part C #17) makes LLM dialogue *optional, later*. This docum
 
 ## 11. What This Document Deliberately Does Not Decide
 
-- **Exact authored lines for every tree** — the tree *structure* and the worked examples are here; the full line library is Phase 6 authoring work, written against the §5 contract. That library now exists as authored data (Unit AO, 2026-11-22): `data/dialogue-lines.json` carries full line sets for the mission `1.3` neighbour-help tree, the mission `2.4` friendship tree, the debt tree, and the apology tree, plus the §4 topic set and small-talk lines for all 11 professions and all 10 zones. Every node and line carries its `condition` and `effects` per the §5 contract, and every reward quoted is verbatim from `data/missions.json`. It is authored data, not generated text — the runtime walks it, it never authors a line.
+- **Exact authored lines for every tree** — the tree *structure* and the worked examples are here; the full line library is Phase 6 authoring work, written against the §5 contract. That library now exists as authored data (Unit AO, 2026-11-22): `data/dialogue-lines.json` carries full line sets for the mission `1.3` neighbour-help tree, the mission `2.4` friendship tree, the debt tree, and the apology tree, plus the §4 topic set and small-talk lines for all 11 professions and all 10 zones. Every node and line carries its `condition` and `effects` per the §5 contract, and every reward quoted is verbatim from `data/missions.json`. It is authored data, not generated text — the runtime walks it, it never authors a line. *(Update, Unit DM · Queue 17: the mission `1.4` river-at-dusk tree is authored too. Update, Unit DO · Queue 18: the mission `2.1` learn-the-trade tree is authored too.)*
 - **Voice acting, casting, or a voice pipeline** — text first (§8); a voice pass reads the same lines.
 - **Localisation** — all strings are English design text (GDD-05 §11: a Bangla UI is a separate owner decision).
 - **Multiplayer dialogue** — Phase 9: dialogue in a shared world is server-validated like any other state change (TECH-MULTIPLAYER §4); two players talking to the same NPC is a Phase 9 design question, not answered here.
@@ -387,10 +387,10 @@ The data's `mission_progress` effects use dialogue states as targets (`effect_vo
 
 | Effect in the data | Row write |
 |---|---|
-| `mission_progress`, state `accepted` (shipped: `dlg_1_3_accept`, `dlg_2_4_accept`) | `status` → `'active'`; `progress.accepted_at_game_minutes` → current `game_minutes`. This is the only dialogue write that changes `status`. |
+| `mission_progress`, state `accepted` (shipped: `dlg_1_3_accept`, `dlg_1_4_accept`, `dlg_2_1_accept`, `dlg_2_4_accept`) | `status` → `'active'`; `progress.accepted_at_game_minutes` → current `game_minutes`. This is the only dialogue write that changes `status`. |
 | `mission_progress`, state `objective_complete` (no shipped effect uses this target today) | `progress.objectives_complete` → `true`; `status` stays `'active'`. Defined here so future data can target it; the objective check itself stays the mission system's (TECH-MULTIPLAYER §4). |
-| `mission_complete` (shipped: `dlg_1_3_return`, `dlg_2_4_return`) | `status` → `'completed'`; `progress.completed_at_game_minutes` → current `game_minutes`; rewards paid verbatim from `data/missions.json` (§12.4). A `null` credit reward means no credit reward — never invent one. |
-| Decline (shipped: `dlg_1_3_decline`, `dlg_2_4_decline`, effects `none`) | **No row write.** `status` stays `'available'`; the offer stays open (GDD-15 §5 worked example). |
+| `mission_complete` (shipped: `dlg_1_3_return`, `dlg_1_4_return`, `dlg_2_1_return`, `dlg_2_4_return`) | `status` → `'completed'`; `progress.completed_at_game_minutes` → current `game_minutes`; rewards paid verbatim from `data/missions.json` (§12.4). A `null` credit reward means no credit reward — never invent one. |
+| Decline (shipped: `dlg_1_3_decline`, `dlg_1_4_decline`, `dlg_2_1_decline`, `dlg_2_4_decline`, effects `none`) | **No row write.** `status` stays `'available'`; the offer stays open (GDD-15 §5 worked example). |
 
 Dialogue never writes `status = 'failed'` and never writes `status = 'available'`: failure and availability are the mission system's, not the conversation's.
 
@@ -400,7 +400,7 @@ GDD-04 §1 says a mission can be abandoned for a reputation cost, but no source 
 
 ### 13.6 Which nodes become evaluable
 
-With this mapping, all 12 mission-condition nodes in the shipped data evaluate against the schema as written (node → dialogue state → row state):
+With this mapping, all 23 mission-condition nodes in the shipped data evaluate against the schema as written (node → dialogue state → row state): *(Correction, Unit DO · Queue 18: the section as written by Unit BA said 12 — that count was already wrong for its own trees (1.3 has 6 mission-condition nodes and 2.4 has 5, which is 11, not 12), and Unit DM never updated it when the 1.4 tree shipped. The count is now read from the data: 6 × 1.3, 6 × 1.4, 5 × 2.4, 6 × 2.1 = 23.)*
 
 | Node | Mission | State | Row state |
 |---|---|---|---|
@@ -409,13 +409,23 @@ With this mapping, all 12 mission-condition nodes in the shipped data evaluate a
 | `dlg_1_3_decline` | `1.3` | `offered` | `status = 'available'` + snapshot `offered` |
 | `dlg_1_3_reminder`, `dlg_1_3_reminder_exit` | `1.3` | `accepted` | `status = 'active'`, `objectives_complete` not `true` |
 | `dlg_1_3_return` | `1.3` | `objective_complete` | `status = 'active'`, `objectives_complete = true` |
+| `dlg_1_4_offer` | `1.4` | `available` | `status = 'available'` |
+| `dlg_1_4_accept` | `1.4` | `offered` | `status = 'available'` + snapshot `offered` |
+| `dlg_1_4_decline` | `1.4` | `offered` | `status = 'available'` + snapshot `offered` |
+| `dlg_1_4_reminder`, `dlg_1_4_reminder_exit` | `1.4` | `accepted` | `status = 'active'`, `objectives_complete` not `true` |
+| `dlg_1_4_return` | `1.4` | `objective_complete` | `status = 'active'`, `objectives_complete = true` |
+| `dlg_2_1_offer` | `2.1` | `available` | `status = 'available'` |
+| `dlg_2_1_accept` | `2.1` | `offered` | `status = 'available'` + snapshot `offered` |
+| `dlg_2_1_decline` | `2.1` | `offered` | `status = 'available'` + snapshot `offered` |
+| `dlg_2_1_reminder`, `dlg_2_1_reminder_exit` | `2.1` | `accepted` | `status = 'active'`, `objectives_complete` not `true` |
+| `dlg_2_1_return` | `2.1` | `objective_complete` | `status = 'active'`, `objectives_complete = true` |
 | `dlg_2_4_offer` | `2.4` | `available` | `status = 'available'` |
 | `dlg_2_4_accept` | `2.4` | `offered` | `status = 'available'` + snapshot `offered` |
 | `dlg_2_4_decline` | `2.4` | `offered` | `status = 'available'` + snapshot `offered` |
 | `dlg_2_4_progress` | `2.4` | `accepted` | `status = 'active'`, `objectives_complete` not `true` |
 | `dlg_2_4_return` | `2.4` | `objective_complete` | `status = 'active'`, `objectives_complete = true` |
 
-Missions `1.3` ("Know Your Neighbours") and `2.4` ("A Friend in the City") both exist in `data/missions.json` with the objectives, rewards and unlocks the §12.2 worked traces quote. **Gap G1 is resolved by this section** — §12.8 G1 now reads as defined, not undefined — with two deliberate limits kept: the `offered` state is snapshot-local by design (it is never persisted), and abandon stays a recommendation (§13.5) until the mission system adopts it.
+Missions `1.3` ("Know Your Neighbours"), `1.4` ("The River at Dusk"), `2.1` ("Learn the Trade") and `2.4` ("A Friend in the City") all exist in `data/missions.json` with the objectives, rewards and unlocks the §12.2 worked traces quote. **Gap G1 is resolved by this section** — §12.8 G1 now reads as defined, not undefined — with two deliberate limits kept: the `offered` state is snapshot-local by design (it is never persisted), and abandon stays a recommendation (§13.5) until the mission system adopts it. *(Update, Unit DO · Queue 18: the 1.4 and 2.1 rows are added here — Unit DM authored the 1.4 tree without updating this table, and this unit corrects that as well as adding its own. The giver for 2.1 is a condition, not a person: a colleague in the player's profession — an NPC with an open `employments` row in the player's `profession_id`, with the `worked_with_player` pair flag set (GDD-15 §17.7) — resolved at runtime to a real NPC who satisfies it, per the §13.6 rule above. For 1.4 the giver is the riverfront tea-stall neighbour of the tree's fiction, likewise a condition, not a named person.)*
 
 *End of GDD-15 §13 — Unit BA, Queue 10.*
 
