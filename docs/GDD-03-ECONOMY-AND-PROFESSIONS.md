@@ -48,6 +48,8 @@ Source: `data/professions.json` `income_band_monthly`. Reproduced here as the ca
 - A character who quits or is fired keeps skill and reputation but loses the post; re-hiring starts at the tier their skill supports, not at entry.
 - NPCs follow the same table with the same rules (GDD-01: one model for everyone).
 
+**Broken-tool wage rule (Unit EL · Queue 20 · 2026-11-23 — DECIDED, no-dock stands).** A work block bent by a broken tool does **not** dock the day's wages: the monthly wage is paid in full. The tool is employer-issued (GDD-04 §3.3, Unit DJ — issued at hiring, no ledger charge), so the downtime cost falls on the employer, not the worker; the settlement has no absence docking for any absence (a rest day, an illness rest bend, a storm day all pay in full), so docking only broken-tool days would single out one cause without a rule behind it; and the cost is already real without a dock (a bent block is no work hour, so no skill XP accrues that day, and the employer pays the full wage for a day it got nothing from). The settlement consults the rule at the point of payment (`tools/sim/labour.py` `broken_tool_wage_dock()` — 0 today; a future tuning call changes that single return). Honest limit: the construction worker's day-wage row above ("paid per worked day; no work, no pay") is NOT implemented in the sim — the settlement pays construction workers the same monthly `wage_per_month` as everyone else — so the no-dock rule is uniform until a unit builds day-wage pay, at which point the dock question re-opens for that profession alone.
+
 ## 3. Prices — What Things Cost (v1)
 
 ### 3.1 Daily living (per month, single adult, District 1)

@@ -1663,5 +1663,404 @@ class TestFurnitureCondition(unittest.TestCase):
             li.furniture_restore_multiplier(store, d, head))
 
 
+class TestToolWeatherWear(unittest.TestCase):
+    """Queue 20 Unit EG — tool weather wear (GDD-04 §3.3, Unit DQ
+    design): the environment pass's exposure wears the tools of
+    characters whose home stands in an exposed zone."""
+
+    def _employ(self, store, cid, profession_id):
+        store.insert("employments",
+                     employment_id=f"EM-TEST-EG-{cid}",
+                     character_id=cid, profession_id=profession_id,
+                     tier=1, wage_per_month=10000,
+                     started_at_game_minutes=GM,
+                     ended_at_game_minutes=None)
+
+    def _condition(self, store, iid):
+        row = store.row("SELECT state FROM inventory_items"
+                        " WHERE item_instance_id = ?", (iid,))
+        return json.loads(row["state"])["condition"]
+
+    def _set_condition(self, store, iid, value):
+        row = store.row("SELECT state FROM inventory_items"
+                        " WHERE item_instance_id = ?", (iid,))
+        state = json.loads(row["state"])
+        state["condition"] = value
+        store.execute("UPDATE inventory_items SET state = ?"
+                      " WHERE item_instance_id = ?", (json.dumps(state),
+                                                      iid))
+
+    def _broken_count(self, store, cid):
+        return store.row("SELECT COUNT(*) AS n FROM life_events"
+                         " WHERE character_id = ?"
+                         " AND event_type = 'tool_broken'",
+                         (cid,))["n"]
+
+    def test_exposed_home_wears_the_tools_by_one(self):
+        store = make_store()
+        d = data()
+        worker = make_person(store, age=30, first="Worker")
+        hid, pid = make_household(store, [worker])
+        self._employ(store, worker, "construction_worker")
+        made = li.seed_tool_rows(store, d, worker,
+                                "construction_worker", GM)
+        worn = li.apply_tool_weather_wear(store, d, {"d1_midtown"},
+                                          GM)
+        self.assertEqual(sorted(worn), sorted(made))
+        self.assertTrue(all(self._condition(store, iid) == 99
+                            for iid in made))
+
+    def test_unexposed_home_wears_nothing(self):
+        store = make_store()
+        d = data()
+        worker = make_person(store, age=30, first="Worker")
+        hid, pid = make_household(store, [worker])
+        self._employ(store, worker, "construction_worker")
+        made = li.seed_tool_rows(store, d, worker,
+                                "construction_worker", GM)
+        self.assertEqual(li.apply_tool_weather_wear(
+            store, d, {"d1_uptown"}, GM), [])
+        self.assertTrue(all(self._condition(store, iid) == 100
+                            for iid in made))
+
+    def test_no_household_wears_nothing(self):
+        # No home, no exposed home: the tools stay at 100.
+        store = make_store()
+        d = data()
+        worker = make_person(store, age=30, first="Worker")
+        self._employ(store, worker, "construction_worker")
+        made = li.seed_tool_rows(store, d, worker,
+                                "construction_worker", GM)
+        self.assertEqual(li.apply_tool_weather_wear(
+            store, d, {"d1_midtown"}, GM), [])
+        self.assertTrue(all(self._condition(store, iid) == 100
+                            for iid in made))
+
+    def test_weather_break_logs_one_event(self):
+        store = make_store()
+        d = data()
+        worker = make_person(store, age=30, first="Worker")
+        hid, pid = make_household(store, [worker])
+        self._employ(store, worker, "construction_worker")
+        made = li.seed_tool_rows(store, d, worker,
+                                "construction_worker", GM)
+        hammer = next(i for i in made
+                      if store.row("SELECT item_ref FROM inventory_items"
+                                   " WHERE item_instance_id = ?",
+                                   (i,))["item_ref"] == "hammer")
+        self._set_condition(store, hammer, 1)
+        worn = li.apply_tool_weather_wear(store, d, {"d1_midtown"},
+                                          GM)
+        self.assertIn(hammer, worn)
+        self.assertEqual(self._condition(store, hammer), 0)
+        self.assertEqual(self._broken_count(store, worker), 1)
+        event = store.row("SELECT * FROM life_events WHERE"
+                          " character_id = ? AND"
+                          " event_type = 'tool_broken'", (worker,))
+        self.assertEqual(json.loads(event["details"])["cause"],
+                         "weather_exposure")
+        # A second exposed day wears the other tools again but the
+        # broken hammer wears nothing further and logs no second
+        # event.
+        li.apply_tool_weather_wear(store, d, {"d1_midtown"}, GM)
+        self.assertEqual(self._broken_count(store, worker), 1)
+
+    def test_empty_zones_wear_nothing(self):
+        store = make_store()
+        d = data()
+        worker = make_person(store, age=30, first="Worker")
+        hid, pid = make_household(store, [worker])
+        self._employ(store, worker, "construction_worker")
+        made = li.seed_tool_rows(store, d, worker,
+                                "construction_worker", GM)
+        self.assertEqual(li.apply_tool_weather_wear(store, d, set(),
+                                                    GM), [])
+        self.assertTrue(all(self._condition(store, iid) == 100
+                            for iid in made))
+
+    def test_environment_pass_wears_exposed_tools_and_furniture(self):
+        # End to end: an active disaster in the environment pass
+        # wears the exposed home's tools beside its furniture, and
+        # the unexposed home's tools stay at 100. A cyclone, not a
+        # flood: the hydrology pass retires a synthetic flood the
+        # moment the river sits below the flood level (the flood's
+        # own phase rule), so a hand-started flood never reaches
+        # the wear loop — a cyclone stays active through the pass,
+        # and the wear loop treats flood / cyclone / severe_storm
+        # identically (one call per active disaster, same zones).
+        from tools.sim import environment as env_mod
+        from tools.sim.tests.envcommon import env_world
+        store, d = env_world()
+        zones = env_mod.exposed_zones(store, d, "rupsha_city")
+        self.assertTrue(zones)
+        exposed = sorted(zones)[0]
+        safe = next(z for z in ("d1_midtown", "d1_uptown",
+                                "d1_riverfront", "d1_civic",
+                                "d1_old_town")
+                    if z not in zones)
+        worker = make_person(store, age=30, first="Worker")
+        self._employ(store, worker, "construction_worker")
+        hid, pid = make_household(store, [worker])
+        store.execute("UPDATE properties SET district_id = ?"
+                      " WHERE property_id = ?", (exposed, pid))
+        store.execute("UPDATE households SET district_id = ?"
+                      " WHERE household_id = ?", (exposed, hid))
+        tools = li.seed_tool_rows(store, d, worker,
+                                  "construction_worker", GM)
+        furniture = li.seed_furniture_at_move_in(store, d, hid, pid,
+                                                 GM)
+        other = make_person(store, age=30, first="Other")
+        self._employ(store, other, "construction_worker")
+        hid2, pid2 = make_household(store, [other])
+        store.execute("UPDATE properties SET district_id = ?"
+                      " WHERE property_id = ?", (safe, pid2))
+        store.execute("UPDATE households SET district_id = ?"
+                      " WHERE household_id = ?", (safe, hid2))
+        other_tools = li.seed_tool_rows(store, d, other,
+                                        "construction_worker", GM)
+        env_mod.start_disaster(store, d, "cyclone", "rupsha_city", 0,
+                               1440)
+        env_mod.daily_pass(store, d, rng(), 0, 1440)
+        self.assertTrue(all(self._condition(store, iid) == 99
+                            for iid in tools))
+        self.assertTrue(all(self._condition(store, iid) == 99
+                            for iid in furniture))
+        self.assertTrue(all(self._condition(store, iid) == 100
+                            for iid in other_tools))
+
+
+class TestRepair(unittest.TestCase):
+    """Queue 20 Unit EH — tool & furniture repair (GDD-04 §3.3,
+    Unit DQ design): restore to 90, no ledger charge."""
+
+    def _condition(self, store, iid):
+        row = store.row("SELECT state FROM inventory_items"
+                        " WHERE item_instance_id = ?", (iid,))
+        return json.loads(row["state"])["condition"]
+
+    def _set_condition(self, store, iid, value):
+        row = store.row("SELECT state FROM inventory_items"
+                        " WHERE item_instance_id = ?", (iid,))
+        state = json.loads(row["state"])
+        state["condition"] = value
+        store.execute("UPDATE inventory_items SET state = ?"
+                      " WHERE item_instance_id = ?", (json.dumps(state),
+                                                      iid))
+
+    def _ledger_rows(self, store):
+        return store.row("SELECT COUNT(*) AS n FROM economy_ledger")["n"]
+
+    def test_repair_tool_restores_a_worn_tool_to_90(self):
+        store = make_store()
+        worker = make_person(store, age=30, first="Worker")
+        made = li.seed_tool_rows(store, data(), worker,
+                                "construction_worker", GM)
+        self._set_condition(store, made[0], 50)
+        before = self._ledger_rows(store)
+        self.assertEqual(li.repair_tool(store, made[0]), made[0])
+        self.assertEqual(self._condition(store, made[0]), 90)
+        self.assertEqual(self._ledger_rows(store), before)
+
+    def test_repair_tool_restores_a_broken_tool_to_90(self):
+        store = make_store()
+        worker = make_person(store, age=30, first="Worker")
+        made = li.seed_tool_rows(store, data(), worker,
+                                "construction_worker", GM)
+        self._set_condition(store, made[0], 0)
+        self.assertEqual(li.repair_tool(store, made[0]), made[0])
+        self.assertEqual(self._condition(store, made[0]), 90)
+
+    def test_repair_furniture_restores_a_worn_piece_to_90(self):
+        store = make_store()
+        head = make_person(store, age=35, first="Head")
+        hid, pid = make_household(store, [head])
+        made = li.seed_furniture_rows(store, data(), head,
+                                      ["bed"], "F1", pid, GM)
+        self._set_condition(store, made[0], 42)
+        before = self._ledger_rows(store)
+        self.assertEqual(li.repair_furniture(store, made[0]),
+                         made[0])
+        self.assertEqual(self._condition(store, made[0]), 90)
+        self.assertEqual(self._ledger_rows(store), before)
+
+    def test_repair_refuses_a_row_already_at_90_or_above(self):
+        store = make_store()
+        worker = make_person(store, age=30, first="Worker")
+        made = li.seed_tool_rows(store, data(), worker,
+                                "construction_worker", GM)
+        self._set_condition(store, made[0], 90)
+        self.assertIsNone(li.repair_tool(store, made[0]))
+        self.assertEqual(self._condition(store, made[0]), 90)
+        # 100 (new) needs no repair either.
+        self.assertIsNone(li.repair_tool(store, made[1]))
+        self.assertEqual(self._condition(store, made[1]), 100)
+        # 95 is better than repaired: refused, not lowered.
+        self._set_condition(store, made[2], 95)
+        self.assertIsNone(li.repair_tool(store, made[2]))
+        self.assertEqual(self._condition(store, made[2]), 95)
+
+    def test_repair_refuses_an_unknown_row(self):
+        store = make_store()
+        self.assertIsNone(li.repair_tool(store, "INV999"))
+        self.assertIsNone(li.repair_furniture(store, "INV999"))
+
+    def test_repair_refuses_the_other_type(self):
+        store = make_store()
+        head = make_person(store, age=35, first="Head")
+        hid, pid = make_household(store, [head])
+        furniture = li.seed_furniture_rows(store, data(), head,
+                                           ["bed"], "F1", pid, GM)
+        self._set_condition(store, furniture[0], 50)
+        self.assertIsNone(li.repair_tool(store, furniture[0]))
+        self.assertEqual(self._condition(store, furniture[0]), 50)
+        worker = make_person(store, age=30, first="Worker")
+        tools = li.seed_tool_rows(store, data(), worker,
+                                  "construction_worker", GM)
+        self._set_condition(store, tools[0], 50)
+        self.assertIsNone(li.repair_furniture(store, tools[0]))
+        self.assertEqual(self._condition(store, tools[0]), 50)
+
+    def test_repair_keeps_the_other_state_keys(self):
+        store = make_store()
+        worker = make_person(store, age=30, first="Worker")
+        made = li.seed_tool_rows(store, data(), worker,
+                                "construction_worker", GM)
+        self._set_condition(store, made[0], 30)
+        li.repair_tool(store, made[0])
+        state = json.loads(store.row(
+            "SELECT state FROM inventory_items"
+            " WHERE item_instance_id = ?", (made[0],))["state"])
+        self.assertEqual(state["issued"], "employer")
+        self.assertEqual(state["condition"], 90)
+
+
+class TestLostPieceVsTier(unittest.TestCase):
+    """Queue 20 Unit EI — the lost-piece decision (GDD-04 §3.3,
+    GDD-10 §5): a lost piece drops the effective tier."""
+
+    def _condition(self, store, iid):
+        row = store.row("SELECT state FROM inventory_items"
+                        " WHERE item_instance_id = ?", (iid,))
+        return json.loads(row["state"])["condition"]
+
+    def _set_condition(self, store, iid, value):
+        row = store.row("SELECT state FROM inventory_items"
+                        " WHERE item_instance_id = ?", (iid,))
+        state = json.loads(row["state"])
+        state["condition"] = value
+        store.execute("UPDATE inventory_items SET state = ?"
+                      " WHERE item_instance_id = ?", (json.dumps(state),
+                                                      iid))
+
+    def _piece(self, store, head, item_ref):
+        return store.row("SELECT item_instance_id FROM inventory_items"
+                         " WHERE owner_character_id = ? AND"
+                         " item_ref = ?", (head, item_ref))[
+                             "item_instance_id"]
+
+    def _seeded(self, store, d, head, hid, pid):
+        return li.seed_furniture_at_move_in(store, d, hid, pid, GM)
+
+    def test_a_lost_piece_drops_the_tier(self):
+        store = make_store()
+        d = data()
+        head = make_person(store, age=35, first="Head")
+        hid, pid = make_household(store, [head])
+        self._seeded(store, d, head, hid, pid)
+        self.assertEqual(li.effective_furniture_tier(store, d, head),
+                         "F1")
+        bed = self._piece(store, head, "bed")
+        lid = li.record_loss(store, head, bed, 2000, "d1_midtown")
+        self.assertIsNotNone(lid)
+        # The bed is lost, not broken — the tier drops all the same.
+        self.assertEqual(self._condition(store, bed), 100)
+        self.assertEqual(li.effective_furniture_tier(store, d, head),
+                         "F0")
+
+    def test_a_found_piece_still_drops_the_tier(self):
+        # The finder holds it, not the home: still not standing.
+        store = make_store()
+        d = data()
+        head = make_person(store, age=35, first="Head")
+        finder = make_person(store, age=28, first="Finder")
+        hid, pid = make_household(store, [head])
+        self._seeded(store, d, head, hid, pid)
+        bed = self._piece(store, head, "bed")
+        lid = li.record_loss(store, head, bed, 2000, "d1_midtown")
+        self.assertEqual(li.find_lost_item(store, lid, finder, 2100,
+                                           "d1_midtown"), lid)
+        self.assertEqual(li.effective_furniture_tier(store, d, head),
+                         "F0")
+
+    def test_the_hand_back_restores_the_tier(self):
+        store = make_store()
+        d = data()
+        head = make_person(store, age=35, first="Head")
+        finder = make_person(store, age=28, first="Finder")
+        hid, pid = make_household(store, [head])
+        self._seeded(store, d, head, hid, pid)
+        bed = self._piece(store, head, "bed")
+        lid = li.record_loss(store, head, bed, 2000, "d1_midtown")
+        li.find_lost_item(store, lid, finder, 2100, "d1_midtown")
+        self.assertEqual(li.effective_furniture_tier(store, d, head),
+                         "F0")
+        self.assertEqual(li.hand_back_lost_item(
+            store, lid, finder, 2200, finder_property_id=pid), lid)
+        self.assertEqual(li.effective_furniture_tier(store, d, head),
+                         "F1")
+
+    def test_a_broken_piece_drops_the_tier_the_same_way(self):
+        # The EF case, re-proven under the EI rule: broken and lost
+        # are one rule ("not usable tonight"), not two.
+        store = make_store()
+        d = data()
+        head = make_person(store, age=35, first="Head")
+        hid, pid = make_household(store, [head])
+        self._seeded(store, d, head, hid, pid)
+        bed = self._piece(store, head, "bed")
+        self._set_condition(store, bed, 0)
+        self.assertEqual(li.effective_furniture_tier(store, d, head),
+                         "F0")
+
+    def test_a_lost_f0_piece_leaves_no_tier_standing(self):
+        store = make_store()
+        d = data()
+        head = make_person(store, age=35, first="Head")
+        hid, pid = make_household(store, [head])
+        self._seeded(store, d, head, hid, pid)
+        mattress = self._piece(store, head, "floor_mattress")
+        lid = li.record_loss(store, head, mattress, 2000,
+                             "d1_midtown")
+        self.assertIsNotNone(lid)
+        self.assertIsNone(li.effective_furniture_tier(store, d, head))
+        self.assertIsNone(
+            li.furniture_restore_multiplier(store, d, head))
+
+    def test_a_second_row_of_the_piece_keeps_the_tier(self):
+        # A replacement bought beside the lost original: one usable
+        # piece in the home is one furnished piece. (The replacement
+        # is written directly here: seed_furniture_rows() skips
+        # pieces the owner already holds — its seeding rule — so a
+        # replacement row comes from the purchase event, Unit EM,
+        # not from seeding.)
+        store = make_store()
+        d = data()
+        head = make_person(store, age=35, first="Head")
+        hid, pid = make_household(store, [head])
+        self._seeded(store, d, head, hid, pid)
+        bed = self._piece(store, head, "bed")
+        li.record_loss(store, head, bed, 2000, "d1_midtown")
+        self.assertEqual(li.effective_furniture_tier(store, d, head),
+                         "F0")
+        replacement = _item(store, head, "furniture", "bed",
+                            {"furniture_tier": "F1", "condition": 100})
+        store.execute("UPDATE inventory_items SET"
+                      " location_property_id = ?"
+                      " WHERE item_instance_id = ?",
+                      (pid, replacement))
+        self.assertEqual(li.effective_furniture_tier(store, d, head),
+                         "F1")
+
+
 if __name__ == "__main__":
     unittest.main()

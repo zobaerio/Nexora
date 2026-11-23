@@ -352,6 +352,82 @@ def monthly_pass(store, data, rng, month_index, game_minutes,
             "laid_off": sep["laid_off"], "resigned": sep["resigned"]}
 
 
+# -- Queue 20 Unit EL: broken-tool wage consequence (GDD-04 §3.3,
+# Unit DQ/EE follow-up) -------------------------------------------------
+# DECIDED (recorded in GDD-04 §3.3 and GDD-03 §2): the NO-DOCK rule
+# stands — a work block bent by a broken tool does NOT dock the
+# day's wages. The reasons, in order:
+#
+# 1. The tool is employer-issued (Unit DJ: issued by the employer
+#    at hiring, no ledger charge — the GDD-09 §5 uniform economics
+#    by analogy). The worker does not own the tool, so the
+#    downtime cost falls on the employer, not the worker; docking
+#    the worker's pay for the employer's broken instrument would
+#    charge the wrong party.
+# 2. The settlement pays MONTHLY salaries (wage_per_month) for
+#    every employment, and it has no absence docking for ANY
+#    absence — a rest day, an illness rest bend (the same scheduler
+#    bend to home), and a storm day all pay in full. Docking only
+#    broken-tool days while identical absences pay full would be
+#    one cause singled out without a rule behind it.
+# 3. The cost is already real without a dock: a bent block is no
+#    work hour, so no skill XP accrues that day, and the employer
+#    loses the day's output (the business still pays the full
+#    wage for a day it got nothing from — the employer's loss, not
+#    the worker's).
+#
+# The one sourced exception is the construction worker's day wage
+# (GDD-03 §2: "paid per worked day; no work, no pay") — but the
+# sim does not implement day-wage pay at all: the settlement pays
+# construction workers the same monthly wage_per_month as everyone
+# else. Implementing a broken-tool dock for day-wage workers only
+# would mean building the day-wage pay model first, which is a
+# separate unit's job (recorded as an open gap, not built here).
+# When day-wage pay lands, the dock question re-opens for that
+# profession alone; until then the no-dock rule is uniform.
+
+DAYS_PER_MONTH = 30
+
+
+def broken_tool_days(store, character_id, month_index):
+    """The days in the month whose instantiated schedule bent a
+    work block for a broken tool — the count the dock would be
+    computed from. Read from the stored `instantiated_schedules`
+    rows: a day counts when any of its blocks carries the
+    `broken_tool` flag the scheduler sets on a bent work block.
+    Months are 1-based (month m covers days (m-1)*30 .. m*30-1,
+    the settlement's own mapping). A rest day, a day with no work
+    blocks, or a character with no stored day counts 0 — only
+    work actually refused counts. 0 for an unknown character."""
+    start_day = (month_index - 1) * DAYS_PER_MONTH
+    count = 0
+    for row in store.rows(
+            "SELECT blocks_json FROM instantiated_schedules"
+            " WHERE character_id = ? AND day_index >= ?"
+            " AND day_index < ?",
+            (character_id, start_day, start_day + DAYS_PER_MONTH)):
+        try:
+            blocks = json.loads(row["blocks_json"])
+        except ValueError:
+            continue
+        if any(b.get("broken_tool") for b in blocks):
+            count += 1
+    return count
+
+
+def broken_tool_wage_dock(store, character_id, month_index,
+                          wage_per_month):
+    """The wage dock for the month's broken-tool days, in NCr: 0,
+    always, under the no-dock rule above. The settlement calls this
+    for every wage it pays, so the rule is consulted at the point
+    of payment, not assumed — a future tuning call changes this
+    single return (a day's wages would be wage_per_month / 30 per
+    bent day) without touching the settlement. The arguments are
+    the inputs the dock would be computed from; today they are
+    read and the answer is 0."""
+    return 0
+
+
 def unemployment_stats(store, data):
     """Measured labour market state over living residents."""
     from . import identity as identity_mod

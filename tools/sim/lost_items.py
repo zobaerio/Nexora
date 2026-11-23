@@ -699,13 +699,16 @@ def seed_uniform_rows(store, data, character_id, profession_id, tier,
 #   it — the business licence at founding (register_business, for
 #   a real-character owner only: a system-founded firm is owned by
 #   SYS-MARKET, which is not a character and holds no inventory),
-#   the credential at certification (Unit DN, academics.py). The
-#   property deed has NO issuing event in the sim yet — there is no
-#   property purchase (households rent tenancies; GDD-03 §4.3's
-#   mortgage is unimplemented) and mission 3.2's deed reward is a
-#   Phase 6 mission-system write — so the helper exists and is
-#   tested, but no live call site seeds a deed; that gap is
-#   recorded in GDD-04 §3.3, not filled by inventing a purchase.
+#   the credential at certification (Unit DN, academics.py), and
+#   the property deed at purchase (Unit EN, Queue 20:
+#   decisions._cand_buy_home and _cand_buy_home_mortgage seed it
+#   beside the ownership update — issued, not bought, no ledger
+#   charge). The DJ note that "no property purchase exists" was
+#   wrong: the decision engine has bought homes since Session 01
+#   (cash) and Session 04 (mortgage); EN corrects the record here
+#   and wires the deed. Mission 3.2's deed reward is the same row
+#   written by the Phase 6 mission system when the mission
+#   completes — one helper, two call sites, one rule.
 
 def _furniture_items(data):
     """{furniture id: catalogue row} from the loaded furniture file."""
@@ -965,17 +968,17 @@ def seed_age_up_outfits(store, data, character_id, game_minutes):
 # - Only the causes each unit's brief assigns are wired here: tools
 #   wear by USE (EE, −1 per worked day); furniture wears by MOVES
 #   (EF, −2 per household move) and by EXPOSURE (EF, −1 per exposed
-#   day). DQ's weather cause for TOOLS (−1 per exposed day) is NOT
-#   wired by either brief — it stays an open gap for a later unit
-#   (Queue 20 candidate), not silently dropped.
+#   day). DQ's weather cause for TOOLS (−1 per exposed day) is wired
+#   by Unit EG (Queue 20, below): the environment pass's exposure
+#   wears the tools of characters whose home stands in an exposed
+#   zone, beside the furniture wear.
 # - There is no passive time decay: condition falls only on the
-#   causes above (DQ). There is no repair function yet either: DQ
-#   prices repair (restores to 90, no ledger row; a replaced part
-#   is a catalogue-price purchase) but no sim function performs it
-#   — a later unit's job (Queue 20 candidate). A broken tool
-#   therefore stays broken until a repair function lands; the
-#   refusal below is the standing consequence, not a dead end
-#   hidden from the docs.
+#   causes above (DQ). Repair is Unit EH (Queue 20, below):
+#   `repair_tool()` / `repair_furniture()` restore a row to 90
+#   (RESTORED_CONDITION), refusing rows already at 90+ and unknown
+#   rows, with no ledger charge. A broken tool therefore stays
+#   broken until it is repaired; the refusal below is the standing
+#   consequence, not a dead end hidden from the docs.
 
 def item_condition(row):
     """The condition of an inventory row (0–100), read from its
@@ -1152,6 +1155,109 @@ def apply_furniture_exposure_wear(store, data, zones, game_minutes):
     return worn
 
 
+def apply_tool_weather_wear(store, data, zones, game_minutes):
+    """Apply one exposed day to the tools of characters whose home
+    stands in the given zones (Unit EG, Queue 20 — DQ's weather
+    cause for tools, the one EE/EF left unwired). The exposure is
+    the same the environment pass applies to buildings and to
+    furniture: the home property's district is one of the
+    floodplain/wetland zones under an active flood / cyclone /
+    severe_storm disaster. Each tool of the trade (the DJ seeding
+    rule, read back — the same set `apply_tool_wear` wears) falls
+    by 1 (floored at 0); a tool that reaches 0 on this wear logs
+    the `tool_broken` life event once, exactly as work wear does —
+    the break is the event, and the work refusal is its standing
+    consequence. A character with no household (no home to expose)
+    wears nothing; a tool already at 0 wears nothing further and
+    logs no second event. Called from `environment.daily_pass`
+    beside `apply_furniture_exposure_wear`, one call per active
+    disaster over that disaster's exposed zones — so a zone under
+    two simultaneous disasters wears twice in one day, furniture
+    and tools alike (the EF wiring has the same shape; deduping
+    exposure wear per day across concurrent disasters is an open
+    edge, recorded in GDD-04 §3.3, not silently fixed here).
+    Returns the worn item ids."""
+    from . import memory as memory_mod
+    zones = set(zones)
+    if not zones:
+        return []
+    worn = []
+    for char in store.rows(
+            "SELECT c.character_id, p.district_id FROM characters c"
+            " JOIN households h ON h.household_id = c.household_id"
+            " JOIN properties p"
+            " ON p.property_id = h.home_property_id"):
+        if char["district_id"] not in zones:
+            continue
+        for row in _profession_tool_rows(store, data,
+                                         char["character_id"]):
+            before = item_condition(row)
+            if before <= 0:
+                continue
+            after = before - 1
+            _set_condition(store, row, after)
+            worn.append(row["item_instance_id"])
+            if after == 0:
+                memory_mod.log_life_event(
+                    store, char["character_id"], "tool_broken",
+                    game_minutes,
+                    details={"item_instance_id":
+                             row["item_instance_id"],
+                             "item_ref": row["item_ref"],
+                             "cause": "weather_exposure"})
+    return worn
+
+
+# -- Queue 20 Unit EH: tool & furniture repair (GDD-04 §3.3, Unit
+# DQ) ------------------------------------------------------------------
+# DQ prices repair (restore to 90, no ledger row — unpriced, no
+# repair key in prices.json) and no repair function existed. These
+# two functions are the performance: they restore one inventory
+# row's condition to RESTORED_CONDITION (90), never to 100 — a
+# repaired thing is not a new thing. No ledger charge and no
+# invented price: repair is a world action on the row, not a
+# purchase (the DQ rule, enforced by writing no ledger row at
+# all). A broken row (condition 0) repairs to 90 like any other
+# worn row — repair is how a broken tool becomes usable again.
+
+def _repair(store, item_instance_id, item_type):
+    """The shared repair: restore one row of the given type to
+    RESTORED_CONDITION. Returns the item id, or None when refused:
+    no such row, the row is of another type (a furniture row is
+    not a repairable tool row), or the row's condition is already
+    at or above RESTORED_CONDITION — repairing it would lower it
+    (a row at 95 is better than repaired), so the repair is
+    refused, not applied. The inventory row is otherwise
+    untouched (its other state keys are kept)."""
+    row = store.row("SELECT * FROM inventory_items"
+                    " WHERE item_instance_id = ?",
+                    (item_instance_id,))
+    if row is None or row["item_type"] != item_type:
+        return None
+    if item_condition(row) >= RESTORED_CONDITION:
+        return None
+    _set_condition(store, row, RESTORED_CONDITION)
+    return item_instance_id
+
+
+def repair_tool(store, item_instance_id):
+    """Restore one tool row's condition to 90 (RESTORED_CONDITION).
+    Returns the item id, or None when refused: unknown row, a row
+    of another type, or a row already at 90+ (including 100 — a
+    new tool needs no repair). No ledger charge, no invented
+    price (DQ)."""
+    return _repair(store, item_instance_id, "tool")
+
+
+def repair_furniture(store, item_instance_id):
+    """Restore one furniture row's condition to 90
+    (RESTORED_CONDITION). Returns the item id, or None when
+    refused: unknown row, a row of another type, or a row already
+    at 90+ (including 100). No ledger charge, no invented price
+    (DQ)."""
+    return _repair(store, item_instance_id, "furniture")
+
+
 # GDD-10 §5: the home restore multipliers follow the EFFECTIVE
 # furnishing tier — the highest tier whose pieces ALL stand
 # (condition > 0). A tier counts only when the household head holds
@@ -1162,28 +1268,49 @@ FURNITURE_RESTORE_MULTIPLIERS = {"F0": 0.7, "F1": 1.0,
                                  "F2": 1.15, "F3": 1.3}
 
 
+def _item_is_away(store, item_instance_id):
+    """True when a `lost_items` row for the item stands `lost` or
+    `found` (Unit EI, Queue 20): the piece is not in the home —
+    lost somewhere in the city, or in the finder's hands awaiting
+    hand-back. A `returned` row is not standing, so a returned
+    piece is home again."""
+    return store.row(
+        "SELECT 1 FROM lost_items WHERE item_instance_id = ?"
+        " AND status IN ('lost', 'found')",
+        (item_instance_id,)) is not None
+
+
 def effective_furniture_tier(store, data, character_id):
     """The household head's effective furnishing tier (DQ): the
     highest tier whose pieces ALL stand — every piece of the tier
     (cumulative, so F1 means the F0 + F1 pieces) is held by the
-    character with condition > 0. A broken piece drops the tier to
-    the highest tier below it that fully stands; a broken F0 piece
-    leaves no tier standing, and the function returns None (the
-    home loop must decide that case — no multiplier is invented
-    here). A piece's absence (never seeded) counts the same as a
-    broken one: the tier does not stand. A lost piece still counts
-    as standing — its inventory row stands and the piece returns
-    with the hand-back; whether loss should drop the tier is an
-    open question for a later unit, recorded not decided (see
-    GDD-04 §3.3)."""
+    character with condition > 0 AND present in the home. A broken
+    piece drops the tier to the highest tier below it that fully
+    stands; a broken F0 piece leaves no tier standing, and the
+    function returns None (the home loop must decide that case —
+    no multiplier is invented here). A piece's absence (never
+    seeded) counts the same as a broken one: the tier does not
+    stand. A lost piece drops the tier too (Unit EI, Queue 20 —
+    the decision EF left open): the piece is not in the home, so
+    the home provides nothing from it tonight, exactly as a broken
+    piece provides nothing — the drop is reversible, and the
+    hand-back restores the tier, which is the §3.1 favour's
+    payoff. A `found` piece still drops it (the finder holds it,
+    not the home); a `returned` piece stands again. Where the
+    character holds two rows of one piece (a replacement bought
+    beside the original), the piece stands if ANY row stands —
+    one usable piece in the home is one furnished piece."""
     held = {}
     for row in store.rows(
             "SELECT * FROM inventory_items WHERE owner_character_id = ?"
             " AND item_type = 'furniture'", (character_id,)):
-        held[row["item_ref"]] = item_condition(row)
+        stands = item_condition(row) > 0 \
+            and not _item_is_away(store, row["item_instance_id"])
+        held[row["item_ref"]] = held.get(row["item_ref"], False) \
+            or stands
     for tier in ("F3", "F2", "F1", "F0"):
         pieces = furniture_tier_items(data, tier)
-        if pieces and all(held.get(p, 0) > 0 for p in pieces):
+        if pieces and all(held.get(p, False) for p in pieces):
             return tier
     return None
 

@@ -319,6 +319,15 @@ def _cand_buy_home(ctx):
         store.execute("UPDATE tenancies SET ended_at_game_minutes = ?"
                       " WHERE tenancy_id = ?",
                       (ctx["game_minutes"], hh["tenancy"]["tenancy_id"]))
+        # Queue 20 Unit EN: the purchase issues a property deed
+        # (GDD-04 §3.3, GDD-10 §8) — issued, not bought, no ledger
+        # charge — beside the ownership update, mirroring the
+        # uniform/tool issue-at-hiring rule (GDD-09 §5).
+        from . import lost_items as lost_items_mod
+        lost_items_mod.seed_document_row(
+            store, ctx["data"], ctx["cid"], "property_deed",
+            ctx["game_minutes"],
+            {"property_id": prop["property_id"]})
         memory_mod.log_life_event(store, ctx["cid"], "bought_home",
                                   ctx["game_minutes"],
                                   details={"property_id":
@@ -726,6 +735,15 @@ def _cand_buy_home_mortgage(ctx):
         store.execute("UPDATE tenancies SET ended_at_game_minutes = ?"
                       " WHERE tenancy_id = ?",
                       (ctx["game_minutes"], hh["tenancy"]["tenancy_id"]))
+        # Queue 20 Unit EN: the purchase issues a property deed
+        # (GDD-04 §3.3, GDD-10 §8) — issued, not bought, no ledger
+        # charge — beside the ownership update, as in the cash
+        # purchase above.
+        from . import lost_items as lost_items_mod
+        lost_items_mod.seed_document_row(
+            store, ctx["data"], ctx["cid"], "property_deed",
+            ctx["game_minutes"],
+            {"property_id": prop["property_id"]})
         memory_mod.log_life_event(store, ctx["cid"], "bought_home",
                                   ctx["game_minutes"],
                                   details={"property_id":
