@@ -24,11 +24,52 @@ exactly one block — the engine asserts this (audit criterion 4).
 
 LEISURE_ZONE = {
     "riverfront": "d1_riverfront", "park": "d1_park",
-    "market": "d1_market", "restaurant": "d1_midtown",
+    "market": "d1_market",
     "college": "d1_education", "school": "d1_education",
     "college_para": "d1_education",
 }
+# Service anchors whose zone depends on WHICH anchor the NPC uses, not
+# on the token alone (GDD-15 §21; Unit BS, Queue 13). A tea stall is a
+# place: six stalls stand in Boro Bazar (d1_market, GDD-02 §2) and one
+# sittable stall on the riverfront (d1_riverfront, GDD-02 §5). A
+# restaurant is a place too: the kitchen + dining in d1_market and the
+# rooftop restaurant in d1_uptown (GDD-02 §5, §4.6). Neither token
+# belongs in LEISURE_ZONE: the token alone cannot say which stall or
+# which restaurant, and the answer is per-NPC, not per-token. The
+# "restaurant": "d1_midtown" entry LEISURE_ZONE used to carry was
+# unsourced — no restaurant exists in d1_midtown in any merged source
+# (GDD-15 §21.3) — and is removed by this unit, not kept as dead data.
+SERVICE_ANCHOR_ZONES = {
+    "tea_stall": ("d1_market", "d1_riverfront"),
+    "restaurant": ("d1_market", "d1_uptown"),
+}
 UNCOVERED = {"riverfront", "park"}  # leisure anchors with no cover
+
+
+def resolve_service_anchor(location, home_zone, workplace_zone):
+    """Resolve a service-anchor token to (zone, anchor id) at schedule
+    time (GDD-15 §21.2; GDD-06 §3 "nearest anchor of that type in the
+    NPC's zone cluster").
+
+    The sim stores no coordinates for a household property, so
+    "nearest" is operationalised on zones — this unit's decision,
+    labelled here: the NPC's zone cluster is {home_zone,
+    workplace_zone}, the two zones the NPC is anchored in daily.
+    A stall/restaurant in the NPC's own home zone is nearest by
+    definition; else one in the workplace zone; else the default
+    candidate (d1_market — six of the seven tea stalls stand in Boro
+    Bazar, and the market kitchen is the everyday restaurant).
+    The anchor id is "<token>:<zone>": no per-stall or per-restaurant
+    ids exist in any merged source, so the anchor is identified by
+    type + zone, never by an invented id."""
+    candidates = SERVICE_ANCHOR_ZONES[location]
+    if home_zone in candidates:
+        zone = home_zone
+    elif workplace_zone in candidates:
+        zone = workplace_zone
+    else:
+        zone = candidates[0]
+    return zone, f"{location}:{zone}"
 
 
 def _mins(hhmm):
@@ -298,14 +339,22 @@ def instantiate(data, character, day_index, rng, needs=None, traits=None,
         if b["end"] not in (1440,):
             b["end"] += jitter
     blocks = _normalise(blocks, day_start)
-    # Resolve zones.
+    # Resolve zones. Service anchors resolve to the anchor's own zone
+    # (GDD-15 §21.2); the rest resolve by token; movement tokens keep
+    # the home_zone fallback (GDD-15 §18.3-18.4).
     for b in blocks:
-        if b["location"] == "home":
+        if b["location"] in SERVICE_ANCHOR_ZONES:
+            zone, anchor = resolve_service_anchor(
+                b["location"], character["home_zone"],
+                character["workplace_zone"])
+            b["zone"] = zone
+            b["anchor"] = anchor
+        elif b["location"] == "home":
             b["zone"] = character["home_zone"]
         elif b["location"] == "workplace":
             b["zone"] = character["workplace_zone"]
         elif b["location"] in LEISURE_ZONE:
             b["zone"] = LEISURE_ZONE[b["location"]]
-        else:  # transit, tea_stall, mobile: local to home/work path
+        else:  # transit, mobile: local to home/work path
             b["zone"] = character["home_zone"]
     return blocks, template_id

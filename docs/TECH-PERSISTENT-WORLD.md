@@ -180,6 +180,19 @@ The server implements the same rule `Store.transfer` already proves (`tools/sim/
 
 ---
 
+## 11. Ledger Reason-Code Alignment at Ingest (Unit BU · Queue 13)
+
+**Unit BU · Queue 13 · Version 1.0 · 2026-11-22**
+**Status:** DESIGN ONLY. The server-side note for the alignment GDD-15 §22 defines (the §14.4 drift table's Phase 9 follow-up). It adds no schema change and no sim code change — the ingest rule is the deliverable, and the ingest itself is Phase 9 work.
+
+**The rule, server-side.** The server accepts ledger rows from the sim's vocabulary only through the GDD-15 §22.2 translation table: at ingest, each sim reason string maps to its schema code (47 distinct sim strings; 9 already pass the `CHECK`; 38 translate), and the translated row is written to the PostgreSQL `economy_ledger` with its `note` prefixed `[sim:<original>]` so the original string stays readable on the server row. The sim's SQLite rows are never rewritten. A string with no table row is rejected at ingest — the row is not written, the rejection is logged with the `transfer_key`, and the ingest run stops (fail-closed; the fix is a table update, never a silent default).
+
+**What does not change.** The schema `CHECK` list stays at its 15 codes — no extension is proposed, because every act the sim performs fits a code the schema already has once the fine grain is read from the note and keys. The §10/Appendix B migration is untouched: it adds `transfer_key`/`event_ref` columns and does not touch `reason_code`, and translated rows carry the same keys the sim wrote, so idempotency is unaffected by the translation. The server's own queries that today read sim reason strings must move at ingest time: the Session 04 indicators query that reads `sales_tax` rows and the trade query that reads `tariff` rows filter on the note prefix (`[sim:sales_tax]`) or the `transfer_key` prefix (`tariff:<flow_id>`) instead, because both translate to `tax` and the code alone can no longer tell them apart. The Session 10 digest is unaffected: it hashes ledger `COUNT(*)` + `SUM(amount)` only (§4), so translating a code changes no digest and no conservation check.
+
+*End of TECH-PERSISTENT-WORLD §11 — Unit BU, Queue 13.*
+
+---
+
 # Appendix A — Snapshot Digest Metadata (Unit AP · Queue 8 · §3/§9 follow-up)
 
 **Version:** appendix added 2026-11-22 · **Code:** none — design only. No server build, no netcode, no snapshot code exists yet; nothing here claims two machines have ever connected or a world has ever persisted on a server.
