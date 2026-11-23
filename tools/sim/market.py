@@ -658,13 +658,22 @@ def retail_allocation(store, data, month_index, game_minutes):
     # Pass 2: record each household's covered share; the physical
     # draw happens once per (city, good) afterwards, so shelf
     # stock and takings move exactly once per good per month.
+    # Queue 15 Unit CY (CX seeding): last month's carried goods are
+    # consumed first — every standing goods row is deleted here, so
+    # a goods row stands for exactly the month it was bought, and a
+    # household with no wants this month still has its last month's
+    # shopping consumed.
+    from . import lost_items as lost_items_mod
+    store.execute("DELETE FROM inventory_items WHERE item_type = 'goods'")
     city_got = {}
     for hid, (household, city, wants) in wants_by_household.items():
+        got = {}
         for good_id, want_units in wants.items():
             got_units = want_units * coverage[(city, good_id)]
             if got_units > 0:
                 key = (city, good_id)
                 city_got[key] = city_got.get(key, 0.0) + got_units
+                got[good_id] = got_units
             price = price_of(store, data, city, good_id)
             unmet = round(want_units - got_units, 3)
             store.execute(
@@ -679,6 +688,13 @@ def retail_allocation(store, data, month_index, game_minutes):
                     and unmet / want_units > 0.3:
                 _food_hardship(store, household, game_minutes,
                                unmet / want_units)
+        # Queue 15 Unit CY (CX seeding): the carried shopping, owned
+        # by the household head (the custody rule). A headless
+        # household seeds nothing — no owner, no row.
+        head = lost_items_mod.household_head(store, hid)
+        if head is not None and got:
+            lost_items_mod.seed_goods_rows(store, data, hid, head, got,
+                                           game_minutes)
     for (city, good_id), units in sorted(city_got.items()):
         _draw_from_shelves(store, data, city, good_id, units,
                            month_index, game_minutes, totals)

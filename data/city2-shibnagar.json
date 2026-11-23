@@ -89,6 +89,53 @@
    "signalled": false
   }
  ],
+ "landmarks": [
+  {
+   "at": [
+    78.0,
+    48.0
+   ],
+   "id": "c2_lm_ferry_ghat",
+   "name": "Shibnagar Ferry Ghat",
+   "source": "GDD-04 \u00a73.4 (Unit CZ \u00b7 Queue 15) \u2014 Shibnagar landmark; building b_c2_transport_ghat, zone c2_transport (GENERATED town, citygen.py)."
+  },
+  {
+   "at": [
+    141.0,
+    48.0
+   ],
+   "id": "c2_lm_bus_stand",
+   "name": "Shibnagar Bus Stand",
+   "source": "GDD-04 \u00a73.4 (Unit CZ \u00b7 Queue 15) \u2014 Shibnagar landmark; building b_c2_transport_bus_stand, zone c2_transport (GENERATED town, citygen.py)."
+  },
+  {
+   "at": [
+    366.0,
+    294.0
+   ],
+   "id": "c2_lm_primary_school",
+   "name": "Shibnagar Primary School",
+   "source": "GDD-04 \u00a73.4 (Unit CZ \u00b7 Queue 15) \u2014 Shibnagar landmark; building b_c2_civic_school, zone c2_civic (GENERATED town, citygen.py)."
+  },
+  {
+   "at": [
+    407.0,
+    290.0
+   ],
+   "id": "c2_lm_clinic",
+   "name": "Shibnagar Clinic",
+   "source": "GDD-04 \u00a73.4 (Unit CZ \u00b7 Queue 15) \u2014 Shibnagar landmark; building b_c2_civic_clinic, zone c2_civic (GENERATED town, citygen.py)."
+  },
+  {
+   "at": [
+    445.0,
+    290.0
+   ],
+   "id": "c2_lm_town_office",
+   "name": "Shibnagar Town Office",
+   "source": "GDD-04 \u00a73.4 (Unit CZ \u00b7 Queue 15) \u2014 Shibnagar landmark; building b_c2_civic_office, zone c2_civic (GENERATED town, citygen.py)."
+  }
+ ],
  "plots": [
   {
    "anchor": {

@@ -55,6 +55,10 @@ class WorldData:
         # output — labelled generated in the file itself).
         self.blockout = _load_json("district1-blockout.json")
         self.city2_file = _load_json("city2-shibnagar.json")
+        # Queue 15 Unit DA: the District 2 blockout (PROPOSED) — the
+        # photograph mechanic reads the §3.4 discovery set from all
+        # three landmark files, so the set is data, not a fixed list.
+        self.district2_blockout = _load_json("district2-blockout.json")
         self.econ = _load_economy_sim()
         # Session 04: the economy layer's configuration — goods
         # catalogue, production recipes, economy config (tax rules
@@ -102,6 +106,10 @@ class WorldData:
         # SIM MODEL index), the configured global scenarios and
         # the resource-balance flag bases.
         self.integration_config = _load_json("integration-config.json")
+        # Queue 15 Unit CY: the lost-item loss rate — one number
+        # for all three GDD-04 §3.3 losing events, default 0
+        # (specified but silent) until an owner tuning call sets it.
+        self.lost_items_config = _load_json("lost-items-config.json")
 
     # -- canonical accessors -------------------------------------------------
     # Employment tiers run 1..5 (professions.json progression), but

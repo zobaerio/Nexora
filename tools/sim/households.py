@@ -174,6 +174,11 @@ def move_household(store, data, household_id, new_property_id,
     rent = rent_of_property(store, data, prop)
     if rent is None:
         return None
+    # Queue 15 Unit CY: BX event E3 reads the origin zone before the
+    # tenancy moves — _start_tenancy overwrites it.
+    origin = store.row("SELECT district_id FROM households"
+                       " WHERE household_id = ?", (household_id,))
+    origin_zone = origin["district_id"] if origin else None
     _end_tenancy(store, household_id, game_minutes)
     _start_tenancy(store, household_id, prop, rent, game_minutes)
     for m in members(store, household_id):
@@ -182,6 +187,14 @@ def move_household(store, data, household_id, new_property_id,
                                   details={"household_id": household_id,
                                            "rent": rent})
         emotions_mod.apply_event(store, m["character_id"], "moved_home")
+    # Queue 15 Unit CY: BX event E3 — the move itself can lose a
+    # packed thing. One loss per move at most; silent at the default
+    # rate 0. No rng is passed here (no caller has one in scope);
+    # the event resolves its draw from the world's stored seed.
+    if origin_zone:
+        from . import lost_items as lost_items_mod
+        lost_items_mod.move_house_loss(store, data, None, household_id,
+                                       origin_zone, game_minutes)
     return rent
 
 

@@ -73,6 +73,7 @@ def intake_incidents(store, data, rng, month_index, game_minutes):
     """Create this month's incidents from the records — and
     nothing else."""
     from . import conflicts as conflicts_mod
+    from . import lost_items as lost_items_mod
     created = []
     # Escalated conflicts (Session 02) -> public-order incidents.
     for conf in store.rows("SELECT * FROM conflict_records WHERE"
@@ -139,6 +140,12 @@ def intake_incidents(store, data, rng, month_index, game_minutes):
                       " segment condition (SIM MODEL rate)"},
                 game_minutes)
             created.append(iid)
+            # Queue 15 Unit CY: BX event E1 — a traveller on the
+            # segment can lose a carried thing. One loss per incident
+            # at most; silent at the default rate 0.
+            lost_items_mod.commute_incident_losses(
+                store, data, rng, iid, seg["segment_id"], month_index,
+                game_minutes)
     return created
 
 
