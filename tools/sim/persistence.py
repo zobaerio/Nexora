@@ -100,6 +100,14 @@ Session 01):
   pair-level semantic-flag store (GDD-15 §17.7). schema.sql has
   no such table; the Phase 9 server-schema note follows the same
   migration rule (latest interaction wins, §17.2 ties).
+- Queue 15 additions (Unit CY): inventory_items (the
+  personal-inventory record, GDD-04 §3.3 Unit CX — mirrors
+  data/schema.sql field-for-field) and lost_items (the §3.3
+  lifecycle lost -> found -> returned; schema.sql has no
+  lost_items table yet). Unit DA adds photographs (§3.5),
+  discovery_progress (§3.4) and mission_progress (the §3.5
+  photo-mode gate's input — mirrors schema.sql; the mission
+  system that writes it is Phase 6 work).
 """
 import json
 import sqlite3
@@ -1928,6 +1936,81 @@ CREATE TABLE IF NOT EXISTS technology_levels (
     basis TEXT NOT NULL DEFAULT '{}',
     game_minutes INTEGER NOT NULL DEFAULT 0,
     PRIMARY KEY (field, month_index)
+);
+-- Queue 15 additions (Unit CY): the personal-inventory record
+-- (GDD-04 §3.3, Unit CX design) and the lost-item record
+-- (GDD-04 §3.3, Unit BL design). inventory_items mirrors
+-- data/schema.sql field-for-field in SQLite shape; lost_items is
+-- the sim store for the §3.3 lifecycle lost -> found -> returned
+-- (the server schema has no lost_items table yet — Phase 6/9
+-- record). A lost item never mutates its inventory row: the
+-- lost_items row tracks the whereabouts, the inventory row the
+-- custody.
+CREATE TABLE IF NOT EXISTS inventory_items (
+    item_instance_id TEXT PRIMARY KEY,
+    item_type TEXT NOT NULL CHECK (item_type IN
+        ('vehicle', 'furniture', 'tool', 'clothing', 'goods',
+         'document')),
+    item_ref TEXT NOT NULL,
+    owner_character_id TEXT NOT NULL,
+    location_property_id TEXT,
+    state TEXT NOT NULL DEFAULT '{}',
+    acquired_at_game_minutes INTEGER NOT NULL DEFAULT 0
+);
+CREATE INDEX IF NOT EXISTS idx_inventory_owner
+    ON inventory_items(owner_character_id);
+CREATE TABLE IF NOT EXISTS lost_items (
+    lost_item_id TEXT PRIMARY KEY,
+    owner_character_id TEXT NOT NULL,
+    item_instance_id TEXT NOT NULL,
+    lost_at_game_minutes INTEGER NOT NULL,
+    lost_zone TEXT NOT NULL,
+    lost_anchor TEXT,
+    status TEXT NOT NULL DEFAULT 'lost' CHECK (status IN
+        ('lost', 'found', 'returned')),
+    found_by_character_id TEXT,
+    found_at_game_minutes INTEGER,
+    returned_at_game_minutes INTEGER
+);
+CREATE INDEX IF NOT EXISTS idx_lost_items_owner
+    ON lost_items(owner_character_id, status);
+-- Queue 15 additions (Unit DA): the photograph mechanic
+-- (GDD-04 §3.5, Unit BY design). photographs mirrors the §3.5
+-- record (PK is the natural (account_id, discoverable_id) — one
+-- photograph per account per landmark, ever; photograph_id is the
+-- generated row id, UNIQUE by construction); discovery_progress
+-- mirrors the §3.4 record (one row per account per thing, ever);
+-- mission_progress mirrors data/schema.sql (the photo-mode gate
+-- reads the 1.4 row — the mission system that writes it is Phase 6
+-- work; this unit only reads it). The sim has no accounts table:
+-- account_id is the caller's Phase 9 accounts.account_id, opaque
+-- here, and no FK is enforced (the sim stores TEXT ids).
+CREATE TABLE IF NOT EXISTS mission_progress (
+    character_id TEXT NOT NULL,
+    mission_id TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'available' CHECK (status IN
+        ('available', 'active', 'completed', 'failed')),
+    progress TEXT NOT NULL DEFAULT '{}',
+    updated_at_game_minutes INTEGER NOT NULL DEFAULT 0,
+    PRIMARY KEY (character_id, mission_id)
+);
+CREATE TABLE IF NOT EXISTS discovery_progress (
+    account_id TEXT NOT NULL,
+    discoverable_type TEXT NOT NULL CHECK (discoverable_type IN
+        ('landmark', 'bus_route')),
+    discoverable_id TEXT NOT NULL,
+    discovered_at_game_minutes INTEGER NOT NULL,
+    discovered_in_zone TEXT,
+    PRIMARY KEY (account_id, discoverable_type, discoverable_id)
+);
+CREATE TABLE IF NOT EXISTS photographs (
+    photograph_id TEXT NOT NULL UNIQUE,
+    account_id TEXT NOT NULL,
+    character_id TEXT NOT NULL,
+    discoverable_id TEXT NOT NULL,
+    taken_at_game_minutes INTEGER NOT NULL,
+    taken_in_zone TEXT NOT NULL,
+    PRIMARY KEY (account_id, discoverable_id)
 );
 """
 

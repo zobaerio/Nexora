@@ -138,6 +138,34 @@ _TERRAIN = [
 ]
 
 
+# (landmark id, name, building id) — Unit CZ, Queue 15 (GDD-04 §3.4).
+# The town's landmarks: the civic/transport nodes a player can be
+# directed to and recognise. Only properties that qualify: the two
+# transport nodes (the ferry ghat is the town's river crossing, the
+# bus stand its road terminal — the District 1 analogues are the
+# launch terminal and the station) and the three civic institutions
+# (school, clinic, town office — unique, named, public). The two tea
+# stalls do NOT qualify: in District 1 a tea stall is a service
+# anchor (GDD-06 §3), not a landmark. The fish stalls, bazar shops,
+# godown, warehouse, farmland and housing do not qualify either: a
+# shop row, generic retail, industrial and residential stock are not
+# landmarks. Coordinates are derived, never invented: each
+# landmark's point is its building's plot anchor (see
+# generate_town_spec), so the point always falls inside the
+# building's own zone box.
+_LANDMARKS = [
+    ("c2_lm_ferry_ghat", "Shibnagar Ferry Ghat",
+     "b_c2_transport_ghat"),
+    ("c2_lm_bus_stand", "Shibnagar Bus Stand",
+     "b_c2_transport_bus_stand"),
+    ("c2_lm_primary_school", "Shibnagar Primary School",
+     "b_c2_civic_school"),
+    ("c2_lm_clinic", "Shibnagar Clinic", "b_c2_civic_clinic"),
+    ("c2_lm_town_office", "Shibnagar Town Office",
+     "b_c2_civic_office"),
+]
+
+
 def _pack_plots(zone_id, items):
     """Deterministic row packing inside the zone box: cursor walks
     east, wraps south. items: [(key, (w, d))]. Returns {key: rect}."""
@@ -207,6 +235,26 @@ def generate_town_spec(prices):
             })
     plots.sort(key=lambda p: p["id"])
 
+    # Landmarks (Unit CZ, Queue 15): one entry per _LANDMARKS row,
+    # pointed at the building's own plot anchor — the plot packing
+    # above puts every anchor inside the building's zone box, so the
+    # landmark's zone is the building's zone by construction.
+    by_building = {p["building_id"]: p for p in plots
+                   if p["building_id"]}
+    properties_by_id = {p["id"]: p for p in properties}
+    landmarks = []
+    for lm_id, name, bid in _LANDMARKS:
+        anchor = by_building[bid]["anchor"]
+        zone = properties_by_id[bid]["zone_id"]
+        landmarks.append({
+            "at": [anchor["x"], anchor["z"]],
+            "id": lm_id,
+            "name": name,
+            "source": f"GDD-04 §3.4 (Unit CZ · Queue 15) — Shibnagar "
+                      f"landmark; building {bid}, zone {zone} "
+                      f"(GENERATED town, citygen.py).",
+        })
+
     return {
         "generated": True,
         "generated_by": "tools/sim/citygen.py — Session 03 Unit 01",
@@ -223,6 +271,7 @@ def generate_town_spec(prices):
                              "edge.",
         "zones": sorted(ZONE_BOXES.keys()),
         "zone_boxes_m": ZONE_BOXES,
+        "landmarks": landmarks,
         "properties": properties,
         "plots": plots,
         "road_segments": [

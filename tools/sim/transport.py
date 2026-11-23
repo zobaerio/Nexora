@@ -1140,6 +1140,7 @@ def record_trade_shipments(store, data, month_index, game_minutes,
 # ---------------------------------------------------------------------
 
 def _purchase_sweep(store, data, rng, month_index, game_minutes):
+    from . import lost_items as lost_items_mod
     c = cfg(data)["vehicle_purchase"]
     prices = {v["id"]: v["price_ncr"] for v in data.prices["vehicles"]
               if v["id"] in PRICE_TO_TYPE}
@@ -1196,6 +1197,12 @@ def _purchase_sweep(store, data, rng, month_index, game_minutes):
              zone, zone, tcfg.get(vtype, 0), tcfg.get(vtype, 0),
              cfg(data)["maintenance"]["initial_condition"],
              game_minutes))
+        # Queue 15 Unit CY (CX seeding): the custody row for the
+        # purchase, in the same transaction as the vehicles insert.
+        lost_items_mod.seed_vehicle_row(
+            store, cid, vid, vtype, game_minutes,
+            cfg(data)["maintenance"]["initial_condition"],
+            tcfg.get(vtype, 0))
         bought.append(vid)
     return bought
 

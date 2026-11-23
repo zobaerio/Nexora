@@ -350,4 +350,60 @@ There is no down-migration for this change, and none may be written later. If th
 
 *End of Appendix B — Unit BD, Queue 10.*
 
+# Appendix C — Relationship Pair Flags: Migration Note (Unit DB · Queue 15 · GDD-15 §17.7 follow-up)
+
+**Version:** appendix added 2026-11-23 · **Code:** none — design only. No server build, no netcode, no migration file exists yet; nothing here claims a server has ever written a pair-flag row.
+**Parent documents:** `docs/GDD-15-DIALOGUE.md` §17.7 (the design this appendix migrates — the pair-level store, the merge rule, the four stored flags) · `tools/sim/relationships.py` `get_pair_flag()` / `set_pair_flag()` + `PAIR_FLAGS` (the proven sim accessors this migrates to PostgreSQL) · `tools/sim/persistence.py` `relationship_pair_flags` (the proven sim table) · `data/schema.sql` (`relationships`, whose `flags` JSONB the pair flags move out of) · GDD-01 §8 (ledger — the debt flags stay derived, never stored), §9 (forward-only migrations).
+**What this appendix does:** it records the migration for the §17.7 decision, following Appendix B's pattern step for step — the same exact-statements shape, the same numbered-steps shape, the same no-backfill-invention rule where it applies, the same forward-only rollback posture. It is the migration record for the pair-flag table. It lives here, in this design document — it is NOT written into `data/schema.sql`, and `schema.sql` must not be modified to carry it.
+
+## C.1 The migration (exact statements)
+
+Proposed migration name: `004_relationship_pair_flags` (a design-time name — it follows Appendix B's proposed `003_ledger_idempotency_keys`; no migrations directory exists in this repo yet, and the Phase 9 deploy creates the convention).
+
+```sql
+CREATE TABLE relationship_pair_flags (
+    character_a_id UUID NOT NULL REFERENCES characters(character_id),
+    character_b_id UUID NOT NULL REFERENCES characters(character_id),
+    flags JSONB NOT NULL DEFAULT '{}'::jsonb,
+    CHECK (character_a_id < character_b_id),
+    PRIMARY KEY (character_a_id, character_b_id)
+);
+```
+
+One statement, nothing else. No `ALTER TABLE` on `relationships`, no column dropped (dropping a column is a breaking migration — §17.7), no change to the edge `flags` column's type, no index beyond the primary key (the pair lookup is the PK).
+
+## C.2 Numbered steps
+
+1. **Author the migration.** The statement in §C.1, exactly as written. Nothing else.
+2. **Deploy with the server.** The migration runs at deploy (GDD-01 §9: migrations run at deploy; every save/snapshot carries `schema_version`). It is additive only — the deploy adds one empty table; it does not rewrite, re-derive, or re-stamp any existing row.
+3. **Backfill: by the §17.7 merge rule, in one transaction.** One row per unordered pair that carries any pair flag on any of its edges. For each key, the value from the edge with the latest `last_interaction_at_game_minutes` wins — the most recent write is the pair's current fact — and ties break by the §17.2 edge priority (spouse first, `ex_partner` last; the CASE list follows §17.2 exactly). The backfill reads `relationships.flags` and writes `relationship_pair_flags.flags`; it writes nothing else, and it runs in the same transaction as step 4 so a pair is never half-moved. The debt flags (`owes_player`, `player_owes`) are **not** backfilled: they are derived from the ledger (§14), never stored in either store, and any edge row carrying them as stored flags is a data bug, not a backfill input.
+4. **Clear the moved flags from the edges, in the same transaction.** After the backfill, the pair flags are deleted from `relationships.flags`, leaving only edge-specific flags behind:
+   ```sql
+   UPDATE relationships SET flags = flags
+       - 'met_player' - 'worked_with_player'
+       - 'employs_player' - 'apologised_for_offence';
+   ```
+   The JSONB minus operator removes exactly the four stored pair flags and keeps any edge-specific key a future design has declared — of which none exists today, so a live row's `flags` becomes `'{}'` unless it already held an edge-specific flag.
+5. **Verify before the deploy commits.** Two counts, both from the same transaction: the number of distinct unordered pairs backfilled equals the number of pairs that carried a pair flag on any edge, and every pre-migration pair-flag key is present in the new table with the merge rule's winning value. A mismatch aborts the deploy — the migration never lands half-applied.
+6. **Write path from then on.** The server writes pair flags to `relationship_pair_flags` only, through the pair accessors; a write that names a pair flag with a `relation_type` is a data bug (§17.7). The edge `flags` column stays, holding edge-specific flags only — a future edge-specific flag must be declared in GDD-01 §2.3 before any code writes it.
+7. **Read path from then on.** The §12.1 snapshot reads the pair store once per pair at conversation open; the selected edge still supplies band, mean, respect, and the drift target, because scores *are* edge facts (§17.1). Only the flags move, because only the flags are pair facts.
+8. **Versioning.** The migration does not change the meaning of any existing row, so existing snapshots keep their `schema_version`; new snapshots record the `schema_version` current at capture. A snapshot from a *newer* version is shown but refused, in words (GDD-05 §7 save/load rule, §3).
+
+## C.3 What is never altered
+
+`relationships`'s columns, its `relation_type` `CHECK` list, and its `UNIQUE (from_character_id, to_character_id, relation_type)` (a migration never rewrites history); any existing row's `schema_version`; the debt flags' derivation (the ledger stays their only home — §14); any pair-flag value once written to the new table (a value is never "fixed" to match a later edge write — the pair row is the answer, and the next write goes through `set_pair_flag()`); any edge-specific flag a future design declares.
+
+## C.4 Rollback posture — forward-only, no down-migration
+
+There is no down-migration for this change, and none may be written later. If the migration must be undone, the rollback is forward: deploy a *new* migration that stops the server using the table, or a later forward migration that removes it — never a `DROP TABLE` smuggled in as a rollback step, and never a delete of pair-flag rows. Pair-flag rows are the audit evidence of what each pair knew; deleting them would erase the record of exactly the conversations a rollback is trying to reason about. The table is cheap to keep and safe to ignore; the rows are never deleted by a rollback.
+
+## C.5 Honest boundaries — what this design does and does not do
+
+- **The table is a home, not a dialogue runtime.** It gives the §12 binding a row to read and write. What it **never** does: run a conversation, select an edge, or decide a greeting band — the dialogue runtime that calls the accessors is Phase 6 work, and the §17 priority table (§17.2) is the binding's, not this migration's.
+- **No new server code is shipped here.** No accessor endpoint, no migration file, no netcode. This appendix is a build instruction for Phase 9; the first server test happens on the owner's PC/LAN (TECH-MULTIPLAYER §6).
+- **No live rows exist to migrate today.** `set_flag()` has no sim callers, so the sim store holds no flags and the backfill would insert zero rows (§17.7). The backfill exists so the rule is correct for a live Phase 6/9 world that has accumulated edge flags by then — the same honesty as Appendix B's no-backfill rule, applied to a table whose backfill is the point.
+- **Still open from §9 and from the runbook, untouched by this unit:** no network API, no user accounts, no network security surface, no distributed processing or partitioning, no real-time server in this VM — and the dialogue runtime itself (Phase 6), which is the remaining half of §17.7's "what stays" list.
+
+*End of Appendix C — Unit DB, Queue 15.*
+
 *End of TECH-PERSISTENT-WORLD v1.0 — Unit AM, Queue 7.*

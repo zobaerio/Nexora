@@ -837,6 +837,16 @@ def daily_pass(store, data, rng, day_index, game_minutes):
              day_index, cid))
         out[cid] = {"preset": weather["preset_id"],
                     "precip_mm": precip, "river_level_m": round(river, 3)}
+    # Queue 15 Unit CY: BX event E2 — a storm-soaked market trip loses
+    # a carried good. One loss per (disaster, day); silent at the
+    # default rate 0. Transport's daily pass runs before this one in
+    # the engine, so today's trips already exist.
+    from . import lost_items as lost_items_mod
+    for d in store.rows("SELECT * FROM disaster_events WHERE status"
+                        " = 'active' AND disaster_type IN ('cyclone',"
+                        " 'severe_storm') ORDER BY disaster_id"):
+        lost_items_mod.storm_market_losses(
+            store, data, rng, d["disaster_id"], day_index, game_minutes)
     # Disaster phase transitions + recovery.
     for d in store.rows("SELECT * FROM disaster_events WHERE status"
                         " = 'active' AND ends_day IS NOT NULL AND"

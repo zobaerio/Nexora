@@ -551,11 +551,12 @@ def check_service_anchors(d1, buildings):
 
 
 def check_discovery_set(d1, d2, c2):
-    """Queue 14 Unit CC: the §3.4 discoverable set — 8 District 1
-    landmarks + 6 District 2 landmarks + 1 bus route; every D2
-    landmark's zone verified against the D2 zone boxes or assigned
-    by description (northgate tower only); Shibnagar contributes
-    nothing (no landmarks array in city2-shibnagar.json)."""
+    """Queue 14 Unit CC + Queue 15 Unit CZ: the §3.4 discoverable set
+    — 8 District 1 landmarks + 6 District 2 landmarks + 5 Shibnagar
+    landmarks + 1 bus route; every D2 landmark's zone verified
+    against the D2 zone boxes or assigned by description (northgate
+    tower only); every Shibnagar landmark's point verified inside its
+    own zone box (its building's plot anchor)."""
     d1_lm = {lm["id"]: lm for lm in d1["landmarks"]}
     check(len(d1_lm) == 8, "discovery set: 8 District 1 landmarks",
           f"got {len(d1_lm)}")
@@ -599,9 +600,50 @@ def check_discovery_set(d1, d2, c2):
     check(all(lm.get("status") == "PROPOSED" for lm in d2["landmarks"]),
           "all 6 D2 landmarks stay labelled PROPOSED",
           f"unlabelled={[lm['id'] for lm in d2['landmarks'] if lm.get('status') != 'PROPOSED']}")
-    check("landmarks" not in c2,
-          "Shibnagar contributes no discoverables (no landmarks array)",
-          f"keys={sorted(c2.keys())}")
+    # Queue 15 Unit CZ: Shibnagar contributes 5 landmarks — the ids
+    # GDD-04 §3.4 authors, each pointed at its building's plot anchor
+    # (citygen.py), inside its own zone box. The town is GENERATED,
+    # not PROPOSED: it already runs in the sim, so its landmarks
+    # carry no PROPOSED label.
+    c2_lm = {lm["id"]: lm for lm in c2.get("landmarks", [])}
+    check(len(c2_lm) == 5, "discovery set: 5 Shibnagar landmarks",
+          f"got {len(c2_lm)}")
+    check(not (set(d1_lm) & set(c2_lm))
+          and not (set(d2_lm) & set(c2_lm)),
+          "Shibnagar landmark ids do not collide with D1/D2",
+          f"collisions={sorted((set(d1_lm) | set(d2_lm)) & set(c2_lm))}")
+    expected_c2 = {
+        "c2_lm_ferry_ghat": ("c2_transport", "b_c2_transport_ghat"),
+        "c2_lm_bus_stand": ("c2_transport", "b_c2_transport_bus_stand"),
+        "c2_lm_primary_school": ("c2_civic", "b_c2_civic_school"),
+        "c2_lm_clinic": ("c2_civic", "b_c2_civic_clinic"),
+        "c2_lm_town_office": ("c2_civic", "b_c2_civic_office"),
+    }
+    c2_props = {p["id"]: p for p in c2["properties"]}
+    bad = [i for i in expected_c2 if c2_lm.get(i) is None]
+    check(not bad, "all 5 Shibnagar discoverable ids exist in city2",
+          f"missing={bad}")
+    bad = []
+    for lm_id, (zone, bid) in expected_c2.items():
+        lm = c2_lm.get(lm_id)
+        if lm is None:
+            continue
+        prop = c2_props.get(bid)
+        if prop is None or prop["zone_id"] != zone:
+            bad.append((lm_id, "building/zone mismatch"))
+            continue
+        box = c2["zone_boxes_m"].get(zone, {})
+        x, z = lm["at"]
+        inside = (box.get("x0", 10 ** 9) <= x <= box.get("x1", -(10 ** 9))
+                  and box.get("z0", 10 ** 9) <= z <= box.get("z1", -(10 ** 9)))
+        if not inside:
+            bad.append((lm_id, zone))
+    check(not bad, "Shibnagar discoverable zones verify (point in box)",
+          f"bad={bad}")
+    check(all("PROPOSED" not in (lm.get("status") or "")
+              for lm in c2.get("landmarks", [])),
+          "no Shibnagar landmark is labelled PROPOSED",
+          f"labelled={[lm['id'] for lm in c2.get('landmarks', []) if lm.get('status')]}")
 
 
 def check_district2_parses(d2):
@@ -1799,6 +1841,21 @@ def main():
         check_shibnagar_cast_component(data)
         check_shibnagar_cast_households(data)
         check_intercity_symmetry(data)
+
+    # Queue 15 Unit CY: the lost-items config — one loss rate for all
+    # three GDD-04 §3.3 losing events, default 0 (specified but
+    # silent) until an owner tuning call sets it.
+    try:
+        data["lost-items-config.json"] = load("lost-items-config.json")
+        print("  ok: lost-items-config.json parses")
+    except Exception as e:
+        check(False, "lost-items-config.json parses", f"({e})")
+    if "lost-items-config.json" in data:
+        rate = data["lost-items-config.json"].get("loss_rate")
+        check(isinstance(rate, (int, float)) and not isinstance(rate, bool)
+              and 0 <= rate <= 1,
+              "lost-items loss_rate is a number in [0, 1]",
+              f"got={rate}")
 
     return finish()
 
