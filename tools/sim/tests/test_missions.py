@@ -327,5 +327,124 @@ class TestFavourInstances(unittest.TestCase):
                                                     GM + 200))
 
 
+class TestMission21(unittest.TestCase):
+    # Queue 18 Unit DO — mission 2.1 "Learn the Trade" (GDD-04
+    # §3.6): the single objective is skill 20 in the player's
+    # profession's primary skill (primary_skills[0]).
+
+    def _employ(self, store, cid, profession_id, skills):
+        store.insert("employments", employment_id="EM-TEST-21",
+                     character_id=cid, profession_id=profession_id,
+                     tier=1, wage_per_month=10000,
+                     started_at_game_minutes=GM,
+                     ended_at_game_minutes=None)
+        for skill_id, level in skills.items():
+            row = store.row(
+                "SELECT 1 FROM character_skills WHERE character_id = ?"
+                " AND skill_id = ?", (cid, skill_id))
+            if row is not None:
+                store.execute(
+                    "UPDATE character_skills SET level = ?,"
+                    " experience = ? WHERE character_id = ?"
+                    " AND skill_id = ?",
+                    (level, level * 50, cid, skill_id))
+            else:
+                store.insert("character_skills", character_id=cid,
+                             skill_id=skill_id, level=level,
+                             experience=level * 50)
+
+    def _active_21(self, store, d, cid):
+        ms.make_available(store, cid, "2.1", GM)
+        ms.accept_mission(store, cid, "2.1", GM + 100)
+
+    def test_primary_skill_is_the_first_entry(self):
+        d = data()
+        self.assertEqual(ms.primary_skill_of(d, "civil_engineer"),
+                         "engineering")
+        self.assertEqual(ms.primary_skill_of(d, "teacher"), "teaching")
+        self.assertEqual(ms.primary_skill_of(d, "taxi_driver"),
+                         "driving")
+        self.assertIsNone(ms.primary_skill_of(d, "no_such_profession"))
+
+    def test_skill_20_in_primary_skill_completes_2_1(self):
+        store = make_store()
+        d = data()
+        cid = make_person(store, age=25, first="Player")
+        self._employ(store, cid, "civil_engineer", {"engineering": 20})
+        self._active_21(store, d, cid)
+        self.assertTrue(ms.verify_mission_2_1(store, d, cid, GM + 200))
+        before = store.row("SELECT balance_cached FROM characters"
+                           " WHERE character_id = ?", (cid,))[
+                               "balance_cached"]
+        self.assertTrue(ms.complete_mission(store, cid, "2.1", GM + 300))
+        self.assertEqual(ms.get_status(store, cid, "2.1"), "completed")
+        # The writer pays no credits or reputation for 2.1: the
+        # 2,000 NCr + 10 profession reputation are the Phase 6
+        # reward step (DL boundary, GDD-04 §3.6) — the balance does
+        # not move when the writer completes the mission.
+        after = store.row("SELECT balance_cached FROM characters"
+                          " WHERE character_id = ?", (cid,))[
+                              "balance_cached"]
+        self.assertEqual(before, after)
+
+    def test_skill_19_does_not_verify_then_20_does(self):
+        store = make_store()
+        d = data()
+        cid = make_person(store, age=25, first="Player")
+        self._employ(store, cid, "civil_engineer", {"engineering": 19})
+        self._active_21(store, d, cid)
+        self.assertFalse(ms.verify_mission_2_1(store, d, cid, GM + 200))
+        self.assertFalse(ms.complete_mission(store, cid, "2.1", GM + 200))
+        store.execute("UPDATE character_skills SET level = 20,"
+                      " experience = 1000 WHERE character_id = ?"
+                      " AND skill_id = 'engineering'", (cid,))
+        self.assertTrue(ms.verify_mission_2_1(store, d, cid, GM + 300))
+
+    def test_second_primary_skill_does_not_verify(self):
+        store = make_store()
+        d = data()
+        cid = make_person(store, age=25, first="Player")
+        # management is civil_engineer's SECOND primary skill: 20
+        # there, 5 in the primary one, does not verify (DO §3.6).
+        self._employ(store, cid, "civil_engineer",
+                     {"engineering": 5, "management": 20})
+        self._active_21(store, d, cid)
+        self.assertFalse(ms.verify_mission_2_1(store, d, cid, GM + 200))
+
+    def test_unemployed_cannot_verify(self):
+        store = make_store()
+        d = data()
+        cid = make_person(store, age=25, first="Player")
+        # The skill row stands, but there is no open employment, so
+        # the character has no profession and no primary skill.
+        self._employ(store, cid, "civil_engineer", {"engineering": 20})
+        store.execute("UPDATE employments SET ended_at_game_minutes = ?"
+                      " WHERE character_id = ?", (GM, cid))
+        self._active_21(store, d, cid)
+        self.assertIsNone(ms.current_profession_id(store, cid))
+        self.assertFalse(ms.verify_mission_2_1(store, d, cid, GM + 200))
+
+    def test_verify_needs_an_active_row(self):
+        store = make_store()
+        d = data()
+        cid = make_person(store, age=25, first="Player")
+        self._employ(store, cid, "civil_engineer", {"engineering": 20})
+        # Available but never accepted: no verification.
+        ms.make_available(store, cid, "2.1", GM)
+        self.assertFalse(ms.verify_mission_2_1(store, d, cid, GM + 200))
+
+    def test_2_1_completion_does_not_open_the_da_gate(self):
+        store = make_store()
+        d = data()
+        cid = make_person(store, age=25, first="Player")
+        self._employ(store, cid, "civil_engineer", {"engineering": 20})
+        self._active_21(store, d, cid)
+        self.assertFalse(ph.photo_mode_unlocked(store, cid))
+        ms.verify_mission_2_1(store, d, cid, GM + 200)
+        ms.complete_mission(store, cid, "2.1", GM + 300)
+        # The gate reads the 1.4 row only (DO §3.6).
+        self.assertFalse(ph.photo_mode_unlocked(store, cid))
+
+
 if __name__ == "__main__":
     unittest.main()

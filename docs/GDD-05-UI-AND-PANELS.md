@@ -106,6 +106,30 @@ The profile panel is the GDD-01 §1 canonical card, expanded. Header block — f
 
 **NPC inspect** uses the same panel, read-only, minus account fields (no username, no ledger sub-view; balance shown only for characters the player has a financial relationship with — employer, tenant, debtor — via semantic memory flags, §2.3).
 
+**Credentials on the profile panel (Unit DR · Queue 18 · 2026-11-23)**
+
+**Status:** DESIGN ONLY. This subsection answers the question DN left open: DN states a lost credential stays valid, but no panel shows that — a player reading the character panel cannot tell a lost credential from a revoked one. It adds no sim code and no new data: the panel reads two records that already exist — the `certifications` row (the qualification) and the `lost_items` row for its document (the paper) — and displays what they say. Where a label or an icon state would need a wording no source gives, the wording is this unit's decision, labelled as such.
+
+**Where — a Credentials block on the Skills tab.** Credentials are qualifications that gate professions (GDD-11: the college credential gates the four credential professions at hiring; the school-leaving certificate is the completion record) — so they live on the Skills tab, which already highlights profession-gating skills. Each `certifications` row for the character is one credential row: the document name from `data/documents.json` (`school_leaving_certificate` → "School-leaving certificate"; `college_credential` → "College credential" + the programme, e.g. "College credential — Engineering"), the issuing institution (`certifications.institution_id` → the `education-health-config.json` institution name: District School / District College / Shibnagar Primary School) and the issued month. A character with no certifications row shows no block at all — the panel never shows an empty Credentials block, and never shows a credential the character does not hold.
+
+**The row states.** The row's status chip is read from the document inventory row for that certification (`inventory_items` row with `item_ref` = the document id and `state.certification_id` = the certification — the DN seeding shape), joined to its `lost_items` row where one stands:
+
+| Document row | Chip (this unit's wording) | Icon state |
+|---|---|---|
+| No `lost_items` row, or the row is `returned` | VALID — no chip, the plain row | The document icon, full colour |
+| `lost_items` status `lost` | "Paper lost — credential valid" | The document icon with a dashed outline + a small "lost" badge; never a red X |
+| `lost_items` status `found` | "Found — awaiting hand-back" | The document icon with a dashed outline + a small "found" badge |
+
+The chip wording is this unit's decision: "Paper lost — credential valid" says both facts in one line — the paper is gone, the qualification stands. The dashed outline is the "paper" marker (the paper is missing); the icon itself is never struck through or greyed out, because the credential is not gone.
+
+**What the panel must NOT claim.** Never "revoked": a lost credential is not a revoked one (DN's rule — the `certifications` row stands whatever happens to the paper, and `has_credential()` reads `education_records`, never inventory). Never "invalid", "expired", or "missing": the credential is not missing — the paper is — and no source gives any credential an expiry. Never hide the credential while its paper is lost: hiding it would read as revocation to the player. Never show a price or a fee for the paper: documents are unpriced (`prices.json` `documents`, 0 = unpriced, not free), and the replacement fee is a Phase 6 decision — the panel shows no number for it. Never show the lost credential as a skill: the Skills tab lists `character_skills` rows and the Credentials block is a separate block on the same tab, so a lost paper never reads as a lost skill.
+
+**The recovery path.** While the chip reads "Paper lost — credential valid", the row carries one action line: "Find it — a favour can be raised for this paper." The §3.1 find-a-lost-item favour is the recovery path (the favour's parameters are the `lost_items` row; its completion is the `returned` write), and the panel points at it rather than inventing a replacement flow. When the row reaches `returned`, the chip clears and the row returns to VALID with no marker — the recovery is visible, not silent.
+
+**NPC inspect.** The same block, the same rules: NPC inspect uses the same panel read-only (§4), and the Credentials block shows for an NPC exactly as it shows for the player — the Skills tab is not restricted the way the Memories tab is (Memories shows only what the player could know; Skills shows the character's skills, and credentials are the same kind of fact). Account fields stay excluded for NPCs per §4 (no username, no ledger sub-view); the credential block carries no account field, so nothing is withheld from it.
+
+**What this design does not do.** It does not change the credential: the panel reads the `certifications` row and never writes it. It does not add a panel field for the paper's location: the `lost_zone` / `lost_anchor` are the find place (DP), and the panel does not direct the player there — the favour does. It does not cover the property deed or the business licence: those are documents too, but they are not credentials (no `certifications` row stands behind them), so they have no Credentials-block row; a lost deed or licence is a lost document, not a lost credential, and its display is a later unit's job if the panel ever lists a character's papers.
+
 ## 5. Environment Control Panel
 
 Per TECH-CLOCK-WEATHER §5, the panel talks to exactly two objects and nothing else. It never writes to sky, fog or materials directly.

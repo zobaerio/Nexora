@@ -1238,6 +1238,27 @@ def main():
            "dlg_1_4_decline", "dlg_1_4_hello", "dlg_1_4_reminder",
            "dlg_1_4_reminder_exit", "dlg_1_4_return"],
           "mission 1.4 tree has the 8 AO-pattern nodes")
+    # Queue 18 Unit DO: the mission 2.1 dialogue tree (the next
+    # mission in GDD-04 §2 after 1.4 — no mission 1.5 exists).
+    check("mission_2_1_learn_the_trade" in dlg["trees"],
+          "mission 2.1 dialogue tree exists")
+    check([n["node_id"] for n in
+           dlg["trees"]["mission_2_1_learn_the_trade"]["nodes"]] ==
+          ["dlg_2_1_intro", "dlg_2_1_offer", "dlg_2_1_accept",
+           "dlg_2_1_decline", "dlg_2_1_hello", "dlg_2_1_reminder",
+           "dlg_2_1_reminder_exit", "dlg_2_1_return"],
+          "mission 2.1 tree has the 8 AO-pattern nodes")
+    m21 = next(m for m in data["missions.json"]["missions"]
+               if m["id"] == "2.1")
+    check(dlg["trees"]["mission_2_1_learn_the_trade"]
+          ["objectives_quoted"] == m21["objectives"],
+          "mission 2.1 objectives quoted verbatim")
+    check(dlg["trees"]["mission_2_1_learn_the_trade"]
+          ["rewards_quoted"] == m21["rewards"],
+          "mission 2.1 rewards quoted verbatim")
+    check(dlg["trees"]["mission_2_1_learn_the_trade"]
+          ["unlocks_quoted"] == m21["unlocks"],
+          "mission 2.1 unlocks quoted verbatim")
 
     vehicle_prices = {v["id"] for v in prices["vehicles"]}
     bad = []

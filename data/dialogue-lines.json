@@ -824,6 +824,361 @@
         }
       ]
     },
+    "mission_2_1_learn_the_trade": {
+      "mission_id": "2.1",
+      "title": "Learn the Trade",
+      "objectives_quoted": [
+        "Reach skill 20 in your profession's primary skill"
+      ],
+      "rewards_quoted": {
+        "credits_ncr": 2000,
+        "other": [],
+        "reputation": [
+          {
+            "amount": 10,
+            "scope": "profession"
+          }
+        ]
+      },
+      "unlocks_quoted": [
+        "Skill training (evening classes)"
+      ],
+      "nodes": [
+        {
+          "node_id": "dlg_2_1_intro",
+          "speaker": "npc",
+          "condition": {
+            "flag": "met_player",
+            "value": false
+          },
+          "lines": [
+            {
+              "speaker": "npc",
+              "text": "I'm <name>. Same trade as you — I saw you on the job and thought I'd say hello.",
+              "condition": {
+                "flag": "met_player",
+                "value": false
+              },
+              "effects": [
+                {
+                  "type": "none"
+                }
+              ]
+            }
+          ],
+          "choices": [
+            {
+              "text": "Learning the trade?",
+              "condition": {
+                "always": true
+              },
+              "next": "dlg_2_1_offer"
+            },
+            {
+              "text": "Just passing through.",
+              "condition": {
+                "always": true
+              },
+              "next": "dlg_2_1_hello"
+            }
+          ],
+          "effects": [
+            {
+              "type": "set_flag",
+              "flag": "met_player",
+              "value": true
+            }
+          ],
+          "ends": false
+        },
+        {
+          "node_id": "dlg_2_1_offer",
+          "speaker": "npc",
+          "condition": {
+            "mission": "2.1",
+            "state": "available"
+          },
+          "lines": [
+            {
+              "speaker": "npc",
+              "text": "Skill 20 in our trade — that's the mark. Get there and nobody calls you a beginner again.",
+              "condition": {
+                "mission": "2.1",
+                "state": "available"
+              },
+              "effects": [
+                {
+                  "type": "none"
+                }
+              ]
+            },
+            {
+              "speaker": "npc",
+              "text": "It's 'Learn the Trade'. The objective is: Reach skill 20 in your profession's primary skill. It pays credits and +10 profession reputation. It unlocks Skill training (evening classes).",
+              "condition": {
+                "mission": "2.1",
+                "state": "available"
+              },
+              "effects": [
+                {
+                  "type": "none"
+                }
+              ]
+            }
+          ],
+          "choices": [
+            {
+              "text": "I'll get there.",
+              "condition": {
+                "always": true
+              },
+              "next": "dlg_2_1_accept"
+            },
+            {
+              "text": "Not yet.",
+              "condition": {
+                "always": true
+              },
+              "next": "dlg_2_1_decline"
+            }
+          ],
+          "effects": [
+            {
+              "type": "none"
+            }
+          ],
+          "ends": false
+        },
+        {
+          "node_id": "dlg_2_1_accept",
+          "speaker": "npc",
+          "condition": {
+            "mission": "2.1",
+            "state": "offered"
+          },
+          "lines": [
+            {
+              "speaker": "npc",
+              "text": "Good. Work the trade every day and the skill comes. I'll be watching for it.",
+              "condition": {
+                "mission": "2.1",
+                "state": "offered"
+              },
+              "effects": [
+                {
+                  "type": "mission_progress",
+                  "mission_id": "2.1",
+                  "state": "accepted"
+                }
+              ]
+            }
+          ],
+          "choices": [],
+          "effects": [
+            {
+              "type": "mission_progress",
+              "mission_id": "2.1",
+              "state": "accepted"
+            }
+          ],
+          "ends": true
+        },
+        {
+          "node_id": "dlg_2_1_decline",
+          "speaker": "npc",
+          "condition": {
+            "mission": "2.1",
+            "state": "offered"
+          },
+          "lines": [
+            {
+              "speaker": "npc",
+              "text": "No rush. The trade waits — it always does.",
+              "condition": {
+                "mission": "2.1",
+                "state": "offered"
+              },
+              "effects": [
+                {
+                  "type": "none"
+                }
+              ]
+            }
+          ],
+          "choices": [],
+          "effects": [
+            {
+              "type": "none"
+            }
+          ],
+          "ends": true
+        },
+        {
+          "node_id": "dlg_2_1_hello",
+          "speaker": "npc",
+          "condition": {
+            "flag": "met_player",
+            "value": false
+          },
+          "lines": [
+            {
+              "speaker": "npc",
+              "text": "Work steady and the skill follows. That's all there is to it.",
+              "condition": {
+                "flag": "met_player",
+                "value": false
+              },
+              "effects": [
+                {
+                  "type": "set_flag",
+                  "flag": "met_player",
+                  "value": true
+                },
+                {
+                  "type": "relationship_drift",
+                  "trust": 1,
+                  "affection": 1
+                }
+              ]
+            }
+          ],
+          "choices": [],
+          "effects": [
+            {
+              "type": "set_flag",
+              "flag": "met_player",
+              "value": true
+            },
+            {
+              "type": "relationship_drift",
+              "trust": 1,
+              "affection": 1
+            }
+          ],
+          "ends": true
+        },
+        {
+          "node_id": "dlg_2_1_reminder",
+          "speaker": "npc",
+          "condition": {
+            "mission": "2.1",
+            "state": "accepted"
+          },
+          "lines": [
+            {
+              "speaker": "npc",
+              "text": "Still short of 20? Keep at the work — the skill comes from doing it, not from talking about it.",
+              "condition": {
+                "mission": "2.1",
+                "state": "accepted"
+              },
+              "effects": [
+                {
+                  "type": "none"
+                }
+              ]
+            }
+          ],
+          "choices": [
+            {
+              "text": "On my way.",
+              "condition": {
+                "always": true
+              },
+              "next": "dlg_2_1_reminder_exit"
+            }
+          ],
+          "effects": [
+            {
+              "type": "none"
+            }
+          ],
+          "ends": false
+        },
+        {
+          "node_id": "dlg_2_1_reminder_exit",
+          "speaker": "npc",
+          "condition": {
+            "mission": "2.1",
+            "state": "accepted"
+          },
+          "lines": [
+            {
+              "speaker": "npc",
+              "text": "Good. The work is waiting.",
+              "condition": {
+                "mission": "2.1",
+                "state": "accepted"
+              },
+              "effects": [
+                {
+                  "type": "none"
+                }
+              ]
+            }
+          ],
+          "choices": [],
+          "effects": [
+            {
+              "type": "none"
+            }
+          ],
+          "ends": true
+        },
+        {
+          "node_id": "dlg_2_1_return",
+          "speaker": "npc",
+          "condition": {
+            "mission": "2.1",
+            "state": "objective_complete"
+          },
+          "lines": [
+            {
+              "speaker": "npc",
+              "text": "Skill 20 — I can see it in the work now. You're no beginner anymore.",
+              "condition": {
+                "mission": "2.1",
+                "state": "objective_complete"
+              },
+              "effects": [
+                {
+                  "type": "mission_complete",
+                  "mission_id": "2.1",
+                  "rewards": {
+                    "credits_ncr": 2000,
+                    "other": [],
+                    "reputation": [
+                      {
+                        "amount": 10,
+                        "scope": "profession"
+                      }
+                    ]
+                  }
+                }
+              ]
+            }
+          ],
+          "choices": [],
+          "effects": [
+            {
+              "type": "mission_complete",
+              "mission_id": "2.1",
+              "rewards": {
+                "credits_ncr": 2000,
+                "other": [],
+                "reputation": [
+                  {
+                    "amount": 10,
+                    "scope": "profession"
+                  }
+                ]
+              }
+            }
+          ],
+          "ends": true
+        }
+      ]
+    },
     "mission_2_4_friendship": {
       "mission_id": "2.4",
       "title": "A Friend in the City",
