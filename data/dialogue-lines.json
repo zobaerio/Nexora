@@ -476,6 +476,354 @@
         }
       ]
     },
+    "mission_1_4_river_at_dusk": {
+      "mission_id": "1.4",
+      "title": "The River at Dusk",
+      "objectives_quoted": [
+        "Watch the sunset from the riverfront promenade",
+        "Visit the tea stall"
+      ],
+      "rewards_quoted": {
+        "credits_ncr": null,
+        "other": [
+          "Memory event: First evening in Rupsha"
+        ],
+        "reputation": []
+      },
+      "unlocks_quoted": [
+        "Promenade leisure anchor",
+        "Photo mode"
+      ],
+      "nodes": [
+        {
+          "node_id": "dlg_1_4_intro",
+          "speaker": "npc",
+          "condition": {
+            "flag": "met_player",
+            "value": false
+          },
+          "lines": [
+            {
+              "speaker": "npc",
+              "text": "I'm <name>. I take my tea here most evenings — the light goes gold over the water.",
+              "condition": {
+                "flag": "met_player",
+                "value": false
+              },
+              "effects": [
+                {
+                  "type": "none"
+                }
+              ]
+            }
+          ],
+          "choices": [
+            {
+              "text": "The river at dusk?",
+              "condition": {
+                "always": true
+              },
+              "next": "dlg_1_4_offer"
+            },
+            {
+              "text": "Just passing through.",
+              "condition": {
+                "always": true
+              },
+              "next": "dlg_1_4_hello"
+            }
+          ],
+          "effects": [
+            {
+              "type": "set_flag",
+              "flag": "met_player",
+              "value": true
+            }
+          ],
+          "ends": false
+        },
+        {
+          "node_id": "dlg_1_4_offer",
+          "speaker": "npc",
+          "condition": {
+            "mission": "1.4",
+            "state": "available"
+          },
+          "lines": [
+            {
+              "speaker": "npc",
+              "text": "Stay till sunset. The promenade is the best seat in Rupsha when the light turns — and the tea stall never closes before the last cup.",
+              "condition": {
+                "mission": "1.4",
+                "state": "available"
+              },
+              "effects": [
+                {
+                  "type": "none"
+                }
+              ]
+            },
+            {
+              "speaker": "npc",
+              "text": "It's 'The River at Dusk'. The objectives are: Watch the sunset from the riverfront promenade; Visit the tea stall. There are no credits in it. The reward is a memory event — 'Memory event: First evening in Rupsha' — and it unlocks the Promenade leisure anchor and Photo mode.",
+              "condition": {
+                "mission": "1.4",
+                "state": "available"
+              },
+              "effects": [
+                {
+                  "type": "none"
+                }
+              ]
+            }
+          ],
+          "choices": [
+            {
+              "text": "I'll be here at sunset.",
+              "condition": {
+                "always": true
+              },
+              "next": "dlg_1_4_accept"
+            },
+            {
+              "text": "Not tonight.",
+              "condition": {
+                "always": true
+              },
+              "next": "dlg_1_4_decline"
+            }
+          ],
+          "effects": [
+            {
+              "type": "none"
+            }
+          ],
+          "ends": false
+        },
+        {
+          "node_id": "dlg_1_4_accept",
+          "speaker": "npc",
+          "condition": {
+            "mission": "1.4",
+            "state": "offered"
+          },
+          "lines": [
+            {
+              "speaker": "npc",
+              "text": "Good. Come back when the sun touches the water — I'll keep a cup warm.",
+              "condition": {
+                "mission": "1.4",
+                "state": "offered"
+              },
+              "effects": [
+                {
+                  "type": "mission_progress",
+                  "mission_id": "1.4",
+                  "state": "accepted"
+                }
+              ]
+            }
+          ],
+          "choices": [],
+          "effects": [
+            {
+              "type": "mission_progress",
+              "mission_id": "1.4",
+              "state": "accepted"
+            }
+          ],
+          "ends": true
+        },
+        {
+          "node_id": "dlg_1_4_decline",
+          "speaker": "npc",
+          "condition": {
+            "mission": "1.4",
+            "state": "offered"
+          },
+          "lines": [
+            {
+              "speaker": "npc",
+              "text": "Another evening, then — the river keeps its sunsets.",
+              "condition": {
+                "mission": "1.4",
+                "state": "offered"
+              },
+              "effects": [
+                {
+                  "type": "none"
+                }
+              ]
+            }
+          ],
+          "choices": [],
+          "effects": [
+            {
+              "type": "none"
+            }
+          ],
+          "ends": true
+        },
+        {
+          "node_id": "dlg_1_4_hello",
+          "speaker": "npc",
+          "condition": {
+            "flag": "met_player",
+            "value": false
+          },
+          "lines": [
+            {
+              "speaker": "npc",
+              "text": "Evenings are the best time here. Stay a while if you can.",
+              "condition": {
+                "flag": "met_player",
+                "value": false
+              },
+              "effects": [
+                {
+                  "type": "set_flag",
+                  "flag": "met_player",
+                  "value": true
+                },
+                {
+                  "type": "relationship_drift",
+                  "trust": 1,
+                  "affection": 1
+                }
+              ]
+            }
+          ],
+          "choices": [],
+          "effects": [
+            {
+              "type": "set_flag",
+              "flag": "met_player",
+              "value": true
+            },
+            {
+              "type": "relationship_drift",
+              "trust": 1,
+              "affection": 1
+            }
+          ],
+          "ends": true
+        },
+        {
+          "node_id": "dlg_1_4_reminder",
+          "speaker": "npc",
+          "condition": {
+            "mission": "1.4",
+            "state": "accepted"
+          },
+          "lines": [
+            {
+              "speaker": "npc",
+              "text": "The sun hasn't set yet — the promenade, then the tea stall, while the light lasts.",
+              "condition": {
+                "mission": "1.4",
+                "state": "accepted"
+              },
+              "effects": [
+                {
+                  "type": "none"
+                }
+              ]
+            }
+          ],
+          "choices": [
+            {
+              "text": "On my way.",
+              "condition": {
+                "always": true
+              },
+              "next": "dlg_1_4_reminder_exit"
+            }
+          ],
+          "effects": [
+            {
+              "type": "none"
+            }
+          ],
+          "ends": false
+        },
+        {
+          "node_id": "dlg_1_4_reminder_exit",
+          "speaker": "npc",
+          "condition": {
+            "mission": "1.4",
+            "state": "accepted"
+          },
+          "lines": [
+            {
+              "speaker": "npc",
+              "text": "Good. The tea stall will still be there when the light goes.",
+              "condition": {
+                "mission": "1.4",
+                "state": "accepted"
+              },
+              "effects": [
+                {
+                  "type": "none"
+                }
+              ]
+            }
+          ],
+          "choices": [],
+          "effects": [
+            {
+              "type": "none"
+            }
+          ],
+          "ends": true
+        },
+        {
+          "node_id": "dlg_1_4_return",
+          "speaker": "npc",
+          "condition": {
+            "mission": "1.4",
+            "state": "objective_complete"
+          },
+          "lines": [
+            {
+              "speaker": "npc",
+              "text": "You saw it — the whole river turned gold. Your first evening in Rupsha, and you spent it right.",
+              "condition": {
+                "mission": "1.4",
+                "state": "objective_complete"
+              },
+              "effects": [
+                {
+                  "type": "mission_complete",
+                  "mission_id": "1.4",
+                  "rewards": {
+                    "credits_ncr": null,
+                    "other": [
+                      "Memory event: First evening in Rupsha"
+                    ],
+                    "reputation": []
+                  }
+                }
+              ]
+            }
+          ],
+          "choices": [],
+          "effects": [
+            {
+              "type": "mission_complete",
+              "mission_id": "1.4",
+              "rewards": {
+                "credits_ncr": null,
+                "other": [
+                  "Memory event: First evening in Rupsha"
+                ],
+                "reputation": []
+              }
+            }
+          ],
+          "ends": true
+        }
+      ]
+    },
     "mission_2_4_friendship": {
       "mission_id": "2.4",
       "title": "A Friend in the City",

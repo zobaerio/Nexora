@@ -191,7 +191,8 @@ def setup_economy(store, data, rng, game_minutes=480):
             property_id=property_by_unit[
                 (unit["building_id"], unit["unit_index"])] if unit
             else None,
-            game_minutes=game_minutes, founded_by="owner_profession")
+            game_minutes=game_minutes, founded_by="owner_profession",
+            data=data)
         capital = OWNER_CAPITAL_BY_TIER.get(o["tier"], 30000)
         store.transfer("SYS-MARKET", None, capital, "business_capital",
                        game_minutes, note="genesis capital (seed)",
@@ -236,7 +237,7 @@ def setup_economy(store, data, rng, game_minutes=480):
             owner_character_id="SYS-MARKET",
             property_id=property_by_unit[(u["building_id"],
                                           u["unit_index"])],
-            game_minutes=game_minutes, founded_by="system")
+            game_minutes=game_minutes, founded_by="system", data=data)
         capital = GENESIS_CAPITAL.get(u["category"], 25000)
         store.transfer("SYS-MARKET", None, capital, "business_capital",
                        game_minutes,
@@ -272,7 +273,7 @@ def setup_economy(store, data, rng, game_minutes=480):
 
 def register_business(store, *, name, business_type, category,
                       owner_character_id, property_id, game_minutes,
-                      founded_by):
+                      founded_by, data=None):
     bid = store.next_id("BZ", "businesses", "business_id")
     store.insert("businesses", business_id=bid, name=name,
                  business_type=business_type, category=category,
@@ -280,6 +281,18 @@ def register_business(store, *, name, business_type, category,
                  property_id=property_id, balance_cached=0,
                  status="active",
                  founded_at_game_minutes=game_minutes)
+    # Queue 17 Unit DJ: the business licence (data/documents.json)
+    # is issued at founding — but only to a real-character owner.
+    # A system-founded firm is owned by SYS-MARKET, which is not a
+    # character and holds no inventory rows; its licence waits for
+    # a character owner (a purchase/transfer event, not this unit).
+    # Callers that pass no data (hand-built test worlds) seed
+    # nothing, as before.
+    if data is not None and owner_character_id != "SYS-MARKET":
+        from . import lost_items as lost_items_mod
+        lost_items_mod.seed_document_row(
+            store, data, owner_character_id, "business_licence",
+            game_minutes, {"business_id": bid})
     log_event(store, bid, "registered",
               {"founded_by": founded_by, "category": category,
                "property_id": property_id}, game_minutes)

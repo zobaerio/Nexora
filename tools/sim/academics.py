@@ -267,6 +267,24 @@ def issue_certifications(store, data, month_index, game_minutes):
                                  if mean_score is not None else None),
                      issued_month=month_index,
                      game_minutes=game_minutes)
+        # Queue 17 Unit DN: the certification is also a losable
+        # document row (data/documents.json: school_leaving ->
+        # school_leaving_certificate, college_credential ->
+        # college_credential) for the graduate, so a credential can
+        # be lost via record_loss() and recovered via DF's wiring.
+        # The rule, stated here and in GDD-04 §3.3: a LOST credential
+        # is NOT a revoked one. The certifications row stands
+        # whatever happens to the paper, so has_credential() — which
+        # reads education_records, never inventory — still returns
+        # True while the document row is `lost`; losing the paper
+        # loses only the paper, never the qualification.
+        from . import lost_items as lost_items_mod
+        doc_id = ("school_leaving_certificate"
+                  if kind == "school_leaving" else "college_credential")
+        lost_items_mod.seed_document_row(
+            store, data, cid, doc_id, game_minutes,
+            {"certification_id": cert_id, "kind": kind,
+             "programme": programme})
         memory_mod.log_life_event(store, cid, "certification_issued",
                                   game_minutes,
                                   details={"kind": kind,

@@ -221,9 +221,15 @@ def die(store, character_id, game_minutes, cause="natural"):
     return heirs
 
 
-def daily_check(store, rng, character, day_index, game_minutes):
+def daily_check(store, rng, character, day_index, game_minutes,
+                data=None):
     """Stage transitions, retirement, and the mortality roll for one
-    character at day rollover. Returns 'died' if the character died."""
+    character at day rollover. Returns 'died' if the character died.
+    ``data`` (Queue 17 Unit DK) is the loaded WorldData: when the
+    stage transition is to Young Adult (18), the character is seeded
+    their starting outfits — adults born in-world reach 18 here,
+    and genesis adults were already seeded at creation. Callers
+    that pass no data skip the seeding, as before."""
     from .identity import age_years
     cid = character["character_id"]
     age = age_years(character["born_at_game_minutes"], game_minutes)
@@ -242,6 +248,14 @@ def daily_check(store, rng, character, day_index, game_minutes):
                                            "to": stage, "age": age})
         store.execute("UPDATE agent_state SET life_stage = ?"
                       " WHERE character_id = ?", (stage, cid))
+        # Queue 17 Unit DK: the age-up to Young Adult (18) issues
+        # the starting outfits — the creator's three outfits for a
+        # character born in-world. The helper no-ops when the
+        # character already holds starting-outfit rows.
+        if stage == "Young Adult" and data is not None:
+            from . import lost_items as lost_items_mod
+            lost_items_mod.seed_age_up_outfits(store, data, cid,
+                                               game_minutes)
         # Retirement: leaving employment at Elder stage.
         if stage == "Elder":
             emp = store.row("SELECT employment_id FROM employments"

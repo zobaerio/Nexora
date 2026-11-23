@@ -169,6 +169,13 @@ def enrol_school_sweep(store, data, game_minutes):
                 continue
             _enrol(store, cid, school_id_for(store, data, cid),
                    SCHOOL_PROGRAMME, game_minutes)
+            # Queue 17 Unit DK: the school uniform (GDD-09 §5 —
+            # bought by the household) is issued beside the
+            # enrolment, in the same call. One set per student; a
+            # student who already holds it is not issued a second.
+            from . import lost_items as lost_items_mod
+            lost_items_mod.seed_school_uniform(store, data, cid,
+                                               game_minutes)
             memory_mod.log_life_event(store, cid, "school_enrolled",
                                       game_minutes)
             count += 1
