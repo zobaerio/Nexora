@@ -1072,7 +1072,8 @@ def main():
              "clothing.json", "vehicles.json", "planets.json",
              "city2-shibnagar.json", "npc-cast.json",
              "dialogue-lines.json", "district2-blockout.json",
-             "buildings-district2.json", "npc-cast-shibnagar.json"]
+             "buildings-district2.json", "npc-cast-shibnagar.json",
+             "furniture.json", "tools.json", "documents.json"]
     data = {}
     for n in names:
         try:
@@ -1127,6 +1128,94 @@ def main():
            if i not in {c["id"] for c in clothing["items"]}]
     check(not bad, "uniform outfit_item_ids resolve to clothing items",
           f"unresolved={bad}")
+    # Queue 16 Unit DD: the authored starting outfits (PROPOSED) —
+    # every item resolves, one item per slot, every item carries
+    # the outfit's context (work_default items carry "work").
+    starting = clothing.get("starting_outfits", {})
+    check(set(starting) >= {"casual", "formal", "work_default"},
+          "clothing starting_outfits has casual/formal/work_default",
+          f"keys={sorted(k for k in starting if k != 'notes')}")
+    by_id = {c["id"]: c for c in clothing["items"]}
+    bad = [i for k in ("casual", "formal", "work_default")
+           for i in starting.get(k, []) if i not in by_id]
+    check(not bad, "starting_outfits items resolve to clothing items",
+          f"unresolved={bad}")
+    for key, ctx in (("casual", "casual"), ("formal", "formal"),
+                     ("work_default", "work")):
+        items = [i for i in starting.get(key, []) if i in by_id]
+        slots = [by_id[i]["slot"] for i in items]
+        check(len(slots) == len(set(slots)),
+              f"starting_outfits {key}: one item per slot",
+              f"slots={slots}")
+        bad_ctx = [i for i in items if ctx not in by_id[i]["contexts"]]
+        check(not bad_ctx,
+              f"starting_outfits {key}: every item carries the"
+              f" {ctx} context",
+              f"unresolved={bad_ctx}")
+    # Queue 16 Unit DE: the furniture/tool/document catalogues —
+    # every price_ref resolves, furniture tiers match GDD-10 §5,
+    # piece prices sum to the §5 Tier-3 packages, tool professions
+    # resolve, every tool is labelled authored, every document is
+    # sourced and unpriced (0 = unpriced, not free).
+    furniture = data["furniture.json"]
+    fprices = {i["id"]: i for i in prices["furniture"]["items"]}
+    bad = [i["id"] for i in furniture["items"]
+           if i["price_ref"] not in fprices]
+    check(not bad, "furniture price_refs resolve (18 items)",
+          f"unresolved={bad}")
+    check(len(furniture["items"]) == 18,
+          "furniture catalogue has 18 items",
+          f"{len(furniture['items'])} items")
+    gdd10_tiers = {
+        "F0": ["floor_mattress", "single_burner", "crate_table"],
+        "F1": ["bed", "table_chairs", "stove", "wardrobe", "fan"],
+        "F2": ["sofa", "bookshelf", "desk", "kitchen_upgrade",
+               "curtains"],
+        "F3": ["dining_set", "tv", "washing_machine", "study_corner",
+               "decoration"]}
+    check(furniture.get("tiers") == gdd10_tiers,
+          "furniture tiers match the GDD-10 §5 contents exactly")
+    bad_tier = [i["id"] for i in furniture["items"]
+                if i["id"] not in
+                gdd10_tiers.get(i.get("tier", ""), [])]
+    check(not bad_tier,
+          "every furniture item's tier field matches its tier set",
+          f"mismatched={bad_tier}")
+    tier_sums = {t: sum(fprices[i]["price_ncr"] for i in ids)
+                 for t, ids in gdd10_tiers.items()}
+    check(tier_sums == {"F0": 0, "F1": 12000, "F2": 12000,
+                        "F3": 18000},
+          "furniture piece prices sum to the §5 Tier-3 packages",
+          f"sums={tier_sums}")
+    tools = data["tools.json"]
+    tprices = {i["id"] for i in prices["tools"]["items"]}
+    bad = [i["id"] for i in tools["items"]
+           if i["price_ref"] not in tprices]
+    check(not bad, "tool price_refs resolve (10 items)",
+          f"unresolved={bad}")
+    bad_prof = [p for i in tools["items"] for p in i["professions"]
+                if p not in prof_ids]
+    check(not bad_prof, "tool professions resolve to professions.json",
+          f"unresolved={bad_prof}")
+    check(all(i.get("source", "").startswith("authored")
+              for i in tools["items"]),
+          "every tool entry is labelled authored (no source names one)")
+    check(all(p["price_ncr"] > 0 for p in prices["tools"]["items"]),
+          "every tool has a positive authored price")
+    documents = data["documents.json"]
+    dprices = {i["id"]: i for i in prices["documents"]["items"]}
+    bad = [i["id"] for i in documents["items"]
+           if i["price_ref"] not in dprices]
+    check(not bad, "document price_refs resolve (4 items)",
+          f"unresolved={bad}")
+    check(len(documents["items"]) == 4,
+          "document catalogue has 4 items",
+          f"{len(documents['items'])} items")
+    check(all(i.get("source", "") != "" for i in documents["items"]),
+          "every document entry names its source")
+    check(all(dprices[i["id"]]["price_ncr"] == 0
+              for i in documents["items"]),
+          "every document is unpriced (0 = unpriced, not free)")
 
     vehicle_prices = {v["id"] for v in prices["vehicles"]}
     bad = []

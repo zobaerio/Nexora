@@ -235,6 +235,13 @@ def match_vacancies(store, data, rng, month_index, game_minutes):
             if v["employer_kind"] == "civic" else None,
             tier=1, wage_per_month=wage,
             started_at_game_minutes=game_minutes)
+        # Queue 16 Unit DD: the issued uniform (GDD-09 §5) — seeded
+        # beside the employment, no ledger charge (issued, not
+        # bought). A re-hire in the same profession keeps the set
+        # it already holds; the helper skips those items.
+        from . import lost_items as lost_items_mod
+        lost_items_mod.seed_uniform_rows(
+            store, data, best, v["profession_id"], 1, game_minutes)
         store.execute(
             "UPDATE vacancies SET status = 'filled',"
             " filled_by_character_id = ?, closed_at_game_minutes = ?"

@@ -61,7 +61,7 @@ Furniture is what turns a rented box into the needs engine of §6. Four furnishi
 | F2 | Comfortable | F1 + sofa, bookshelf, desk, better kitchen, curtains | 4× monthly rent |
 | F3 | Full | F2 + dining set, TV, washing machine, study corner, decoration | 7× monthly rent |
 
-Computed from the tier table (the only arithmetic this document does): a Tier 3 flat furnishes at **F1 12,000 / F2 24,000 / F3 42,000**; a Tier 1 room at 5,000 / 10,000 / 17,500; a Tier 5 house at 50,000 / 100,000 / 175,000. These are **GDD-owned v1 package prices derived from the `prices.json` rent table** — `prices.json` has no furniture table today, and an itemised furniture catalogue is recorded as a future data unit in §9 rather than invented here.
+Computed from the tier table (the only arithmetic this document does): a Tier 3 flat furnishes at **F1 12,000 / F2 24,000 / F3 42,000**; a Tier 1 room at 5,000 / 10,000 / 17,500; a Tier 5 house at 50,000 / 100,000 / 175,000. These are **GDD-owned v1 package prices derived from the `prices.json` rent table** — `prices.json` has no furniture table today, and an itemised furniture catalogue is recorded as a future data unit in §9 rather than invented here. *(Update, Unit DE · Queue 16: the itemised catalogue now exists — `data/furniture.json` + `prices.json` `furniture` (v1.4) — and the piece prices are the future unit's, labelled PROPOSED, priced to sum to the Tier-3 packages above; the package prices in this section are unchanged.)*
 
 - **Furniture belongs to the household**, not the property: it moves when they move (a moving cost row if the move crosses tiers), and can be sold back to the market shops at **50%** — the second-hand rule that makes furnishing a decision, not a sink.
 - **The starter flat seeds at F1** (GDD-02 §5 calls it "furnished tiers" — F1 is that tier, included in the canonical start, not charged again).
@@ -98,7 +98,7 @@ The tick's four needs — **rest, food, social, security** — are restored prim
 
 ## 9. What This Document Deliberately Does Not Decide
 
-- **An itemised furniture catalogue in `prices.json`** — package pricing (§5) holds until a data unit prices individual pieces; the market shops' stock list waits for the same unit.
+- **An itemised furniture catalogue in `prices.json`** — package pricing (§5) holds until a data unit prices individual pieces; the market shops' stock list waits for the same unit. *(Update, Unit DE · Queue 16: the catalogue now exists — `data/furniture.json` (the 18 pieces of §5) + `prices.json` `furniture` (v1.4), pieces priced PROPOSED to sum to the §5 Tier-3 packages; package pricing still governs furnishing a tier, and the market shops' stock list still waits for a purchase point.)*
 - **Property value dynamics** — `properties.market_value` is set by the economy (schema note); the appreciation/depreciation model belongs to the Phase 6 economy tuning, not to housing.
 - **Home businesses, subletting, short-stay letting** — not in v1; a shop is a commercial property with its own loop (GDD-03 §5), not a room in a home.
 - **Interior layouts beyond the GDD-02 §5 list** — Phase 5 builds what is listed; this document does not smuggle new interiors into scope.

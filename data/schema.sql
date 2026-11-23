@@ -298,6 +298,63 @@ CREATE TABLE achievements (
 -- this schema is the Phase 9 draft). discovery_progress (GDD-04 §3.4)
 -- is already account-keyed and is unchanged by the decision.
 
+-- ----------------------------------------------------------------------------
+-- lost_items + photographs + discovery_progress (Unit DH · Queue 16 ·
+-- 2026-11-23 — GDD-04 §3.3/§3.4/§3.5, Units CY/DA).
+-- The three sim tables finally get their server-side home, mirroring
+-- tools/sim/persistence.py field-for-field with the same primary keys
+-- (account-keyed where the sim is account-keyed, Phase 9). The Phase 9
+-- forward-only migration creates these tables — no migration file is
+-- written by this unit and no live rows exist to migrate (this schema
+-- is the Phase 9 draft, un-deployed, and the sim store is SQLite).
+-- Id schemes differ by store, as they do for inventory_items (CX):
+-- the sim uses TEXT sequence ids (LI/PH + sequence) while the server
+-- keeps UUIDs; the mapping is 1:1 by column, and the two id schemes
+-- never meet in one store. lost_items.item_instance_id references
+-- inventory_items; photographs.photograph_id is the generated row id,
+-- UNIQUE by construction, while the natural PK stays
+-- (account_id, discoverable_id) — one photograph per account per
+-- landmark, ever. mission_progress already mirrors this schema and
+-- is unchanged by this unit.
+-- ----------------------------------------------------------------------------
+CREATE TABLE lost_items (
+    lost_item_id    UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    owner_character_id UUID NOT NULL REFERENCES characters(character_id),
+    item_instance_id UUID NOT NULL REFERENCES inventory_items(item_instance_id),
+    lost_at_game_minutes BIGINT NOT NULL,
+    lost_zone       TEXT NOT NULL,   -- one of the 10 GDD-02 §2 zones
+    lost_anchor     TEXT,            -- anchor token where lost, when the creating event knows it
+    status          TEXT NOT NULL DEFAULT 'lost' CHECK (status IN
+                    ('lost','found','returned')),
+    found_by_character_id UUID REFERENCES characters(character_id),
+    found_at_game_minutes BIGINT,
+    returned_at_game_minutes BIGINT
+);
+CREATE INDEX idx_lost_items_owner ON lost_items(owner_character_id, status);
+COMMENT ON TABLE lost_items IS 'GDD-04 §3.3: one row per lost item; lifecycle lost -> found -> returned; a lost item never mutates its inventory row.';
+
+CREATE TABLE discovery_progress (
+    account_id      UUID NOT NULL REFERENCES accounts(account_id),
+    discoverable_type TEXT NOT NULL CHECK (discoverable_type IN
+                    ('landmark','bus_route')),
+    discoverable_id TEXT NOT NULL,
+    discovered_at_game_minutes BIGINT NOT NULL,
+    discovered_in_zone TEXT,
+    PRIMARY KEY (account_id, discoverable_type, discoverable_id)
+);
+COMMENT ON TABLE discovery_progress IS 'GDD-04 §3.4: one row per account per thing, ever; append-only, account-level (survives character death).';
+
+CREATE TABLE photographs (
+    photograph_id   UUID NOT NULL UNIQUE DEFAULT gen_random_uuid(),
+    account_id      UUID NOT NULL REFERENCES accounts(account_id),
+    character_id    UUID NOT NULL REFERENCES characters(character_id),
+    discoverable_id TEXT NOT NULL,
+    taken_at_game_minutes BIGINT NOT NULL,
+    taken_in_zone   TEXT NOT NULL,
+    PRIMARY KEY (account_id, discoverable_id)
+);
+COMMENT ON TABLE photographs IS 'GDD-04 §3.5: one photograph per account per landmark, ever; a photograph writes this row and the discovery_progress row together.';
+
 -- Account-level friendships between players (Phase 9 social list).
 -- In-world character relationships live in `relationships`; this table is
 -- the platform-level friend graph between accounts.

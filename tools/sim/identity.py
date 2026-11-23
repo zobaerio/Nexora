@@ -77,11 +77,20 @@ def create_person(store, rng, *, first_name, last_name, sex,
                   born_at_game_minutes, household_id=None,
                   profession_id=None, sim_tier="scheduled",
                   birthplace=None, family_background=None,
-                  game_minutes=480):
+                  game_minutes=480, data=None, outfits=None):
     """Insert one complete identity: character row, personality
     profile, needs/emotional baselines, agent state. Returns the new
     character_id. The caller funds any starting balance through the
-    ledger (population/employment code) so caches always reconcile."""
+    ledger (population/employment code) so caches always reconcile.
+    ``outfits`` (Queue 16 Unit DD) is the creator's starting outfits
+    as {context: {"items": [...], "issued": ...}} — when given (with
+    ``data``, the loaded WorldData), each garment is seeded as a
+    clothing inventory row by ``lost_items.seed_clothing_rows`` in
+    the same call, so the character holds real rows from creation.
+    Callers that pass no outfits — children born in
+    ``relationships.py`` (their school uniform is Unit AB's student
+    loop) — seed nothing, and the function behaves exactly as
+    before this unit."""
     cid = store.next_id("NEX", "characters", "character_id")
     profile = personality_mod.generate(
         rng.stream("personality", cid), profession_id)
@@ -103,6 +112,17 @@ def create_person(store, rng, *, first_name, last_name, sex,
     store.insert("emotional_state", character_id=cid)
     store.insert("agent_state", character_id=cid,
                  schedule_template_id=None, jitter_minutes=0)
+    if outfits:
+        # Queue 16 Unit DD: the creator's starting outfits, seeded
+        # as clothing inventory rows (GDD-04 §3.3, Unit CX record).
+        # A local import: lost_items imports only rng, so no cycle.
+        from . import lost_items as lost_items_mod
+        if data is None:
+            raise ValueError("create_person outfits need data")
+        for context, spec in outfits.items():
+            lost_items_mod.seed_clothing_rows(
+                store, data, cid, spec["items"], context,
+                spec["issued"], game_minutes)
     return cid
 
 

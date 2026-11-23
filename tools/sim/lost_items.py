@@ -9,6 +9,16 @@ them — ``safety.intake_incidents`` (commute incident),
 ``households.move_household`` (move-house) — and each event calls its
 function from the existing pass, never from a new cadence.
 
+Queue 16 Unit DF wires the rest of the §3.3 lifecycle:
+``find_lost_item()`` writes ``found`` (the finder must be in the
+``lost_zone``, at the ``lost_anchor`` where one was recorded) and
+``return_lost_item()`` writes ``returned`` (refusing an item never
+found); the §3.1 favour completes off the ``returned`` write
+through the existing complete node (GDD-15 §15.2) — the Phase 6
+mission system sets ``progress.objectives_complete`` on the favour
+instance row, and this module provides the predicate it evaluates
+(``favour_objective_complete``).
+
 The loss rate lives in ``data/lost-items-config.json`` (default 0 —
 specified but silent): with the default, every event function
 returns without writing, so a live world with no tuning call behaves
@@ -22,9 +32,13 @@ from are written by the purchase points that already exist —
 ``transport._purchase_sweep`` and ``seed_goods_rows()`` in
 ``market.retail_allocation`` (one month of standing, consumed by the
 next month's allocation). Clothing rows are seeded by the creator
-implementation (a future unit); furniture/tool/document have no
-catalogue and no seeding point, so their BX branches cannot fire —
-the precondition refuses, which is the helper working as designed.
+implementation (Unit DD, Queue 16, below): ``seed_clothing_rows()``
+for starting outfits (``identity.create_person``, called by the
+genesis builder in ``population.new_person``) and issued uniforms
+(``labour.match_vacancies`` and ``admin.match_vacancies`` at hiring);
+furniture/tool/document have no catalogue and no seeding point, so
+their BX branches cannot fire — the precondition refuses, which is
+the helper working as designed.
 """
 import json
 
@@ -126,6 +140,86 @@ def record_loss(store, owner_character_id, item_instance_id,
                  lost_zone=lost_zone, lost_anchor=lost_anchor,
                  status="lost")
     return lid
+
+
+# -- Queue 16 Unit DF: recovery wiring (GDD-04 §3.3 lifecycle) ---------
+# CX designed the full lifecycle lost -> found -> returned; CY only
+# wrote lost rows. These two functions write the other two
+# transitions. Finding and handing back are player actions,
+# verified against world state like any mission objective
+# (GDD-04 §3.3): the caller supplies the finder's current zone
+# (and anchor, where the finder stands at one) — the same
+# caller-supplies-presence pattern as photographs.take_photograph
+# — and the functions refuse when the supplied place is not the
+# recorded one. The §3.1 favour completes on the return: the
+# mission system (Phase 6) sets progress.objectives_complete on
+# the favour instance row when the lost_items row reaches
+# 'returned' (GDD-15 §15.2), and the complete node
+# (dlg_favour_complete_find_a_lost_item) pays the recorded reward.
+# No mission system exists yet, so this unit writes the row the
+# system will key off and provides the predicate it will evaluate
+# (favour_objective_complete) — it does not build the system.
+
+def find_lost_item(store, lost_item_id, finder_character_id,
+                   game_minutes, finder_zone, finder_anchor=None):
+    """Write `found` for a lost item. Returns the lost_item_id, or
+    None when the find is refused:
+
+    - no such row, or the row is not `lost` (already found, or
+      already returned — a found item cannot be found again);
+    - the finder is not in the `lost_zone`;
+    - a `lost_anchor` was recorded and the finder is not at it
+      (where no anchor was recorded, the zone alone is the check).
+
+    On success sets status `found` with the finder and the minute.
+    The inventory row is untouched, as on loss."""
+    row = store.row("SELECT * FROM lost_items WHERE lost_item_id = ?",
+                    (lost_item_id,))
+    if row is None or row["status"] != "lost":
+        return None
+    if finder_zone != row["lost_zone"]:
+        return None
+    if row["lost_anchor"] is not None \
+            and finder_anchor != row["lost_anchor"]:
+        return None
+    store.execute("UPDATE lost_items SET status = 'found',"
+                  " found_by_character_id = ?,"
+                  " found_at_game_minutes = ?"
+                  " WHERE lost_item_id = ?",
+                  (finder_character_id, game_minutes, lost_item_id))
+    return lost_item_id
+
+
+def return_lost_item(store, lost_item_id, game_minutes):
+    """Write `returned` for a found item — the hand-back to the
+    owner. Returns the lost_item_id, or None when the return is
+    refused: no such row, the row is still `lost` (an item never
+    found cannot be returned — the finder must hold it first), or
+    already `returned`. On success sets status `returned` with the
+    minute; the §3.1 favour completes off this write (see the
+    module note above). The inventory row is untouched."""
+    row = store.row("SELECT * FROM lost_items WHERE lost_item_id = ?",
+                    (lost_item_id,))
+    if row is None or row["status"] != "found":
+        return None
+    store.execute("UPDATE lost_items SET status = 'returned',"
+                  " returned_at_game_minutes = ?"
+                  " WHERE lost_item_id = ?",
+                  (game_minutes, lost_item_id))
+    return lost_item_id
+
+
+def favour_objective_complete(store, lost_item_id):
+    """The §15.2 completion predicate: the lost-item favour's
+    objective is complete iff the row has reached `returned`. The
+    Phase 6 mission system evaluates this when the hand-back is
+    verified and sets progress.objectives_complete on the favour
+    instance row; the dialogue complete node then pays the
+    recorded reward. False for an unknown id, a lost row, and a
+    found-but-not-returned row."""
+    row = store.row("SELECT status FROM lost_items"
+                    " WHERE lost_item_id = ?", (lost_item_id,))
+    return row is not None and row["status"] == "returned"
 
 
 def _resolve_rng(store, rng):
@@ -309,4 +403,143 @@ def seed_goods_rows(store, data, household_id, head_character_id,
                                        "unit": units.get(good_id)}),
                      acquired_at_game_minutes=game_minutes)
         made.append(iid)
+    return made
+
+
+# -- Queue 16 Unit DD: clothing seeding (GDD-04 §3.3, Unit CX) --------
+# The catalogue is data/clothing.json (31 items, GDD-09 §4); the
+# starting outfits are its authored `starting_outfits` lists (Unit
+# DD, PROPOSED — no source names a default outfit, GDD-09 §3 leaves
+# the player's three outfits to the creator's choice). One inventory
+# row per garment, item_type "clothing", state {slot,
+# outfit_context, issued} per the CX record shape.
+
+def _clothing_items(data):
+    """{clothing id: catalogue row} from the loaded clothing file."""
+    return {i["id"]: i for i in
+            data.clothing_file.get("items", [])}
+
+
+def uniform_items(data, profession_id, tier):
+    """The issuable uniform item ids for a profession at a tier —
+    the `profession_uniforms` mapping, minus the two rows GDD-09 §5
+    says cannot be issued: the pilot's (no airline operates in
+    District 1, no airport — the uniform is catalogued for the
+    future airport district and is never faked as worn) and the
+    taxi driver's below tier 2 (tier-1 rented-CNG drivers wear
+    their own clothes). Every other mapped profession issues its
+    set at hiring, whatever the tier. [] when the profession maps
+    to no uniform at all (a dress code, not a uniform)."""
+    if profession_id is None:
+        return []
+    if profession_id == "pilot":
+        return []
+    if profession_id == "taxi_driver" and (tier or 1) < 2:
+        return []
+    for row in data.clothing_file.get("profession_uniforms", []):
+        if row["profession_id"] == profession_id:
+            return list(row.get("outfit_item_ids", []))
+    return []
+
+
+def starting_outfits(data, profession_id, tier, sim_tier):
+    """The starting outfits to seed at creation, as {context:
+    {"items": [...], "issued": ...}} — the creator's three outfits
+    (GDD-09 §3): work + casual + formal. Ambient characters get
+    none (texture variants, never catalogue outfits — GDD-09 §2).
+    The work outfit is the issued uniform when one is issuable
+    (issued "employer"), else the authored `work_default` list
+    (issued "creator" — the character's own clothes). Casual and
+    formal come from the authored `starting_outfits` lists, issued
+    "creator". The player character's three are the same lists in
+    the sim: the UE creator (Phase 2) replaces them with the
+    player's own picks, and the sim keeps the defaults so a
+    genesis character holds real rows."""
+    if sim_tier == "ambient":
+        return {}
+    defaults = data.clothing_file.get("starting_outfits", {})
+    uniform = uniform_items(data, profession_id, tier)
+    if uniform:
+        work = {"items": uniform, "issued": "employer"}
+    else:
+        work = {"items": list(defaults.get("work_default", [])),
+                "issued": "creator"}
+    return {
+        "work": work,
+        "casual": {"items": list(defaults.get("casual", [])),
+                   "issued": "creator"},
+        "formal": {"items": list(defaults.get("formal", [])),
+                   "issued": "creator"},
+    }
+
+
+def seed_clothing_rows(store, data, character_id, item_ids,
+                       outfit_context, issued, game_minutes):
+    """Write one inventory row per garment, item_type "clothing".
+    ``item_ids`` are clothing.json ids; an unknown id raises
+    ValueError — a seeding call must never write a row whose
+    item_ref resolves to no catalogue row (the CX rule). The state
+    JSON carries the catalogue slot, the outfit context and who
+    issued the garment ("creator" | "employer" | "household" —
+    the CX shape; "household" is the school-uniform source, Unit
+    AB's student loop, not seeded here). Returns the new item
+    ids, in catalogue order as passed."""
+    catalogue = _clothing_items(data)
+    made = []
+    for item_id in item_ids:
+        item = catalogue.get(item_id)
+        if item is None:
+            raise ValueError(
+                f"unknown clothing item {item_id!r}: no catalogue row")
+        iid = store.next_id("INV", "inventory_items", "item_instance_id")
+        store.insert("inventory_items", item_instance_id=iid,
+                     item_type="clothing", item_ref=item_id,
+                     owner_character_id=character_id,
+                     location_property_id=None,
+                     state=json.dumps({"slot": item["slot"],
+                                       "outfit_context": outfit_context,
+                                       "issued": issued}),
+                     acquired_at_game_minutes=game_minutes)
+        made.append(iid)
+    return made
+
+
+def seed_starting_outfits(store, data, character_id, profession_id,
+                          tier, sim_tier, game_minutes):
+    """Seed every starting-outfit context for a new character, in
+    context order (work, casual, formal). Returns the new item ids.
+    Called from ``identity.create_person`` when the caller passes
+    the outfits — the genesis builder in ``population.new_person``
+    is the live caller; children pass no outfits (their school
+    uniform is Unit AB's student loop, not this unit)."""
+    made = []
+    for context, spec in starting_outfits(data, profession_id, tier,
+                                          sim_tier).items():
+        made.extend(seed_clothing_rows(
+            store, data, character_id, spec["items"], context,
+            spec["issued"], game_minutes))
+    return made
+
+
+def seed_uniform_rows(store, data, character_id, profession_id, tier,
+                      game_minutes):
+    """Seed the issued uniform for a hire (GDD-09 §5: a uniform is
+    issued, not bought — no ledger charge). Called from the two
+    hiring passes (``labour.match_vacancies``,
+    ``admin.match_vacancies``) after the employment insert. Items
+    the character already holds a standing clothing row for are
+    skipped — a re-hire in the same profession does not issue a
+    second set (a lost/ruined replacement is a new row by the CX
+    rule, but re-hiring is not a loss). Returns the new item ids."""
+    made = []
+    for item_id in uniform_items(data, profession_id, tier):
+        held = store.row(
+            "SELECT 1 FROM inventory_items WHERE"
+            " owner_character_id = ? AND item_type = 'clothing'"
+            " AND item_ref = ?", (character_id, item_id))
+        if held is not None:
+            continue
+        made.extend(seed_clothing_rows(
+            store, data, character_id, [item_id], "work", "employer",
+            game_minutes))
     return made
