@@ -13,6 +13,7 @@ import json
 
 from . import identity as identity_mod
 from . import lifecycle
+from . import lost_items as lost_items_mod
 from . import relationships as rel
 from . import scheduler
 
@@ -73,6 +74,19 @@ def generate(store, data, rng, target_population=240, game_minutes=480):
     def new_person(age, sex, profession_id, tier, household_id, full):
         stream = rng.stream("person", stats["people"])
         first, last = identity_mod.pick_name(stream, sex, used_names)
+        # Queue 16 Unit DD: the creator's starting outfits (GDD-09
+        # §3) — adults only. Children get no rows: their school
+        # uniform is bought by the household in Unit AB's student
+        # loop, not seeded here. No ledger purchase row is written
+        # for genesis outfits (the genesis starting balance is a
+        # seed transfer, not a purchase — the Phase 2 creator
+        # charges the player; the genesis builder does not, and
+        # that difference is recorded, not hidden).
+        outfits = None
+        if age >= 18:
+            outfits = lost_items_mod.starting_outfits(
+                data, profession_id, tier,
+                "full" if full else "scheduled")
         cid = identity_mod.create_person(
             store, rng, first_name=first, last_name=last, sex=sex,
             born_at_game_minutes=_born_at(stream, age),
@@ -81,7 +95,7 @@ def generate(store, data, rng, target_population=240, game_minutes=480):
             sim_tier="full" if full else "scheduled",
             birthplace=stream.choice(identity_mod.BIRTHPLACES),
             family_background={"origin": "genesis population"},
-            game_minutes=game_minutes)
+            game_minutes=game_minutes, data=data, outfits=outfits)
         stats["people"] += 1
         return cid, last
 

@@ -406,5 +406,342 @@ class TestSeeding(unittest.TestCase):
         self.assertEqual(json.loads(food["state"])["unit"], "adult_month")
 
 
+class TestClothingSeeding(unittest.TestCase):
+    """Queue 16 Unit DD — clothing inventory seeding (GDD-09 §5,
+    Unit CX record)."""
+
+    def test_seed_clothing_rows_writes_one_row_per_garment(self):
+        store = make_store()
+        owner = make_person(store, age=30, first="Owner")
+        made = li.seed_clothing_rows(store, data(), owner,
+                                     ["shirt_basic", "trousers_basic"],
+                                     "casual", "creator", GM)
+        self.assertEqual(len(made), 2)
+        rows = store.rows("SELECT * FROM inventory_items WHERE"
+                          " owner_character_id = ?"
+                          " ORDER BY item_instance_id", (owner,))
+        self.assertEqual([r["item_type"] for r in rows],
+                         ["clothing", "clothing"])
+        self.assertEqual([r["item_ref"] for r in rows],
+                         ["shirt_basic", "trousers_basic"])
+        states = [json.loads(r["state"]) for r in rows]
+        self.assertEqual(states[0],
+                         {"slot": "top", "outfit_context": "casual",
+                          "issued": "creator"})
+        self.assertEqual(states[1]["slot"], "bottom")
+        self.assertEqual(rows[0]["acquired_at_game_minutes"], GM)
+
+    def test_seed_clothing_rows_refuses_unknown_item(self):
+        store = make_store()
+        owner = make_person(store, age=30, first="Owner")
+        with self.assertRaises(ValueError):
+            li.seed_clothing_rows(store, data(), owner,
+                                  ["not_a_garment"], "casual",
+                                  "creator", GM)
+        self.assertEqual(store.row("SELECT COUNT(*) AS n FROM"
+                                   " inventory_items")["n"], 0)
+
+    def test_starting_outfits_construction_worker(self):
+        out = li.starting_outfits(data(), "construction_worker", 1,
+                                  "scheduled")
+        self.assertEqual(out["work"],
+                         {"items": ["ppe_set_construction"],
+                          "issued": "employer"})
+        self.assertEqual(out["casual"]["items"],
+                         ["genji_vest", "lungi_cotton", "sandals"])
+        self.assertEqual(out["casual"]["issued"], "creator")
+        self.assertEqual(out["formal"]["items"],
+                         ["shirt_formal", "trousers_formal",
+                          "shoes_leather"])
+
+    def test_starting_outfits_teacher_has_no_uniform(self):
+        out = li.starting_outfits(data(), "teacher", 1, "scheduled")
+        self.assertEqual(out["work"],
+                         {"items": ["shirt_basic", "trousers_basic",
+                                    "shoes_leather"],
+                          "issued": "creator"})
+
+    def test_pilot_uniform_is_never_issued(self):
+        # GDD-09 §5: no airline operates in District 1 — the
+        # uniform is catalogued, never issued or faked as worn.
+        self.assertEqual(li.uniform_items(data(), "pilot", 1), [])
+        out = li.starting_outfits(data(), "pilot", 1, "scheduled")
+        self.assertNotIn("uniform_pilot", out["work"]["items"])
+        self.assertEqual(out["work"]["issued"], "creator")
+
+    def test_taxi_uniform_needs_tier_two(self):
+        self.assertEqual(li.uniform_items(data(), "taxi_driver", 1),
+                         [])
+        self.assertEqual(li.uniform_items(data(), "taxi_driver", 2),
+                         ["uniform_driver_depot"])
+
+    def test_starting_outfits_ambient_is_empty(self):
+        self.assertEqual(li.starting_outfits(data(), "chef", 1,
+                                             "ambient"), {})
+
+    def test_create_person_with_outfits_seeds_rows(self):
+        store = make_store()
+        outfits = li.starting_outfits(data(), "chef", 1, "scheduled")
+        cid = make_person(store, age=30, first="Chef")
+        # make_person does not pass outfits; seed through the
+        # creator seam directly, as population.new_person does.
+        from tools.sim import identity as identity_mod
+        cid2 = identity_mod.create_person(
+            store, rng(), first_name="Second", last_name="Chef",
+            sex="male", born_at_game_minutes=480 - 30 * 365 * 1440,
+            profession_id="chef", sim_tier="scheduled",
+            game_minutes=GM, data=data(), outfits=outfits)
+        rows = store.rows("SELECT * FROM inventory_items WHERE"
+                          " owner_character_id = ?", (cid2,))
+        refs = sorted(r["item_ref"] for r in rows)
+        self.assertEqual(refs, sorted(["uniform_chef"] +
+                                      ["genji_vest", "lungi_cotton",
+                                       "sandals"] +
+                                      ["shirt_formal",
+                                       "trousers_formal",
+                                       "shoes_leather"]))
+        uniform = next(r for r in rows
+                       if r["item_ref"] == "uniform_chef")
+        self.assertEqual(json.loads(uniform["state"])["issued"],
+                         "employer")
+        self.assertEqual(json.loads(uniform["state"])["slot"],
+                         "uniform_set")
+        # And a person created without outfits holds nothing.
+        self.assertEqual(store.rows(
+            "SELECT * FROM inventory_items WHERE owner_character_id"
+            " = ?", (cid,)), [])
+
+    def test_seed_uniform_rows_skips_already_held(self):
+        store = make_store()
+        owner = make_person(store, age=30, first="Officer")
+        first = li.seed_uniform_rows(store, data(), owner,
+                                     "police_officer", 1, GM)
+        self.assertEqual(len(first), 1)
+        second = li.seed_uniform_rows(store, data(), owner,
+                                      "police_officer", 1, GM)
+        self.assertEqual(second, [])
+        self.assertEqual(store.row("SELECT COUNT(*) AS n FROM"
+                                   " inventory_items")["n"], 1)
+
+    def test_seeded_clothing_can_be_lost_via_record_loss(self):
+        store = make_store()
+        owner = make_person(store, age=30, first="Owner")
+        made = li.seed_clothing_rows(store, data(), owner,
+                                     ["shirt_basic"], "casual",
+                                     "creator", GM)
+        lid = li.record_loss(store, owner, made[0], 600, "d1_market")
+        self.assertIsNotNone(lid)
+        row = store.row("SELECT * FROM lost_items WHERE lost_item_id"
+                        " = ?", (lid,))
+        self.assertEqual(row["status"], "lost")
+        self.assertEqual(row["item_instance_id"], made[0])
+
+    def test_move_house_loses_seeded_clothing(self):
+        store = make_store()
+        head, hid = self._household(store)
+        li.seed_clothing_rows(store, data(), head, ["shirt_basic"],
+                              "casual", "creator", GM)
+        out = li.move_house_loss(store, data(), rng(), hid,
+                                 "d1_midtown", 2000, rate=1.0)
+        self.assertEqual(len(out), 1)
+        row = store.row("SELECT * FROM lost_items WHERE lost_item_id"
+                        " = ?", (out[0],))
+        item = store.row("SELECT * FROM inventory_items WHERE"
+                         " item_instance_id = ?",
+                         (row["item_instance_id"],))
+        self.assertEqual(item["item_type"], "clothing")
+        self.assertEqual(item["item_ref"], "shirt_basic")
+
+    def _household(self, store):
+        head = make_person(store, age=35, first="Head")
+        hid, _ = make_household(store, [head])
+        return head, hid
+
+    def test_hiring_seeds_the_uniform(self):
+        # The labour hire path: an unemployed adult + an open
+        # business vacancy for a uniform profession.
+        from tools.sim import labour as labour_mod
+        store = make_store()
+        d = data()
+        candidate = make_person(store, age=30, first="Builder")
+        vid = store.next_id("VC", "vacancies", "vacancy_id")
+        store.insert("vacancies", vacancy_id=vid,
+                     employer_kind="business",
+                     employer_business_id=None,
+                     profession_id="construction_worker",
+                     city_id="rupsha_city", wage_per_month=20000,
+                     status="open", posted_month=1,
+                     created_at_game_minutes=GM)
+        hires = labour_mod.match_vacancies(store, d, rng(), 1, GM)
+        self.assertEqual(len(hires), 1)
+        self.assertEqual(hires[0]["character_id"], candidate)
+        self.assertEqual(hires[0]["profession_id"],
+                         "construction_worker")
+        rows = store.rows("SELECT * FROM inventory_items WHERE"
+                          " owner_character_id = ? AND"
+                          " item_type = 'clothing'", (candidate,))
+        self.assertEqual([r["item_ref"] for r in rows],
+                         ["ppe_set_construction"])
+        self.assertEqual(json.loads(rows[0]["state"])["issued"],
+                         "employer")
+
+
+class TestRecovery(unittest.TestCase):
+    """Queue 16 Unit DF — lost-item recovery wiring (GDD-04 §3.3
+    lifecycle lost -> found -> returned)."""
+
+    def _lost(self, store, owner, anchor="market", zone="d1_market"):
+        iid = _item(store, owner, "goods", "food_basket",
+                    {"quantity": 1.0, "unit": "adult_month"})
+        lid = li.record_loss(store, owner, iid, 600, zone, anchor)
+        return lid, iid
+
+    def test_find_writes_found_with_finder_and_minute(self):
+        store = make_store()
+        owner = make_person(store, age=30, first="Owner")
+        finder = make_person(store, age=28, first="Finder")
+        lid, _ = self._lost(store, owner)
+        got = li.find_lost_item(store, lid, finder, 900, "d1_market",
+                                "market")
+        self.assertEqual(got, lid)
+        row = store.row("SELECT * FROM lost_items WHERE lost_item_id"
+                        " = ?", (lid,))
+        self.assertEqual(row["status"], "found")
+        self.assertEqual(row["found_by_character_id"], finder)
+        self.assertEqual(row["found_at_game_minutes"], 900)
+        self.assertIsNone(row["returned_at_game_minutes"])
+
+    def test_find_refuses_wrong_zone(self):
+        store = make_store()
+        owner = make_person(store, age=30, first="Owner")
+        finder = make_person(store, age=28, first="Finder")
+        lid, _ = self._lost(store, owner)
+        self.assertIsNone(li.find_lost_item(store, lid, finder, 900,
+                                            "d1_midtown", "market"))
+        row = store.row("SELECT * FROM lost_items WHERE lost_item_id"
+                        " = ?", (lid,))
+        self.assertEqual(row["status"], "lost")
+        self.assertIsNone(row["found_by_character_id"])
+
+    def test_find_refuses_wrong_anchor(self):
+        store = make_store()
+        owner = make_person(store, age=30, first="Owner")
+        finder = make_person(store, age=28, first="Finder")
+        lid, _ = self._lost(store, owner)
+        self.assertIsNone(li.find_lost_item(store, lid, finder, 900,
+                                            "d1_market", "tea_stall"))
+        self.assertEqual(store.row(
+            "SELECT status FROM lost_items WHERE lost_item_id = ?",
+            (lid,))["status"], "lost")
+
+    def test_find_without_anchor_needs_zone_only(self):
+        store = make_store()
+        owner = make_person(store, age=30, first="Owner")
+        finder = make_person(store, age=28, first="Finder")
+        lid, _ = self._lost(store, owner, anchor=None)
+        # No anchor was recorded (E1/E3): the zone alone is the
+        # check, and no anchor need be supplied.
+        got = li.find_lost_item(store, lid, finder, 900, "d1_market")
+        self.assertEqual(got, lid)
+        self.assertEqual(store.row(
+            "SELECT status FROM lost_items WHERE lost_item_id = ?",
+            (lid,))["status"], "found")
+
+    def test_find_refuses_already_found(self):
+        store = make_store()
+        owner = make_person(store, age=30, first="Owner")
+        first = make_person(store, age=28, first="First")
+        second = make_person(store, age=26, first="Second")
+        lid, _ = self._lost(store, owner)
+        li.find_lost_item(store, lid, first, 900, "d1_market",
+                          "market")
+        self.assertIsNone(li.find_lost_item(store, lid, second, 950,
+                                            "d1_market", "market"))
+        row = store.row("SELECT * FROM lost_items WHERE lost_item_id"
+                        " = ?", (lid,))
+        self.assertEqual(row["found_by_character_id"], first)
+        self.assertEqual(row["found_at_game_minutes"], 900)
+
+    def test_find_refuses_unknown_row(self):
+        store = make_store()
+        finder = make_person(store, age=28, first="Finder")
+        self.assertIsNone(li.find_lost_item(store, "LI999", finder,
+                                            900, "d1_market"))
+
+    def test_return_writes_returned(self):
+        store = make_store()
+        owner = make_person(store, age=30, first="Owner")
+        finder = make_person(store, age=28, first="Finder")
+        lid, iid = self._lost(store, owner)
+        li.find_lost_item(store, lid, finder, 900, "d1_market",
+                          "market")
+        got = li.return_lost_item(store, lid, 1200)
+        self.assertEqual(got, lid)
+        row = store.row("SELECT * FROM lost_items WHERE lost_item_id"
+                        " = ?", (lid,))
+        self.assertEqual(row["status"], "returned")
+        self.assertEqual(row["returned_at_game_minutes"], 1200)
+        self.assertEqual(row["found_by_character_id"], finder)
+        # The inventory row is untouched throughout the lifecycle.
+        self.assertIsNotNone(store.row(
+            "SELECT * FROM inventory_items WHERE item_instance_id = ?",
+            (iid,)))
+
+    def test_return_refuses_item_never_found(self):
+        store = make_store()
+        owner = make_person(store, age=30, first="Owner")
+        lid, _ = self._lost(store, owner)
+        self.assertIsNone(li.return_lost_item(store, lid, 1200))
+        self.assertEqual(store.row(
+            "SELECT status FROM lost_items WHERE lost_item_id = ?",
+            (lid,))["status"], "lost")
+
+    def test_return_refuses_already_returned(self):
+        store = make_store()
+        owner = make_person(store, age=30, first="Owner")
+        finder = make_person(store, age=28, first="Finder")
+        lid, _ = self._lost(store, owner)
+        li.find_lost_item(store, lid, finder, 900, "d1_market",
+                          "market")
+        li.return_lost_item(store, lid, 1200)
+        self.assertIsNone(li.return_lost_item(store, lid, 1300))
+        self.assertEqual(store.row(
+            "SELECT returned_at_game_minutes FROM lost_items"
+            " WHERE lost_item_id = ?", (lid,))
+            ["returned_at_game_minutes"], 1200)
+
+    def test_return_refuses_unknown_row(self):
+        store = make_store()
+        self.assertIsNone(li.return_lost_item(store, "LI999", 1200))
+
+    def test_full_lifecycle_then_reloss(self):
+        store = make_store()
+        owner = make_person(store, age=30, first="Owner")
+        finder = make_person(store, age=28, first="Finder")
+        lid, iid = self._lost(store, owner)
+        li.find_lost_item(store, lid, finder, 900, "d1_market",
+                          "market")
+        li.return_lost_item(store, lid, 1200)
+        second = li.record_loss(store, owner, iid, 1500,
+                                "d1_riverfront")
+        self.assertIsNotNone(second)
+        self.assertNotEqual(lid, second)
+
+    def test_favour_objective_complete_predicate(self):
+        store = make_store()
+        owner = make_person(store, age=30, first="Owner")
+        finder = make_person(store, age=28, first="Finder")
+        lid, _ = self._lost(store, owner)
+        # Lost: not complete. Found: not complete. Returned:
+        # complete — the §15.2 condition for the complete node.
+        self.assertFalse(li.favour_objective_complete(store, lid))
+        li.find_lost_item(store, lid, finder, 900, "d1_market",
+                          "market")
+        self.assertFalse(li.favour_objective_complete(store, lid))
+        li.return_lost_item(store, lid, 1200)
+        self.assertTrue(li.favour_objective_complete(store, lid))
+        self.assertFalse(li.favour_objective_complete(store, "LI999"))
+
+
 if __name__ == "__main__":
     unittest.main()

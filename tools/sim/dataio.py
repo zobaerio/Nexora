@@ -110,6 +110,11 @@ class WorldData:
         # for all three GDD-04 §3.3 losing events, default 0
         # (specified but silent) until an owner tuning call sets it.
         self.lost_items_config = _load_json("lost-items-config.json")
+        # Queue 16 Unit DD: the clothing catalogue — the seeding
+        # helpers in lost_items.py read the 31 items (slot per id),
+        # the profession_uniforms mapping and the starting_outfits
+        # defaults from here.
+        self.clothing_file = _load_json("clothing.json")
 
     # -- canonical accessors -------------------------------------------------
     # Employment tiers run 1..5 (professions.json progression), but

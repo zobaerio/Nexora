@@ -142,6 +142,12 @@ def match_vacancies(store, data, rng, month_index, game_minutes):
             employer_character_id=v["employer_account_id"],
             tier=1, wage_per_month=v["wage_per_month"],
             started_at_game_minutes=game_minutes)
+        # Queue 16 Unit DD: the issued uniform (GDD-09 §5) — the
+        # civil-service hire path, same rule as labour's (a police
+        # uniform is issued here; a re-hire keeps the set it holds).
+        from . import lost_items as lost_items_mod
+        lost_items_mod.seed_uniform_rows(
+            store, data, best, v["profession_id"], 1, game_minutes)
         rid = store.next_id("CS", "civil_service", "record_id")
         store.insert(
             "civil_service", record_id=rid, character_id=best,
