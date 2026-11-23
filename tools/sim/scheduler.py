@@ -46,7 +46,8 @@ SERVICE_ANCHOR_ZONES = {
 UNCOVERED = {"riverfront", "park"}  # leisure anchors with no cover
 
 
-def resolve_service_anchor(location, home_zone, workplace_zone):
+def resolve_service_anchor(location, home_zone, workplace_zone,
+                           anchors=None):
     """Resolve a service-anchor token to (zone, anchor id) at schedule
     time (GDD-15 §21.2; GDD-06 §3 "nearest anchor of that type in the
     NPC's zone cluster").
@@ -59,9 +60,15 @@ def resolve_service_anchor(location, home_zone, workplace_zone):
     definition; else one in the workplace zone; else the default
     candidate (d1_market — six of the seven tea stalls stand in Boro
     Bazar, and the market kitchen is the everyday restaurant).
-    The anchor id is "<token>:<zone>": no per-stall or per-restaurant
-    ids exist in any merged source, so the anchor is identified by
-    type + zone, never by an invented id."""
+    The anchor id is the named anchor when `anchors` (the
+    district1-blockout.json `service_anchors` list, Unit CB, Queue 14)
+    is supplied: the first anchor of that type in the resolved zone,
+    in file order — within a zone the choice is file order, not
+    proximity, because the sim stores no NPC coordinates; the UE
+    layer, which has positions, picks the truly nearest. When no
+    anchor list is supplied the id falls back to "<token>:<zone>"
+    (the Unit BS format), so the function stays usable without data.
+    """
     candidates = SERVICE_ANCHOR_ZONES[location]
     if home_zone in candidates:
         zone = home_zone
@@ -69,6 +76,10 @@ def resolve_service_anchor(location, home_zone, workplace_zone):
         zone = workplace_zone
     else:
         zone = candidates[0]
+    if anchors:
+        for a in anchors:
+            if a["type"] == location and a["zone_id"] == zone:
+                return zone, a["id"]
     return zone, f"{location}:{zone}"
 
 
@@ -341,12 +352,15 @@ def instantiate(data, character, day_index, rng, needs=None, traits=None,
     blocks = _normalise(blocks, day_start)
     # Resolve zones. Service anchors resolve to the anchor's own zone
     # (GDD-15 §21.2); the rest resolve by token; movement tokens keep
-    # the home_zone fallback (GDD-15 §18.3-18.4).
+    # the home_zone fallback (GDD-15 §18.3-18.4). Named anchors (Unit
+    # CB, Queue 14) come from the blockout's service_anchors list.
+    blockout = getattr(data, "blockout", None) or {}
+    anchors = blockout.get("service_anchors")
     for b in blocks:
         if b["location"] in SERVICE_ANCHOR_ZONES:
             zone, anchor = resolve_service_anchor(
                 b["location"], character["home_zone"],
-                character["workplace_zone"])
+                character["workplace_zone"], anchors=anchors)
             b["zone"] = zone
             b["anchor"] = anchor
         elif b["location"] == "home":

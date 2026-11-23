@@ -153,6 +153,116 @@
       "source": "GDD-02 \u00a74.8"
     }
   ],
+  "service_anchors": [
+    {
+      "id": "anchor_tea_stall_bazar_1",
+      "type": "tea_stall",
+      "name": "Boro Bazar Tea Stall 1",
+      "zone_id": "d1_market",
+      "at": [
+        60,
+        -20
+      ],
+      "source": "GDD-02 \u00a72 (tea stalls x6 in Boro Bazar)",
+      "name_status": "Unit CB authored name - no source names the stalls"
+    },
+    {
+      "id": "anchor_tea_stall_bazar_2",
+      "type": "tea_stall",
+      "name": "Boro Bazar Tea Stall 2",
+      "zone_id": "d1_market",
+      "at": [
+        90,
+        20
+      ],
+      "source": "GDD-02 \u00a72 (tea stalls x6 in Boro Bazar)",
+      "name_status": "Unit CB authored name - no source names the stalls"
+    },
+    {
+      "id": "anchor_tea_stall_bazar_3",
+      "type": "tea_stall",
+      "name": "Boro Bazar Tea Stall 3",
+      "zone_id": "d1_market",
+      "at": [
+        120,
+        50
+      ],
+      "source": "GDD-02 \u00a72 (tea stalls x6 in Boro Bazar)",
+      "name_status": "Unit CB authored name - no source names the stalls"
+    },
+    {
+      "id": "anchor_tea_stall_bazar_4",
+      "type": "tea_stall",
+      "name": "Boro Bazar Tea Stall 4",
+      "zone_id": "d1_market",
+      "at": [
+        150,
+        80
+      ],
+      "source": "GDD-02 \u00a72 (tea stalls x6 in Boro Bazar)",
+      "name_status": "Unit CB authored name - no source names the stalls"
+    },
+    {
+      "id": "anchor_tea_stall_bazar_5",
+      "type": "tea_stall",
+      "name": "Boro Bazar Tea Stall 5",
+      "zone_id": "d1_market",
+      "at": [
+        180,
+        110
+      ],
+      "source": "GDD-02 \u00a72 (tea stalls x6 in Boro Bazar)",
+      "name_status": "Unit CB authored name - no source names the stalls"
+    },
+    {
+      "id": "anchor_tea_stall_bazar_6",
+      "type": "tea_stall",
+      "name": "Boro Bazar Tea Stall 6",
+      "zone_id": "d1_market",
+      "at": [
+        100,
+        140
+      ],
+      "source": "GDD-02 \u00a72 (tea stalls x6 in Boro Bazar)",
+      "name_status": "Unit CB authored name - no source names the stalls"
+    },
+    {
+      "id": "anchor_tea_stall_riverfront_1",
+      "type": "tea_stall",
+      "name": "Riverfront Tea Stall",
+      "zone_id": "d1_riverfront",
+      "at": [
+        0,
+        380
+      ],
+      "source": "GDD-02 \u00a75 (sittable tea stall on the riverfront)",
+      "name_status": "Unit CB authored name - no source names the stalls"
+    },
+    {
+      "id": "anchor_restaurant_market_kitchen",
+      "type": "restaurant",
+      "name": "Boro Bazar Restaurant Kitchen",
+      "zone_id": "d1_market",
+      "at": [
+        60,
+        40
+      ],
+      "building_id": "b_d1_market_hall_units",
+      "source": "GDD-02 \u00a75 (restaurant kitchen + dining, in the market hall)"
+    },
+    {
+      "id": "anchor_restaurant_rooftop",
+      "type": "restaurant",
+      "name": "Uptown Rooftop Restaurant",
+      "zone_id": "d1_uptown",
+      "at": [
+        430,
+        360
+      ],
+      "building_id": "b_d1_uptown_rooftop_restaurant",
+      "source": "GDD-02 \u00a74.6 (rooftop restaurant tower, the district's only high-rise)"
+    }
+  ],
   "phase1_test_scene": {
     "bbox_m": {
       "x0": -200,
