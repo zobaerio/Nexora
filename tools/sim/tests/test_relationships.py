@@ -34,6 +34,57 @@ class TestRelationships(unittest.TestCase):
         self.assertEqual(rel.get_flag(store, a, b, "friend", "met_at"),
                          "market")
 
+    def test_pair_flags_round_trip_and_canonicalisation(self):
+        # Unit CA (Queue 14, GDD-15 §17.7): the pair store is one row
+        # per unordered pair — (a, b) and (b, a) are the same row.
+        store = make_store()
+        a = make_person(store, first="A")
+        b = make_person(store, first="B")
+        self.assertIsNone(rel.get_pair_flag(store, a, b, "met_player"))
+        self.assertEqual(rel.get_pair_flag(store, a, b, "met_player",
+                                           default=False), False)
+        rel.set_pair_flag(store, a, b, "met_player", True)
+        self.assertTrue(rel.get_pair_flag(store, b, a, "met_player"))
+        rel.set_pair_flag(store, b, a, "met_player", False)
+        self.assertFalse(rel.get_pair_flag(store, a, b, "met_player"))
+        rows = store.rows("SELECT * FROM relationship_pair_flags")
+        self.assertEqual(len(rows), 1)
+        self.assertEqual((rows[0]["character_a_id"],
+                          rows[0]["character_b_id"]),
+                         (min(a, b), max(a, b)))
+
+    def test_pair_flag_visible_across_edges(self):
+        # The §17.3 limit, fixed: a flag written while the spouse edge
+        # is selected is visible when the colleague edge is selected
+        # next, because the flag lives on the pair, not the edge. The
+        # edge-level store stays separate: an edge flag is not a pair
+        # flag and never leaks into the pair store.
+        store = make_store()
+        a = make_person(store, first="A")
+        b = make_person(store, first="B")
+        rel.add_edge(store, a, b, "spouse", 480, affection=60)
+        rel.add_edge(store, a, b, "colleague", 480, affection=20)
+        rel.set_flag(store, a, b, "spouse", "met_at", "market")
+        self.assertIsNone(rel.get_pair_flag(store, a, b, "met_at"))
+        self.assertIsNone(rel.get_flag(store, a, b, "colleague",
+                                       "met_at"))
+        rel.set_pair_flag(store, a, b, "met_player", True)
+        self.assertTrue(rel.get_pair_flag(store, a, b, "met_player"))
+        self.assertTrue(rel.get_pair_flag(store, b, a, "met_player"))
+        # The pair write did not touch either edge's flags.
+        self.assertIsNone(rel.get_flag(store, a, b, "spouse",
+                                       "met_player"))
+        self.assertIsNone(rel.get_flag(store, a, b, "colleague",
+                                       "met_player"))
+
+    def test_pair_flag_self_pair_is_noop(self):
+        store = make_store()
+        a = make_person(store, first="A")
+        rel.set_pair_flag(store, a, a, "met_player", True)
+        self.assertIsNone(rel.get_pair_flag(store, a, a, "met_player"))
+        self.assertEqual(store.rows(
+            "SELECT * FROM relationship_pair_flags"), [])
+
     def test_marriage_merges_households(self):
         store = make_store()
         a = make_person(store, first="A")

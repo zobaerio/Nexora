@@ -51,6 +51,14 @@ Checks (from docs/AUDIT-AND-CHECKLIST.md §2/§7):
 - npc-cast.json + npc-cast-shibnagar.json (Queue 9 Unit AU): the 10
   intercity pairs are symmetric — same type and same trust/affection/
   respect scores in both directions, no new pairs.
+- district1-blockout.json service_anchors (Queue 14 Unit CB): the 9
+  named tea-stall/restaurant anchors — ids unique, zones/coordinates
+  valid, building refs resolve, counts match GDD-02, every resolvable
+  zone+type has a named anchor.
+- discovery set (Queue 14 Unit CC): 8 District 1 + 6 District 2
+  landmarks + 1 bus route — D2 zones verify against the D2 zone boxes
+  (northgate tower assigned by description), Shibnagar contributes
+  nothing (no landmarks array).
 """
 import json
 import os
@@ -474,6 +482,128 @@ def check_mission_deadlines(data):
 
 
 # -- Queue 8: Unit AR — District 2 blockout -----------------------
+def check_service_anchors(d1, buildings):
+    """Queue 14 Unit CB: the 9 named service anchors in
+    district1-blockout.json — ids unique, types/zones/coordinates valid,
+    building refs resolve, counts match GDD-02 §2/§5, no id collides
+    with any other blockout id."""
+    from collections import Counter
+    anchors = d1.get("service_anchors", [])
+    check(len(anchors) == 9, "service_anchors: 9 named anchors",
+          f"got {len(anchors)}")
+    ids = [a["id"] for a in anchors]
+    check(len(set(ids)) == len(ids), "service anchor ids unique",
+          f"dupes={[i for i in ids if ids.count(i) > 1]}")
+    bad = [a["id"] for a in anchors
+           if a["type"] not in ("tea_stall", "restaurant")]
+    check(not bad, "service anchor types are tea_stall/restaurant",
+          f"bad={bad}")
+    zones = set(d1["zone_boxes_m"])
+    bad = [a["id"] for a in anchors if a["zone_id"] not in zones]
+    check(not bad, "service anchor zones resolve", f"bad={bad}")
+    bad = []
+    for a in anchors:
+        box = d1["zone_boxes_m"].get(a["zone_id"], {})
+        x, z = a["at"]
+        if not (box.get("x0", 10 ** 9) <= x <= box.get("x1", -(10 ** 9))
+                and box.get("z0", 10 ** 9) <= z <= box.get("z1", -(10 ** 9))):
+            bad.append(a["id"])
+    check(not bad, "service anchor coordinates inside their zone box",
+          f"bad={bad}")
+    counts = Counter((a["type"], a["zone_id"]) for a in anchors)
+    check(counts[("tea_stall", "d1_market")] == 6,
+          "6 Boro Bazar tea stalls (GDD-02 §2)",
+          f"got {counts[('tea_stall', 'd1_market')]}")
+    check(counts[("tea_stall", "d1_riverfront")] == 1,
+          "1 riverfront tea stall (GDD-02 §5)",
+          f"got {counts[('tea_stall', 'd1_riverfront')]}")
+    check(counts[("restaurant", "d1_market")] == 1,
+          "1 market-kitchen restaurant (GDD-02 §5)",
+          f"got {counts[('restaurant', 'd1_market')]}")
+    check(counts[("restaurant", "d1_uptown")] == 1,
+          "1 rooftop restaurant (GDD-02 §4.6)",
+          f"got {counts[('restaurant', 'd1_uptown')]}")
+    bldg_ids = {b["id"] for b in buildings}
+    bad = [a["id"] for a in anchors
+           if "building_id" in a and a["building_id"] not in bldg_ids]
+    check(not bad, "service anchor building_ids resolve", f"bad={bad}")
+    other = {s["id"] for s in d1["road_segments"]}
+    other |= {j["id"] for j in d1["junctions"]}
+    other |= {lm["id"] for lm in d1["landmarks"]}
+    other |= {p["building_id"] for p in d1["plots"]}
+    other |= set(d1["zone_boxes_m"])
+    collisions = sorted(set(ids) & other)
+    check(not collisions, "service anchor ids collide with nothing",
+          f"collisions={collisions}")
+    # Every zone+type the scheduler can resolve has a named anchor
+    # (candidate zones from GDD-15 §21.2/§21.3 — inlined here because
+    # this script runs with tools/ on sys.path, not the repo root).
+    expected = {"tea_stall": ("d1_market", "d1_riverfront"),
+                "restaurant": ("d1_market", "d1_uptown")}
+    missing = []
+    for token, cand_zones in expected.items():
+        for z in cand_zones:
+            if not [a for a in anchors
+                    if a["type"] == token and a["zone_id"] == z]:
+                missing.append((token, z))
+    check(not missing, "every resolvable zone+type has a named anchor",
+          f"missing={missing}")
+
+
+def check_discovery_set(d1, d2, c2):
+    """Queue 14 Unit CC: the §3.4 discoverable set — 8 District 1
+    landmarks + 6 District 2 landmarks + 1 bus route; every D2
+    landmark's zone verified against the D2 zone boxes or assigned
+    by description (northgate tower only); Shibnagar contributes
+    nothing (no landmarks array in city2-shibnagar.json)."""
+    d1_lm = {lm["id"]: lm for lm in d1["landmarks"]}
+    check(len(d1_lm) == 8, "discovery set: 8 District 1 landmarks",
+          f"got {len(d1_lm)}")
+    d2_lm = {lm["id"]: lm for lm in d2["landmarks"]}
+    check(len(d2_lm) == 6, "discovery set: 6 District 2 landmarks",
+          f"got {len(d2_lm)}")
+    check(not (set(d1_lm) & set(d2_lm)),
+          "D1/D2 landmark ids do not collide",
+          f"collisions={sorted(set(d1_lm) & set(d2_lm))}")
+    expected_zones = {
+        "d2_lm_northgate_tower": "d2_market",
+        "d2_lm_north_bazar_hall": "d2_market",
+        "d2_lm_maidan_pavilion": "d2_maidan",
+        "d2_lm_garden_tank": "d2_garden",
+        "d2_lm_north_gate_depot": "d2_transport",
+        "d2_lm_north_heights_view": "d2_uptown",
+    }
+    bad = [i for i, z in expected_zones.items()
+           if d2_lm.get(i) is None]
+    check(not bad, "all 6 D2 discoverable ids exist in district2-blockout",
+          f"missing={bad}")
+    # Zone verification: inside the zone box, except the northgate
+    # tower, whose point falls outside every box (assigned by
+    # description, mirroring the D1 Clock Tower decision).
+    bad = []
+    for lm_id, zone in expected_zones.items():
+        lm = d2_lm.get(lm_id)
+        if lm is None:
+            continue
+        box = d2["zone_boxes_m"].get(zone, {})
+        x, z = lm["at"]
+        inside = (box.get("x0", 10 ** 9) <= x <= box.get("x1", -(10 ** 9))
+                  and box.get("z0", 10 ** 9) <= z <= box.get("z1", -(10 ** 9)))
+        if lm_id == "d2_lm_northgate_tower":
+            if inside:
+                bad.append((lm_id, "expected outside every box"))
+        elif not inside:
+            bad.append((lm_id, zone))
+    check(not bad, "D2 discoverable zones verify (or assigned, tower)",
+          f"bad={bad}")
+    check(all(lm.get("status") == "PROPOSED" for lm in d2["landmarks"]),
+          "all 6 D2 landmarks stay labelled PROPOSED",
+          f"unlabelled={[lm['id'] for lm in d2['landmarks'] if lm.get('status') != 'PROPOSED']}")
+    check("landmarks" not in c2,
+          "Shibnagar contributes no discoverables (no landmarks array)",
+          f"keys={sorted(c2.keys())}")
+
+
 def check_district2_parses(d2):
     """district2-blockout.json parses and carries the PROPOSED status."""
     check(d2 is not None, "district2-blockout.json parses")
@@ -981,6 +1111,9 @@ def main():
     check(not bad, "mission zone_refs/profession_refs resolve",
           f"bad={bad}")
     check_mission_deadlines(data)
+    check_service_anchors(blockout, buildings)
+    check_discovery_set(blockout, data["district2-blockout.json"],
+                        data["city2-shibnagar.json"])
 
     wages = {w["profession_id"]: w for w in prices["wages_monthly"]}
     drift = []

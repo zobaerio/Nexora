@@ -77,6 +77,8 @@ Full interiors are expensive; Phase 5 builds these, everything else is exterior 
 | Restaurant kitchen + dining | `d1_market` | Chef loop site |
 | College library reading room | `d1_education` | Study/skill gain; student life |
 
+**Named service anchors (Unit CB · Queue 14 · 2026-11-23).** The tea stalls and restaurants above are now named anchors in `data/district1-blockout.json` (`service_anchors`, 9 entries), so `tools/sim/scheduler.py` `resolve_service_anchor()` returns a real anchor id instead of the `"<token>:<zone>"` form Unit BS used: the 6 Boro Bazar tea stalls (`anchor_tea_stall_bazar_1`–`6`, `d1_market`), the riverfront tea stall (`anchor_tea_stall_riverfront_1`, `d1_riverfront`), the market kitchen (`anchor_restaurant_market_kitchen`, `d1_market`, in building `b_d1_market_hall_units`), and the rooftop restaurant (`anchor_restaurant_rooftop`, `d1_uptown`, in building `b_d1_uptown_rooftop_restaurant`). The stall *names* ("Boro Bazar Tea Stall 1" …) are this unit's authored labels — no source names the stalls — and are recorded as such on each entry (`name_status`); the stall *counts* and *zones* are sourced (§2, §5). Within a zone the scheduler picks the first anchor in file order, not the nearest by distance, because the sim stores no NPC coordinates; the UE layer, which has positions, picks the truly nearest. The zone rule is unchanged (GDD-15 §21.1): a stall still resolves to its own zone, never to the NPC's home zone.
+
 ## 6. Property Stock (initial market, written to `properties` at world seed)
 
 - Residential: ~140 units across zones (old-town walk-ups cheapest → uptown luxury), ~20% listed for sale at world start, the rest NPC-owned/rented.

@@ -96,6 +96,10 @@ Session 01):
   migrations: world_state.transport_setup and
   road_segments.closed (Session 03's road table gains the
   closure state Session 07 routing honours).
+- Queue 14 addition (Unit CA): relationship_pair_flags — the
+  pair-level semantic-flag store (GDD-15 §17.7). schema.sql has
+  no such table; the Phase 9 server-schema note follows the same
+  migration rule (latest interaction wins, §17.2 ties).
 """
 import json
 import sqlite3
@@ -190,6 +194,25 @@ CREATE TABLE IF NOT EXISTS relationships (
     last_interaction_at_game_minutes INTEGER,
     created_at_game_minutes INTEGER NOT NULL DEFAULT 0,
     UNIQUE (from_character_id, to_character_id, relation_type)
+);
+-- relationship_pair_flags (Unit CA · Queue 14 — GDD-15 §17.7): one row
+-- per unordered character pair, holding the semantic flags that are
+-- facts about the pair (met_player, worked_with_player, employs_player,
+-- apologised_for_offence), not about one edge. The pair key is the two
+-- ids in lexicographic order (a < b); the accessors in relationships.py
+-- canonicalise before every read and write. relationships.flags stays
+-- for edge-specific flags only, of which none is defined today. Debt
+-- flags (owes_player / player_owes) are NOT stored here: they stay
+-- derived from the ledger (§14). Existing worlds gain the table on
+-- next open (CREATE TABLE IF NOT EXISTS in Store.__init__); no rows
+-- exist to migrate — set_flag() has no sim callers, so no edge flags
+-- need merging under the §17.7 rule.
+CREATE TABLE IF NOT EXISTS relationship_pair_flags (
+    character_a_id TEXT NOT NULL,
+    character_b_id TEXT NOT NULL,
+    flags TEXT NOT NULL DEFAULT '{}',
+    PRIMARY KEY (character_a_id, character_b_id),
+    CHECK (character_a_id < character_b_id)
 );
 CREATE TABLE IF NOT EXISTS character_memories (
     memory_id TEXT PRIMARY KEY,

@@ -159,6 +159,59 @@ def get_flag(store, a, b, relation_type, key, default=None):
     return json.loads(edge["flags"]).get(key, default)
 
 
+# -- pair-level flags (Unit CA · Queue 14; GDD-15 §17.7) ------------------
+# Semantic flags are facts about the PAIR, not about one edge: a flag
+# written on a spouse edge must be visible when the colleague edge is
+# selected next (§17.3 limit). The pair store holds them once per
+# unordered pair; the edge-level set_flag()/get_flag() above stay for
+# edge-specific flags only, of which none is defined today.
+
+PAIR_FLAGS = ("met_player", "worked_with_player", "employs_player",
+              "apologised_for_offence")
+
+
+def _pair_key(a, b):
+    """Canonical pair key: the two ids in lexicographic order, so
+    (X, Y) and (Y, X) are the same row (§17.7)."""
+    return (a, b) if a < b else (b, a)
+
+
+def set_pair_flag(store, a, b, key, value):
+    """Write one pair flag (GDD-15 §17.7). Creates the pair row on
+    first write; the row is upserted, never duplicated. The debt
+    flags (owes_player / player_owes) must never be written here —
+    they are derived from the ledger at conversation time (§14)."""
+    pa, pb = _pair_key(a, b)
+    if pa == pb:
+        return  # a character has no pair with itself; nothing to store
+    row = store.row("SELECT flags FROM relationship_pair_flags"
+                    " WHERE character_a_id = ? AND character_b_id = ?",
+                    (pa, pb))
+    flags = json.loads(row["flags"]) if row else {}
+    flags[key] = value
+    if row:
+        store.execute("UPDATE relationship_pair_flags SET flags = ?"
+                      " WHERE character_a_id = ? AND character_b_id = ?",
+                      (json.dumps(flags), pa, pb))
+    else:
+        store.insert("relationship_pair_flags", character_a_id=pa,
+                     character_b_id=pb, flags=json.dumps(flags))
+
+
+def get_pair_flag(store, a, b, key, default=None):
+    """Read one pair flag (GDD-15 §17.7). Missing pair or missing key
+    returns the default — a pair with no row has no flags set."""
+    pa, pb = _pair_key(a, b)
+    if pa == pb:
+        return default  # a character has no pair with itself
+    row = store.row("SELECT flags FROM relationship_pair_flags"
+                    " WHERE character_a_id = ? AND character_b_id = ?",
+                    (pa, pb))
+    if not row:
+        return default
+    return json.loads(row["flags"]).get(key, default)
+
+
 # -- kinship queries ---------------------------------------------------------
 
 def _others(store, cid, relation_type, direction):

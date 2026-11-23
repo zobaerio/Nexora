@@ -113,6 +113,8 @@ class TestScheduler(unittest.TestCase):
         # Civil engineers break + leisure at a tea stall (template);
         # home d1_old_town and workplace d1_industry hold no stall, so
         # the default candidate (Boro Bazar, six of seven stalls) wins.
+        # Unit CB (Queue 14): the anchor is now a named anchor id from
+        # the blockout's service_anchors, not the "<token>:<zone>" form.
         d = data()
         blocks, _ = scheduler.instantiate(
             d, ctx_for("civil_engineer"), 0, rng(), needs=FULL_NEEDS)
@@ -121,12 +123,13 @@ class TestScheduler(unittest.TestCase):
         for b in stalls:
             self.assertIn(b["zone"], ("d1_market", "d1_riverfront"))
             self.assertNotEqual(b["zone"], "d1_old_town")
-            self.assertEqual(b["anchor"], "tea_stall:" + b["zone"])
+            self.assertEqual(b["anchor"], "anchor_tea_stall_bazar_1")
 
     def test_service_anchor_restaurant(self):
         # Business owners break at a restaurant (template 13:30-14:30);
         # their workplace is d1_uptown, so the rooftop restaurant wins —
-        # never the unsourced d1_midtown mapping.
+        # never the unsourced d1_midtown mapping. Unit CB (Queue 14):
+        # the anchor is the named rooftop restaurant.
         d = data()
         blocks, _ = scheduler.instantiate(
             d, ctx_for("business_owner"), 0, rng(), needs=FULL_NEEDS)
@@ -135,11 +138,12 @@ class TestScheduler(unittest.TestCase):
         for b in rests:
             self.assertIn(b["zone"], ("d1_market", "d1_uptown"))
             self.assertNotEqual(b["zone"], "d1_midtown")
-            self.assertEqual(b["anchor"], "restaurant:" + b["zone"])
+            self.assertEqual(b["anchor"], "anchor_restaurant_rooftop")
             self.assertEqual(b["zone"], "d1_uptown")
 
     def test_service_anchor_home_zone_wins(self):
         # A stall in the NPC's own home zone is nearest by definition.
+        # Unit CB (Queue 14): the riverfront stall by name.
         d = data()
         ctx = ctx_for("civil_engineer")
         ctx["home_zone"] = "d1_riverfront"
@@ -149,10 +153,12 @@ class TestScheduler(unittest.TestCase):
         self.assertTrue(stalls)
         for b in stalls:
             self.assertEqual(b["zone"], "d1_riverfront")
-            self.assertEqual(b["anchor"], "tea_stall:d1_riverfront")
+            self.assertEqual(b["anchor"],
+                             "anchor_tea_stall_riverfront_1")
 
     def test_service_anchor_workplace_wins(self):
         # Home holds no stall; the workplace zone does.
+        # Unit CB (Queue 14): the riverfront stall by name.
         d = data()
         ctx = ctx_for("police_officer")
         ctx["workplace_zone"] = "d1_riverfront"
@@ -162,6 +168,39 @@ class TestScheduler(unittest.TestCase):
         self.assertTrue(stalls)
         for b in stalls:
             self.assertEqual(b["zone"], "d1_riverfront")
+            self.assertEqual(b["anchor"],
+                             "anchor_tea_stall_riverfront_1")
+
+    def test_service_anchor_named_ids_come_from_data(self):
+        # Unit CB (Queue 14): every resolved anchor id is a real
+        # service_anchors entry, and its zone matches the block's zone.
+        d = data()
+        anchors = {a["id"]: a for a in
+                   d.blockout["service_anchors"]}
+        for pid in ("civil_engineer", "police_officer", "taxi_driver",
+                    "business_owner", "construction_worker"):
+            blocks, _ = scheduler.instantiate(
+                d, ctx_for(pid), 0, rng(), needs=FULL_NEEDS)
+            for b in blocks:
+                if b["location"] in scheduler.SERVICE_ANCHOR_ZONES:
+                    self.assertIn(b["anchor"], anchors)
+                    self.assertEqual(anchors[b["anchor"]]["zone_id"],
+                                     b["zone"])
+                    self.assertEqual(anchors[b["anchor"]]["type"],
+                                     b["location"])
+
+    def test_resolve_service_anchor_without_data_falls_back(self):
+        # Unit CB (Queue 14): without an anchor list the BS format
+        # "<token>:<zone>" still holds, so the function stays usable
+        # without data.
+        zone, anchor = scheduler.resolve_service_anchor(
+            "tea_stall", "d1_old_town", "d1_industry")
+        self.assertEqual((zone, anchor),
+                         ("d1_market", "tea_stall:d1_market"))
+        zone, anchor = scheduler.resolve_service_anchor(
+            "restaurant", "d1_midtown", "d1_uptown")
+        self.assertEqual((zone, anchor),
+                         ("d1_uptown", "restaurant:d1_uptown"))
 
     def test_transit_mobile_keep_home_zone(self):
         # Movement tokens keep the fallback (GDD-15 §18.3-18.4) and
