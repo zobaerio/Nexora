@@ -1604,6 +1604,90 @@ class TestShibnagarTwoEarnerBridge(unittest.TestCase):
             self.assertEqual(sh_line, d1_line, label)
 
 
+class TestShibnagarStormBridge(unittest.TestCase):
+    """Queue 30 Unit KE — the single-earner storm line in the
+    --shibnagar variant's bridge check (Unit KD wired the
+    two-earner lines; the GE storm line was still District 1
+    only)."""
+
+    def test_single_earner_storm_dip_is_identical_on_shibnagar_rents(
+            self):
+        from tools import economy_sim as econ
+        prices = econ.load("prices.json")
+        rents, _stock = econ.load_shibnagar_rents(prices)
+        w = next(w for w in prices["wages_monthly"]
+                 if w["profession_id"] == "construction_worker")
+        override = rents[econ.SHIBNAGAR_RENT_TIER[
+            "construction_worker"]]
+        # Every storm position identical on Shibnagar rents —
+        # the tier-1 rent is 2,500 in both cities — and the
+        # worst dip is the early position, -500.
+        for pos, dip in ((econ.STORM_EARLY_DAYS, -500),
+                         (econ.STORM_MID_DAYS, 0),
+                         (econ.STORM_LATE_DAYS, 0),
+                         (econ.STORM_MEASURED_DAYS, -100)):
+            d1 = econ.simulate(prices, w, "entry",
+                               storm_days=pos)
+            sh = econ.simulate(prices, w, "entry",
+                               storm_days=pos,
+                               rent_override=override)
+            self.assertEqual(d1["min_balance"], dip, str(pos))
+            self.assertEqual(sh["min_balance"], dip, str(pos))
+            self.assertEqual(sh["net"], d1["net"], str(pos))
+            self.assertEqual(sh["end_balance"], d1["end_balance"],
+                             str(pos))
+        worst = min(econ.simulate(
+            prices, w, "entry", storm_days=pos,
+            rent_override=override)["min_balance"]
+            for pos in (econ.STORM_EARLY_DAYS, econ.STORM_MID_DAYS,
+                        econ.STORM_LATE_DAYS,
+                        econ.STORM_MEASURED_DAYS))
+        self.assertEqual(worst, -500)
+
+    def test_shibnagar_bridge_check_prints_storm_line(self):
+        import subprocess
+        out = subprocess.run(
+            [sys.executable, os.path.join(ROOT, "tools",
+                                          "economy_sim.py"),
+             "--shibnagar"],
+            capture_output=True, cwd=ROOT)
+        self.assertEqual(out.returncode, 0)
+        text = out.stdout.decode()
+        # The storm line, with the District 1 figure, in the
+        # variant's own bridge check — not only in the D1 run.
+        variant = text.split(
+            "shibnagar first-month bridge check")[1]
+        self.assertIn(
+            "construction_worker    start   5000 + storm dip"
+            "    -500 =    4500  OK  (worst storm position)",
+            variant)
+        self.assertIn("shibnagar BRIDGE FAIL rows: []", text)
+
+    def test_shibnagar_storm_line_matches_district1(self):
+        import subprocess
+        d1 = subprocess.run(
+            [sys.executable, os.path.join(ROOT, "tools", "economy_sim.py")],
+            capture_output=True, cwd=ROOT)
+        sh = subprocess.run(
+            [sys.executable, os.path.join(ROOT, "tools",
+                                          "economy_sim.py"),
+             "--shibnagar"],
+            capture_output=True, cwd=ROOT)
+        self.assertEqual(d1.returncode, 0)
+        self.assertEqual(sh.returncode, 0)
+        d1_text, sh_text = d1.stdout.decode(), sh.stdout.decode()
+        # The storm line the D1 run prints, the variant prints
+        # with the same figures.
+        label = "construction_worker    start   5000 + storm dip"
+        d1_line = next(ln for ln in d1_text.splitlines()
+                       if label in ln)
+        sh_variant = sh_text.split(
+            "shibnagar first-month bridge check")[1]
+        sh_line = next(ln for ln in sh_variant.splitlines()
+                       if label in ln)
+        self.assertEqual(sh_line, d1_line)
+
+
 class TestNoRegression(unittest.TestCase):
     def test_economy_sim_output_unchanged(self):
         out = subprocess.run(

@@ -130,6 +130,71 @@ class TestLabourMarket(unittest.TestCase):
         self.assertIn("by_city", stats)
 
 
+class TestBusinessEmployedTaxiSurge(unittest.TestCase):
+    """Queue 30 Unit KF — the business-employed taxi driver
+    (Unit KC found the settlement surges taxi pay only in the
+    SYS-EMPLOYERS branch; the business path was a code read).
+    The audit pins that no vacancy source ever posts a taxi
+    driver, so the business-employed case cannot arise and the
+    settlement needs no change. The guard fails loudly if a
+    future staffing change ever posts one — that is the
+    re-open condition, recorded in the V7 report §19."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.path = _tmp_path()
+        cls.sim = Simulation(cls.path, seed="kf-guard")
+        cls.sim.generate_population(60)
+        cls.store = cls.sim.store
+        cls.data = cls.sim.data
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.sim.close()
+        os.remove(cls.path)
+
+    def test_no_vacancy_source_posts_taxi_driver(self):
+        from tools.sim import admin as admin_mod
+        business = {prof for prof, _target
+                    in labour_mod.STAFFING.values()}
+        civic = set(labour_mod.CIVIC_RATIOS)
+        government = {prof for _inst, prof, _basis
+                      in admin_mod.STAFFING}
+        # The Session 05 employment programme posts
+        # construction_worker only (policies.py).
+        policy_posts = {"construction_worker"}
+        self.assertNotIn("taxi_driver", business)
+        self.assertNotIn("taxi_driver", civic)
+        self.assertNotIn("taxi_driver", government)
+        self.assertNotIn("taxi_driver", policy_posts)
+        self.assertEqual(
+            business | civic | government | policy_posts,
+            {"chef", "construction_worker", "software_developer",
+             "teacher", "doctor", "police_officer",
+             "civil_engineer"})
+
+    def test_seeded_world_posts_no_taxi_vacancy(self):
+        # The class world's own vacancy machinery: post a
+        # month of vacancies and match them — no taxi driver
+        # vacancy is ever posted, and no taxi driver ends up
+        # business-employed (a job change takes the vacancy's
+        # profession, so a taxi driver who changes jobs stops
+        # being one).
+        labour_mod.post_vacancies(self.store, self.data, 1, 43200)
+        labour_mod.match_vacancies(
+            self.store, self.data, rng("s04-labour"), 1, 43200)
+        taxi_vacancies = self.store.row(
+            "SELECT COUNT(*) AS n FROM vacancies WHERE"
+            " profession_id = 'taxi_driver'")["n"]
+        self.assertEqual(taxi_vacancies, 0)
+        business_taxi = self.store.row(
+            "SELECT COUNT(*) AS n FROM employments WHERE"
+            " profession_id = 'taxi_driver'"
+            " AND employer_business_id IS NOT NULL"
+            " AND ended_at_game_minutes IS NULL")["n"]
+        self.assertEqual(business_taxi, 0)
+
+
 class TestBankingAndInvestment(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
