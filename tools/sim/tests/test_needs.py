@@ -178,15 +178,49 @@ class TestFurnitureRestoreWiring(unittest.TestCase):
         needs_mod.apply_activity(store, head, "sleep", "home", 1, 480)
         self.assertEqual(needs_mod.get_needs(store, head)["rest"], 58)
 
-    def test_no_tier_means_no_scaling(self):
-        # No tier stands (all three F0 pieces broken): the
-        # multiplier is None and no scaling is applied — no fallback
-        # rate is invented (EF's boundary, EQ §5 note).
+    def test_no_tier_means_the_f0_floor(self):
+        # No tier stands (all three F0 pieces broken) — the Unit EZ
+        # floor: the household still holds the rows, so the
+        # multiplier is F0's 0.7, not None, and the sleep restore
+        # scales at that rate instead of floating to the unscaled
+        # ×1.0. Breaking the last F0 piece changes nothing.
         store = make_store()
         d = data()
         head, _hid, _pid = self._furnished_head(store, d)
         for ref in ("floor_mattress", "single_burner", "crate_table"):
             self._set_condition(store, self._piece(store, head, ref), 0)
+        self.assertIsNone(li.effective_furniture_tier(store, d, head))
+        self.assertEqual(li.furniture_restore_multiplier(store, d,
+                                                         head), 0.7)
+        set_needs(store, head, rest=50)
+        needs_mod.apply_activity(store, head, "sleep", "home", 1, 480,
+                                 data=d)
+        self.assertEqual(needs_mod.get_needs(store, head)["rest"], 56)
+
+    def test_f1_home_with_one_broken_f0_piece_gets_the_floor(self):
+        # The second recorded edge: an F1 home whose only broken
+        # piece is an F0 piece drops to the floor, not to unscaled.
+        store = make_store()
+        d = data()
+        head, _hid, _pid = self._furnished_head(store, d)
+        self._set_condition(store,
+                            self._piece(store, head, "floor_mattress"),
+                            0)
+        self.assertIsNone(li.effective_furniture_tier(store, d, head))
+        self.assertEqual(li.furniture_restore_multiplier(store, d,
+                                                         head), 0.7)
+        set_needs(store, head, rest=50)
+        needs_mod.apply_activity(store, head, "sleep", "home", 1, 480,
+                                 data=d)
+        self.assertEqual(needs_mod.get_needs(store, head)["rest"], 56)
+
+    def test_no_furniture_rows_means_no_scaling(self):
+        # Only a character holding no furniture rows at all gets
+        # None: genuinely unfurnished, no furniture effect.
+        store = make_store()
+        d = data()
+        head = make_person(store, age=35, first="Head")
+        make_household(store, [head])
         self.assertIsNone(li.effective_furniture_tier(store, d, head))
         self.assertIsNone(li.furniture_restore_multiplier(store, d,
                                                           head))

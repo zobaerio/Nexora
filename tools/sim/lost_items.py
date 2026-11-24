@@ -1338,6 +1338,72 @@ def monthly_repair_sweep(store, data, game_minutes):
     return {"repaired": repaired, "broken": broken}
 
 
+# -- Queue 22 Unit EX: furniture service (GDD-04 §3.3, EH/DQ/EU
+# follow-up) ----------------------------------------------------------
+# `repair_furniture()` existed with no call site — no
+# furniture-service predicate existed. The predicate mirrors
+# `tool_needs_service()` (DQ: condition 60 or below is due a
+# service — the vehicle precedent, adopted): the household head's
+# furniture rows at or below SERVICE_THRESHOLD (60). A broken
+# piece (0) is included: it is due the repair that restores it
+# to 90 (RESTORED_CONDITION), not a routine service — the
+# predicate answers "due attention", and the caller
+# distinguishes broken from worn by condition. The sweep mirrors
+# `monthly_repair_sweep()` (Unit EU): every due piece is
+# repaired to 90 with no ledger charge (the DQ price rule:
+# repair writes no ledger row) and no life event logged (the
+# break was the event; the repair restores the tier the next
+# time it is read). The sweep services what the predicate
+# reports — the same rows the wear touches, lost pieces
+# included (the predicate's call, not the sweep's: a lost piece
+# repaired to 90 is still away, so the tier stays dropped until
+# the hand-back — the repair fixes the row, not the custody).
+# The home loop reads the tier after this sweep (Unit EW's
+# purchase sweep runs after it in the same pass), so a serviced
+# piece is standing again and is not re-bought.
+
+def furniture_needs_service(store, data, household_id):
+    """The household head's furniture rows at or below the service
+    threshold (DQ: condition 60 or below is due a service — the
+    vehicle precedent, adopted, mirroring `tool_needs_service()`).
+    A broken piece (0) is included. [] when the household has no
+    head, or nothing is due."""
+    head = household_head(store, household_id)
+    if head is None:
+        return []
+    return [r for r in store.rows(
+        "SELECT * FROM inventory_items WHERE owner_character_id = ?"
+        " AND item_type = 'furniture'", (head,))
+        if item_condition(r) <= SERVICE_THRESHOLD]
+
+
+def monthly_furniture_service_sweep(store, data, game_minutes):
+    """Queue 22 Unit EX — the monthly furniture service (GDD-04
+    §3.3, Unit EH's repair, DQ's service rule). Every
+    non-dissolved household's furniture due a service (condition
+    60 or below, broken included) is repaired to
+    RESTORED_CONDITION (90) with no ledger charge (the DQ price
+    rule) and no life event. Returns {"repaired": [item ids],
+    "broken": [item ids repaired from condition 0]} — the row's
+    condition is the record; the return is for the caller and the
+    tests."""
+    repaired = []
+    broken = []
+    for h in store.rows(
+            "SELECT household_id FROM households"
+            " WHERE dissolved_at_game_minutes IS NULL"
+            " ORDER BY household_id"):
+        hid = h["household_id"]
+        for row in furniture_needs_service(store, data, hid):
+            was_broken = item_condition(row) == 0
+            if repair_furniture(store, row["item_instance_id"]) \
+                    is not None:
+                repaired.append(row["item_instance_id"])
+                if was_broken:
+                    broken.append(row["item_instance_id"])
+    return {"repaired": repaired, "broken": broken}
+
+
 # GDD-10 §5: the home restore multipliers follow the EFFECTIVE
 # furnishing tier — the highest tier whose pieces ALL stand
 # (condition > 0). A tier counts only when the household head holds
@@ -1358,6 +1424,27 @@ def _item_is_away(store, item_instance_id):
         "SELECT 1 FROM lost_items WHERE item_instance_id = ?"
         " AND status IN ('lost', 'found')",
         (item_instance_id,)) is not None
+
+
+def furniture_pieces_standing(store, character_id):
+    """The furniture pieces the character holds that stand tonight
+    — one usable piece in the home is one furnished piece. The
+    standing rule is `effective_furniture_tier()`'s own rule,
+    factored out for callers that need the set rather than the
+    tier: condition > 0 AND no `lost`/`found` row stands for the
+    row (Unit EI — a piece in a stranger's or a finder's hands
+    provides nothing tonight). Where the character holds two rows
+    of one piece, the piece stands if ANY row stands. The home
+    loop's purchase decision (Unit EW, Queue 22) reads this set
+    to find the tier's missing pieces."""
+    held = set()
+    for row in store.rows(
+            "SELECT * FROM inventory_items WHERE owner_character_id = ?"
+            " AND item_type = 'furniture'", (character_id,)):
+        if item_condition(row) > 0 \
+                and not _item_is_away(store, row["item_instance_id"]):
+            held.add(row["item_ref"])
+    return held
 
 
 def effective_furniture_tier(store, data, character_id):
@@ -1397,13 +1484,38 @@ def effective_furniture_tier(store, data, character_id):
 
 def furniture_restore_multiplier(store, data, character_id):
     """The GDD-10 §5 restore multiplier for the character's
-    effective furnishing tier (0.7 / 1.0 / 1.15 / 1.3). None when
-    no tier stands — the caller must decide that case; this module
-    invents no fallback rate. The live consumer is the needs
-    engine (Unit EQ, Queue 21): ``needs.apply_activity`` scales
-    the rest/sleep restores of home/sleep blocks by this rate, and
-    applies no scaling when it is None."""
+    effective furnishing tier (0.7 / 1.0 / 1.15 / 1.3).
+
+    Queue 22 Unit EZ — DECIDED (GDD-10 §5 + GDD-04 §3.3): the
+    no-tier floor. When no tier fully stands, the multiplier is
+    the F0 rate (×0.7 — the lowest sourced rate, read from
+    FURNITURE_RESTORE_MULTIPLIERS, never a new number) IF the
+    character holds any furniture rows at all — broken or lost
+    pieces included. A home whose furniture is broken or away
+    restores no better than a bare home: breaking the last F0
+    piece of an F0-only home changes nothing (×0.7 before and
+    after), and breaking one F0 piece of an F1 home drops it to
+    ×0.7 (it no longer floats up to the unscaled ×1.0). Only a
+    character holding NO furniture rows at all returns None —
+    genuinely unfurnished, no furniture effect — and the caller
+    applies no scaling. The rejected alternative, recorded not
+    hidden: a partial-credit rule (the multiplier of the highest
+    tier with at least one standing piece) would blur the
+    all-or-nothing tier rule EF/EI decided — a standing bed
+    crediting F1's rate while the tier itself is None — so the
+    floor, not partial credit, is the rule; a future owner
+    decision could adopt partial credit instead. The live consumer
+    is the needs engine (Unit EQ, Queue 21):
+    ``needs.apply_activity`` scales the rest/sleep restores of
+    home/sleep blocks by this rate, and applies no scaling when
+    it is None."""
     tier = effective_furniture_tier(store, data, character_id)
-    if tier is None:
-        return None
-    return FURNITURE_RESTORE_MULTIPLIERS[tier]
+    if tier is not None:
+        return FURNITURE_RESTORE_MULTIPLIERS[tier]
+    holds_furniture = store.row(
+        "SELECT 1 FROM inventory_items WHERE owner_character_id = ?"
+        " AND item_type = 'furniture' LIMIT 1",
+        (character_id,)) is not None
+    if holds_furniture:
+        return FURNITURE_RESTORE_MULTIPLIERS["F0"]
+    return None

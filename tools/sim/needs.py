@@ -76,9 +76,13 @@ def apply_activity(store, character_id, activity, location, hours,
     and Social-sofa rules are qualitative and stay unimplemented).
     When the multiplier is None (no tier stands) no scaling is
     applied — no fallback rate is invented (EF's boundary); the
-    rate stays the fixed one. ``data`` is None for callers that do
-    not hold the world data (the old tests): no scaling, the exact
-    old behaviour."""
+    rate stays the fixed one. Queue 22 Unit EZ: the "no tier
+    stands" case now splits — a character holding furniture rows
+    gets the F0 floor (×0.7, the lowest sourced rate), so breaking
+    a piece never improves rest; None means the character holds no
+    furniture rows at all, and only then is no scaling applied.
+    ``data`` is None for callers that do not hold the world data
+    (the old tests): no scaling, the exact old behaviour."""
     values = get_needs(store, character_id)
     if values is None:
         return

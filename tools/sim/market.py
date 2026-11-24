@@ -698,6 +698,74 @@ def retail_allocation(store, data, month_index, game_minutes):
     for (city, good_id), units in sorted(city_got.items()):
         _draw_from_shelves(store, data, city, good_id, units,
                            month_index, game_minutes, totals)
+
+
+# -- Queue 22 Unit EV: the haggle record (GDD-04 §3.6, mission 2.3
+# objective (2)) ---------------------------------------------------------
+# "Haggle once, successfully" had no world-state record in any
+# merged system (Unit EO, Queue 21): no haggle event existed, no
+# outcome was written anywhere, and the 2.3 writer verified the
+# food purchase only. The record is one row per haggled purchase
+# in the `haggle_events` table: the stall's asked price (the shelf
+# price the buyer faced) and the price actually paid (the ledger
+# fact) are both recorded, and the outcome is derived from them —
+# paid less than asked is a successful haggle, paid exactly the
+# asked price is a failed one. No discount rate is invented: the
+# caller supplies both prices from real data, and this module
+# never picks a discount, a target, or a success chance. A paid
+# price ABOVE the asked price is refused (None, nothing written)
+# — paying over the ask is not a haggle, it is a data error — as
+# are a non-positive asked price and a negative paid price.
+#
+# Who writes it: NOBODY in a live world yet. The haggler is the
+# player (or an NPC) at a market stall, and the call site is the
+# Phase 6 dialogue/mission runtime that runs the stall
+# conversation — the monthly shopping pass buys at shelf prices
+# and never haggles, so retail_allocation does not call this.
+# The record + the 2.3 verifier are this unit; the live call site
+# is a later unit's job, recorded in GDD-04 §3.6, not hidden.
+# The verifier's zone rule lives in missions.py (d1_market —
+# Boro Bazar, the mission's zone_ref); this module records the
+# zone the caller supplies and checks nothing about it.
+
+def record_haggle(store, character_id, good_id, zone,
+                  asked_price_ncr, paid_price_ncr, game_minutes):
+    """Record one haggled purchase. Returns the haggle id, or None
+    when refused: a paid price above the asked price, a
+    non-positive asked price, or a negative paid price. The
+    outcome is 'success' iff paid < asked, else 'failed' — the
+    derivation, not a rate: both prices are the caller's facts."""
+    if asked_price_ncr <= 0 or paid_price_ncr < 0 \
+            or paid_price_ncr > asked_price_ncr:
+        return None
+    haggle_id = store.next_id("HG", "haggle_events", "haggle_id")
+    store.insert("haggle_events", haggle_id=haggle_id,
+                 character_id=character_id, good_id=good_id,
+                 zone=zone,
+                 outcome=("success" if paid_price_ncr
+                          < asked_price_ncr else "failed"),
+                 asked_price_ncr=asked_price_ncr,
+                 paid_price_ncr=paid_price_ncr,
+                 game_minutes=game_minutes)
+    return haggle_id
+
+
+def has_successful_haggle(store, character_id, zone=None):
+    """Whether the character has a successful haggle on record —
+    a `haggle_events` row with outcome 'success'. With a zone,
+    only haggles in that zone count (mission 2.3 passes
+    d1_market — Boro Bazar). A failed haggle never counts, and a
+    haggle by another character is not this character's."""
+    if zone is None:
+        row = store.row(
+            "SELECT 1 FROM haggle_events WHERE character_id = ?"
+            " AND outcome = 'success' LIMIT 1", (character_id,))
+    else:
+        row = store.row(
+            "SELECT 1 FROM haggle_events WHERE character_id = ?"
+            " AND outcome = 'success' AND zone = ? LIMIT 1",
+            (character_id, zone))
+    return row is not None
     return totals
 
 
