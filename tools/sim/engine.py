@@ -262,7 +262,7 @@ class Simulation:
             if prev is not None:
                 needs_mod.apply_activity(
                     store, cid, prev["activity"], prev["location"],
-                    (minute - prev["start"]) / 60.0, minute)
+                    (minute - prev["start"]) / 60.0, minute, data=data)
             current[cid] = block
             store.execute(
                 "UPDATE agent_state SET current_activity = ?,"
@@ -273,7 +273,7 @@ class Simulation:
                     and block["end"] - block["start"] >= 45 \
                     and meals.get(cid, 0) < 2:
                 needs_mod.apply_activity(store, cid, "home", "home", 0,
-                                         minute, meal=True)
+                                         minute, meal=True, data=data)
                 meals[cid] = meals.get(cid, 0) + 1
             if block["activity"] in interaction_mod.INTERACTION_ACTIVITIES:
                 key = (block["zone"], block["location"], block["activity"])
@@ -282,7 +282,7 @@ class Simulation:
         for cid, block in current.items():
             needs_mod.apply_activity(
                 store, cid, block["activity"], block["location"],
-                (day_end - block["start"]) / 60.0, day_end)
+                (day_end - block["start"]) / 60.0, day_end, data=data)
 
         # Family time at home.
         for hid in sorted({c["household_id"] for c in agents
@@ -457,6 +457,13 @@ class Simulation:
         generations_mod.knowledge_transfer(store, data, game_minutes)
         generations_mod.record_history_sweep(store, game_minutes)
         kinship_mod.maybe_adopt(store, data, game_minutes)
+        # Queue 21 Unit EU: the monthly tool service — every due
+        # tool (condition 60 or below, broken included) is repaired
+        # to 90 with no ledger charge (DQ). Lives here, in the
+        # unconditional people pass: tools belong to people, not to
+        # a gated layer, and the sweep no-ops when nobody holds a
+        # due tool. A repaired tool stops bending work the next day.
+        lost_items_mod.monthly_repair_sweep(store, data, game_minutes)
 
     # -- Session 03 city cadence ------------------------------------
     # Monthly, after the economy settlement and the society passes
@@ -831,16 +838,22 @@ class Simulation:
             if biz is None or biz["status"] == "closed":
                 paid[emp["employment_id"]] = 0
                 continue
-            due = emp["wage_per_month"] \
-                - labour_mod.broken_tool_wage_dock(
-                    store, emp["character_id"], month_index,
-                    emp["wage_per_month"])
+            # Queue 21 Unit ES: day-wage pay — a construction
+            # worker is paid per worked day, every other profession
+            # the monthly wage less the (zero) broken-tool dock.
+            # The rule is consulted here, at the point of payment.
+            due = labour_mod.wage_due_for(
+                store, emp["character_id"], emp["profession_id"],
+                month_index, emp["wage_per_month"])
+            wage_kind = ("day wages" if emp["profession_id"]
+                         in labour_mod.DAY_WAGE_PROFESSIONS
+                         else "monthly wage")
             amount = min(due, store.business_balance(bid))
             if amount > 0:
                 store.transfer(
                     None, emp["character_id"], amount, "wage",
                     game_minutes,
-                    note=f"{emp['profession_id']} monthly wage"
+                    note=f"{emp['profession_id']} {wage_kind}"
                          " (business employer)",
                     related_business_id=bid,
                     transfer_key=f"bwage:{emp['employment_id']}:"
@@ -970,23 +983,26 @@ class Simulation:
                                            game_minutes,
                                            note="income tax")
                     else:
-                        # Queue 20 Unit EL: the no-dock rule — a
-                        # broken tool's bent blocks do not dock the
-                        # day's wages (GDD-04 §3.3, GDD-03 §2). The
-                        # settlement consults the rule at the point
-                        # of payment; the dock is 0 today, so the
-                        # gross is the full monthly wage.
-                        gross = emp["wage_per_month"] \
-                            - labour_mod.broken_tool_wage_dock(
-                                store, cid, (last_day + 1) // 30,
-                                emp["wage_per_month"])
+                        # Queue 21 Unit ES: day-wage pay — a
+                        # construction worker is paid per worked
+                        # day (GDD-03 §2); every other profession
+                        # the monthly wage less the (zero) dock
+                        # under the no-dock rule (Unit EL). The
+                        # settlement consults the rule at the
+                        # point of payment.
+                        gross = labour_mod.wage_due_for(
+                            store, cid, pid, (last_day + 1) // 30,
+                            emp["wage_per_month"])
+                        wage_kind = ("day wages" if pid in
+                                     labour_mod.DAY_WAGE_PROFESSIONS
+                                     else "monthly wage")
                         if pid == "taxi_driver":
                             gross = round(gross * taxi_factor)
                         tax = econ.monthly_tax(gross, brackets)
                         if gross > 0:
                             store.transfer("SYS-EMPLOYERS", cid, gross,
                                            "wage", game_minutes,
-                                           note=f"{pid} monthly wage"
+                                           note=f"{pid} {wage_kind}"
                                                 " (gross)")
                         if tax > 0:
                             store.transfer(cid, "SYS-CITY", tax, "tax",

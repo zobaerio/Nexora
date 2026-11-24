@@ -25,7 +25,7 @@ from tools.sim import environment as env
 from tools.sim import missions as ms
 from tools.sim import photographs as ph
 from tools.sim import relationships as rel
-from tools.sim.tests.common import data, make_person, make_store
+from tools.sim.tests.common import data, make_household, make_person, make_store
 
 ROOT = Path(__file__).resolve().parents[3]
 GM = 480
@@ -100,19 +100,24 @@ class TestRegistryTripwire(unittest.TestCase):
         # (Queue 18/19), and Unit EJ (Queue 20) closed it. 1.3 used
         # to be out of scope too (Queue 18); Unit EB gave it a
         # condition and a verifier, so it is covered now — the suite
-        # asserts that, not the old limit.
+        # asserts that, not the old limit. Unit EO (Queue 21) ships
+        # the 2.3 tree and its condition together, so 2.3 is
+        # covered from the day its tree ships.
         self.assertIn("2.4", ms.CONDITIONED_MISSIONS)
         self.assertIn("1.3", ms.CONDITIONED_MISSIONS)
+        self.assertIn("2.3", ms.CONDITIONED_MISSIONS)
         dlg = json.loads(
             (ROOT / "data" / "dialogue-lines.json").read_text())
         self.assertIn("mission_1_3_neighbour_help", dlg["trees"])
         self.assertIn("mission_2_4_friendship", dlg["trees"])
         self.assertIn("mission_2_1_learn_the_trade", dlg["trees"])
         self.assertIn("mission_2_2_rainy_day_fund", dlg["trees"])
+        self.assertIn("mission_2_3_market_run", dlg["trees"])
         for tree in ("mission_1_3_neighbour_help",
                      "mission_2_4_friendship",
                      "mission_2_1_learn_the_trade",
-                     "mission_2_2_rainy_day_fund"):
+                     "mission_2_2_rainy_day_fund",
+                     "mission_2_3_market_run"):
             mission_id = tree.split("_")[1] + "." \
                 + tree.split("_")[2]
             self.assertIn(mission_id, ms.CONDITIONED_MISSIONS,
@@ -224,6 +229,40 @@ class TestWriterCompletesConditionedMissions(unittest.TestCase):
         self.assertTrue(ms.complete_mission(store, cid, "2.4", GM + 300))
         self.assertEqual(ms.get_status(store, cid, "2.4"), "completed")
 
+    def test_2_3_completes_only_with_a_rupsha_food_purchase(self):
+        store = make_store()
+        d = data()
+        cid = make_person(store, age=25, first="Player")
+        hid, _pid = make_household(store, [cid])
+        _active(store, cid, "2.3")
+        # No food row yet: no verification, no completion.
+        self.assertFalse(ms.verify_mission_2_3(store, d, cid, GM + 200))
+        self.assertFalse(ms.complete_mission(store, cid, "2.3", GM + 200))
+        store.execute(
+            "INSERT INTO household_consumption (household_id,"
+            " month_index, good_id, units, spend_ncr, unmet_units)"
+            " VALUES (?, 0, 'food_basket', 12.5, 1000, 0)", (hid,))
+        self.assertTrue(ms.verify_mission_2_3(store, d, cid, GM + 300))
+        self.assertTrue(ms.complete_mission(store, cid, "2.3", GM + 300))
+        self.assertEqual(ms.get_status(store, cid, "2.3"), "completed")
+
+    def test_2_3_does_not_complete_for_a_shibnagar_household(self):
+        store = make_store()
+        d = data()
+        cid = make_person(store, age=25, first="Player")
+        hid, _pid = make_household(store, [cid])
+        store.execute("UPDATE households SET district_id = 'c2_market'"
+                      " WHERE household_id = ?", (hid,))
+        store.execute(
+            "INSERT INTO household_consumption (household_id,"
+            " month_index, good_id, units, spend_ncr, unmet_units)"
+            " VALUES (?, 0, 'food_basket', 12.5, 1000, 0)", (hid,))
+        _active(store, cid, "2.3")
+        # Food bought, but from Shibnagar's shelves — not Boro
+        # Bazar.
+        self.assertFalse(ms.verify_mission_2_3(store, d, cid, GM + 200))
+        self.assertFalse(ms.complete_mission(store, cid, "2.3", GM + 200))
+
     def test_a_conditioned_mission_never_completes_unverified(self):
         # Neither conditioned mission completes from `active` without
         # its verifier having set objectives_complete.
@@ -328,6 +367,21 @@ class TestGateStaysClosedOtherwise(unittest.TestCase):
         ms.verify_mission_2_4(store, d, cid, GM + 200)
         ms.complete_mission(store, cid, "2.4", GM + 300)
         self.assertEqual(ms.get_status(store, cid, "2.4"), "completed")
+        self.assertFalse(ph.photo_mode_unlocked(store, cid))
+
+    def test_completing_2_3_does_not_open_the_gate(self):
+        store = make_store()
+        d = data()
+        cid = make_person(store, age=25, first="Player")
+        hid, _pid = make_household(store, [cid])
+        store.execute(
+            "INSERT INTO household_consumption (household_id,"
+            " month_index, good_id, units, spend_ncr, unmet_units)"
+            " VALUES (?, 0, 'food_basket', 12.5, 1000, 0)", (hid,))
+        _active(store, cid, "2.3")
+        ms.verify_mission_2_3(store, d, cid, GM + 200)
+        ms.complete_mission(store, cid, "2.3", GM + 300)
+        self.assertEqual(ms.get_status(store, cid, "2.3"), "completed")
         self.assertFalse(ph.photo_mode_unlocked(store, cid))
 
     def test_completing_a_favour_does_not_open_the_gate(self):

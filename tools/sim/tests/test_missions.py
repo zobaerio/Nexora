@@ -15,7 +15,8 @@ from tools.sim import lost_items as li
 from tools.sim import missions as ms
 from tools.sim import photographs as ph
 from tools.sim import relationships as rel
-from tools.sim.tests.common import (data, make_person, make_store, rng)
+from tools.sim.tests.common import (data, make_household, make_person,
+                                    make_store, rng)
 
 GM = 480
 DAY = 1440
@@ -701,6 +702,133 @@ class TestMission22(unittest.TestCase):
         ms.verify_mission_2_2(store, d, cid, GM + 200)
         ms.complete_mission(store, cid, "2.2", GM + 300)
         # The gate reads the 1.4 row only (EC §3.6).
+        self.assertFalse(ph.photo_mode_unlocked(store, cid))
+
+
+class TestMission23(unittest.TestCase):
+    # Queue 21 Unit EO — mission 2.3 "The Market Run" (GDD-04
+    # §3.6): buy a week's food at Boro Bazar — a
+    # household_consumption food row for the character's own
+    # household, in Rupsha City. The haggle objective has no
+    # world-state record, so the writer verifies the food
+    # purchase only (EO §3.6).
+
+    def _active_23(self, store, cid):
+        ms.make_available(store, cid, "2.3", GM)
+        ms.accept_mission(store, cid, "2.3", GM + 100)
+
+    def _household_with_food(self, store, cid, good="food_basket",
+                             units=12.5, district=None):
+        hid, _pid = make_household(store, [cid])
+        if district is not None:
+            store.execute("UPDATE households SET district_id = ?"
+                          " WHERE household_id = ?", (district, hid))
+        store.execute(
+            "INSERT INTO household_consumption (household_id,"
+            " month_index, good_id, units, spend_ncr, unmet_units)"
+            " VALUES (?, 0, ?, ?, 1000, 0)",
+            (hid, good, units))
+        return hid
+
+    def test_food_purchase_completes_2_3(self):
+        store = make_store()
+        d = data()
+        cid = make_person(store, age=25, first="Player")
+        self._household_with_food(store, cid)
+        self._active_23(store, cid)
+        self.assertTrue(ms.verify_mission_2_3(store, d, cid, GM + 200))
+        before = store.balance(cid)
+        self.assertTrue(ms.complete_mission(store, cid, "2.3", GM + 300))
+        self.assertEqual(ms.get_status(store, cid, "2.3"), "completed")
+        # The writer pays no reward for 2.3: the 500 NCr + 5 market
+        # reputation is the Phase 6 reward step (DL boundary, EO
+        # §3.6).
+        self.assertEqual(store.balance(cid), before)
+
+    def test_fish_purchase_also_verifies(self):
+        store = make_store()
+        d = data()
+        cid = make_person(store, age=25, first="Player")
+        self._household_with_food(store, cid, good="fish", units=3.0)
+        self._active_23(store, cid)
+        self.assertTrue(ms.verify_mission_2_3(store, d, cid, GM + 200))
+
+    def test_no_food_row_does_not_verify(self):
+        store = make_store()
+        d = data()
+        cid = make_person(store, age=25, first="Player")
+        make_household(store, [cid])
+        self._active_23(store, cid)
+        self.assertFalse(ms.verify_mission_2_3(store, d, cid, GM + 200))
+        self.assertFalse(ms.complete_mission(store, cid, "2.3", GM + 200))
+
+    def test_zero_units_is_not_a_purchase(self):
+        store = make_store()
+        d = data()
+        cid = make_person(store, age=25, first="Player")
+        # An unmet want (0 covered units) is not a purchase.
+        self._household_with_food(store, cid, units=0)
+        self._active_23(store, cid)
+        self.assertFalse(ms.verify_mission_2_3(store, d, cid, GM + 200))
+
+    def test_clothing_row_does_not_verify(self):
+        store = make_store()
+        d = data()
+        cid = make_person(store, age=25, first="Player")
+        self._household_with_food(store, cid, good="clothing_set",
+                                  units=2.0)
+        self._active_23(store, cid)
+        self.assertFalse(ms.verify_mission_2_3(store, d, cid, GM + 200))
+
+    def test_other_households_food_does_not_verify(self):
+        store = make_store()
+        d = data()
+        cid = make_person(store, age=25, first="Player")
+        other = make_person(store, age=40, first="Other")
+        # The food row belongs to another household, not the
+        # player's.
+        self._household_with_food(store, other)
+        make_household(store, [cid])
+        self._active_23(store, cid)
+        self.assertFalse(ms.verify_mission_2_3(store, d, cid, GM + 200))
+
+    def test_shibnagar_household_does_not_verify(self):
+        store = make_store()
+        d = data()
+        cid = make_person(store, age=25, first="Player")
+        # A Shibnagar household buys from Shibnagar's shelves, not
+        # Boro Bazar — the wrong city, so no verification.
+        self._household_with_food(store, cid, district="c2_market")
+        self._active_23(store, cid)
+        self.assertFalse(ms.verify_mission_2_3(store, d, cid, GM + 200))
+
+    def test_no_household_cannot_verify(self):
+        store = make_store()
+        d = data()
+        cid = make_person(store, age=25, first="Player")
+        self.assertIsNone(ms.household_of(store, cid))
+        self._active_23(store, cid)
+        self.assertFalse(ms.verify_mission_2_3(store, d, cid, GM + 200))
+
+    def test_verify_needs_an_active_row(self):
+        store = make_store()
+        d = data()
+        cid = make_person(store, age=25, first="Player")
+        self._household_with_food(store, cid)
+        # Available but never accepted: no verification.
+        ms.make_available(store, cid, "2.3", GM)
+        self.assertFalse(ms.verify_mission_2_3(store, d, cid, GM + 200))
+
+    def test_2_3_completion_does_not_open_the_da_gate(self):
+        store = make_store()
+        d = data()
+        cid = make_person(store, age=25, first="Player")
+        self._household_with_food(store, cid)
+        self._active_23(store, cid)
+        self.assertFalse(ph.photo_mode_unlocked(store, cid))
+        ms.verify_mission_2_3(store, d, cid, GM + 200)
+        ms.complete_mission(store, cid, "2.3", GM + 300)
+        # The gate reads the 1.4 row only (EO §3.6).
         self.assertFalse(ph.photo_mode_unlocked(store, cid))
 
 

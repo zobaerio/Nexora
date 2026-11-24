@@ -91,9 +91,12 @@ class TestLabourMarket(unittest.TestCase):
         wage = 9000
         eid = self.store.next_id("EM", "employments",
                                  "employment_id")
+        # Queue 21 Unit ES: construction workers are paid per
+        # worked day (0 with no stored schedules), so this
+        # business-pay mechanism proof uses a monthly profession.
         self.store.insert(
             "employments", employment_id=eid, character_id=cid,
-            profession_id="construction_worker",
+            profession_id="chef",
             employer_business_id=biz["business_id"], tier=1,
             wage_per_month=wage, started_at_game_minutes=500)
         biz_before = self.store.business_balance(biz["business_id"])

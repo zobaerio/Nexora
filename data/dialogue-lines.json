@@ -1525,6 +1525,363 @@
         }
       ]
     },
+    "mission_2_3_market_run": {
+      "mission_id": "2.3",
+      "title": "The Market Run",
+      "objectives_quoted": [
+        "Buy a week's food at Boro Bazar",
+        "Haggle once, successfully"
+      ],
+      "rewards_quoted": {
+        "credits_ncr": 500,
+        "other": [],
+        "reputation": [
+          {
+            "amount": 5,
+            "scope": "market"
+          }
+        ]
+      },
+      "unlocks_quoted": [
+        "Haggling",
+        "Market regular status"
+      ],
+      "nodes": [
+        {
+          "node_id": "dlg_2_3_intro",
+          "speaker": "npc",
+          "condition": {
+            "flag": "met_player",
+            "value": false
+          },
+          "lines": [
+            {
+              "speaker": "npc",
+              "text": "I'm <name>. Boro Bazar is my second home — I know every stall by smell, and every stallholder by name.",
+              "condition": {
+                "flag": "met_player",
+                "value": false
+              },
+              "effects": [
+                {
+                  "type": "none"
+                }
+              ]
+            }
+          ],
+          "choices": [
+            {
+              "text": "The market? Tell me more.",
+              "condition": {
+                "always": true
+              },
+              "next": "dlg_2_3_offer"
+            },
+            {
+              "text": "Just passing through.",
+              "condition": {
+                "always": true
+              },
+              "next": "dlg_2_3_hello"
+            }
+          ],
+          "effects": [
+            {
+              "type": "set_flag",
+              "flag": "met_player",
+              "value": true
+            }
+          ],
+          "ends": false
+        },
+        {
+          "node_id": "dlg_2_3_offer",
+          "speaker": "npc",
+          "condition": {
+            "mission": "2.3",
+            "state": "available"
+          },
+          "lines": [
+            {
+              "speaker": "npc",
+              "text": "A market run. Buy a week's food at Boro Bazar — and haggle once, successfully, while you're there. The stalls respect a buyer who knows the price.",
+              "condition": {
+                "mission": "2.3",
+                "state": "available"
+              },
+              "effects": [
+                {
+                  "type": "none"
+                }
+              ]
+            },
+            {
+              "speaker": "npc",
+              "text": "It's 'The Market Run': a week's food from Boro Bazar, one good haggle. It pays credits and +5 market reputation, and unlocks haggling and market regular status.",
+              "condition": {
+                "mission": "2.3",
+                "state": "available"
+              },
+              "effects": [
+                {
+                  "type": "none"
+                }
+              ]
+            }
+          ],
+          "choices": [
+            {
+              "text": "I'll do the shopping.",
+              "condition": {
+                "always": true
+              },
+              "next": "dlg_2_3_accept"
+            },
+            {
+              "text": "Not yet.",
+              "condition": {
+                "always": true
+              },
+              "next": "dlg_2_3_decline"
+            }
+          ],
+          "effects": [
+            {
+              "type": "none"
+            }
+          ],
+          "ends": false
+        },
+        {
+          "node_id": "dlg_2_3_accept",
+          "speaker": "npc",
+          "condition": {
+            "mission": "2.3",
+            "state": "offered"
+          },
+          "lines": [
+            {
+              "speaker": "npc",
+              "text": "Good. Fresh food, fair price — that's the whole trick. I'll be at the stalls when you're done.",
+              "condition": {
+                "mission": "2.3",
+                "state": "offered"
+              },
+              "effects": [
+                {
+                  "type": "mission_progress",
+                  "mission_id": "2.3",
+                  "state": "accepted"
+                }
+              ]
+            }
+          ],
+          "choices": [],
+          "effects": [
+            {
+              "type": "mission_progress",
+              "mission_id": "2.3",
+              "state": "accepted"
+            }
+          ],
+          "ends": true
+        },
+        {
+          "node_id": "dlg_2_3_decline",
+          "speaker": "npc",
+          "condition": {
+            "mission": "2.3",
+            "state": "offered"
+          },
+          "lines": [
+            {
+              "speaker": "npc",
+              "text": "No rush. The market waits — it always does.",
+              "condition": {
+                "mission": "2.3",
+                "state": "offered"
+              },
+              "effects": [
+                {
+                  "type": "none"
+                }
+              ]
+            }
+          ],
+          "choices": [],
+          "effects": [
+            {
+              "type": "none"
+            }
+          ],
+          "ends": true
+        },
+        {
+          "node_id": "dlg_2_3_hello",
+          "speaker": "npc",
+          "condition": {
+            "flag": "met_player",
+            "value": false
+          },
+          "lines": [
+            {
+              "speaker": "npc",
+              "text": "Buy fresh, haggle fair — that's how Boro Bazar works.",
+              "condition": {
+                "flag": "met_player",
+                "value": false
+              },
+              "effects": [
+                {
+                  "type": "set_flag",
+                  "flag": "met_player",
+                  "value": true
+                },
+                {
+                  "type": "relationship_drift",
+                  "trust": 1,
+                  "affection": 1
+                }
+              ]
+            }
+          ],
+          "choices": [],
+          "effects": [
+            {
+              "type": "set_flag",
+              "flag": "met_player",
+              "value": true
+            },
+            {
+              "type": "relationship_drift",
+              "trust": 1,
+              "affection": 1
+            }
+          ],
+          "ends": true
+        },
+        {
+          "node_id": "dlg_2_3_reminder",
+          "speaker": "npc",
+          "condition": {
+            "mission": "2.3",
+            "state": "accepted"
+          },
+          "lines": [
+            {
+              "speaker": "npc",
+              "text": "Still short of the week's food? The stalls are open — the shopping won't do itself.",
+              "condition": {
+                "mission": "2.3",
+                "state": "accepted"
+              },
+              "effects": [
+                {
+                  "type": "none"
+                }
+              ]
+            }
+          ],
+          "choices": [
+            {
+              "text": "On my way.",
+              "condition": {
+                "always": true
+              },
+              "next": "dlg_2_3_reminder_exit"
+            }
+          ],
+          "effects": [
+            {
+              "type": "none"
+            }
+          ],
+          "ends": false
+        },
+        {
+          "node_id": "dlg_2_3_reminder_exit",
+          "speaker": "npc",
+          "condition": {
+            "mission": "2.3",
+            "state": "accepted"
+          },
+          "lines": [
+            {
+              "speaker": "npc",
+              "text": "Good. Boro Bazar is waiting.",
+              "condition": {
+                "mission": "2.3",
+                "state": "accepted"
+              },
+              "effects": [
+                {
+                  "type": "none"
+                }
+              ]
+            }
+          ],
+          "choices": [],
+          "effects": [
+            {
+              "type": "none"
+            }
+          ],
+          "ends": true
+        },
+        {
+          "node_id": "dlg_2_3_return",
+          "speaker": "npc",
+          "condition": {
+            "mission": "2.3",
+            "state": "objective_complete"
+          },
+          "lines": [
+            {
+              "speaker": "npc",
+              "text": "A week's food from Boro Bazar — the stalls know you now. You're a market regular, whether they admit it or not.",
+              "condition": {
+                "mission": "2.3",
+                "state": "objective_complete"
+              },
+              "effects": [
+                {
+                  "type": "mission_complete",
+                  "mission_id": "2.3",
+                  "rewards": {
+                    "credits_ncr": 500,
+                    "other": [],
+                    "reputation": [
+                      {
+                        "amount": 5,
+                        "scope": "market"
+                      }
+                    ]
+                  }
+                }
+              ]
+            }
+          ],
+          "choices": [],
+          "effects": [
+            {
+              "type": "mission_complete",
+              "mission_id": "2.3",
+              "rewards": {
+                "credits_ncr": 500,
+                "other": [],
+                "reputation": [
+                  {
+                    "amount": 5,
+                    "scope": "market"
+                  }
+                ]
+              }
+            }
+          ],
+          "ends": true
+        }
+      ]
+    },
     "mission_2_4_friendship": {
       "mission_id": "2.4",
       "title": "A Friend in the City",

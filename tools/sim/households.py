@@ -255,3 +255,76 @@ def leave_home(store, data, character_id, game_minutes):
                                        "to_household": new_hid})
     emotions_mod.apply_event(store, character_id, "moved_home")
     return new_hid
+
+
+def purchase_furniture(store, data, household_id, item_id,
+                       month_index, game_minutes):
+    """Queue 21 Unit ET — the Phase 5/6 home loop's furniture
+    purchase event (GDD-10 §5; the point Unit EM specified). The
+    household head buys one catalogue piece at its prices.json
+    furniture price (via the piece's price_ref): the head pays
+    from the household pool — the head's account, falling back to
+    the richest member by balance when the head cannot cover it
+    (the settlement's rent-payer rule in shape: the head pays,
+    the household covers) — with the existing ledger `purchase`
+    row to SYS-MARKET, and the event seeds the row via
+    lost_items.seed_furniture_rows() at the home property,
+    condition 100. A purchase writes a second row for a piece
+    the head already holds (a replacement beside a lost or
+    broken original — a purchase is not a seeding). Returns the
+    new item_instance_id, or None when the purchase is refused:
+    no head (the CX custody rule), no home property, or the pool
+    cannot cover the price in full — no partial purchase, no
+    debt. An unknown catalogue id, or a price_ref with no
+    prices.json furniture price, raises ValueError (the CX rule,
+    as with seeding). An F0 piece costs 0 — scavenged by design
+    — so no money moves and no ledger row is written for it. No
+    transfer_key: each call is one purchase, and a second call
+    for the same piece in the same month is a second purchase
+    (charged and seeded again); a future monthly sweep that
+    calls this must own its own idempotency. No automatic
+    trigger calls this yet: which household buys when is a
+    home-loop purchase decision, not part of this event —
+    recorded in GDD-10 §5. The plain purchase row carries no
+    sales-tax split (the engine's _pay_purchase splits tax for
+    settlement living costs; the tax treatment of durable
+    purchases is undecided — also recorded in GDD-10 §5)."""
+    from . import lost_items as lost_items_mod
+    item = lost_items_mod.furniture_item(data, item_id)
+    if item is None:
+        raise ValueError(
+            f"unknown furniture item {item_id!r}: no catalogue row")
+    prices = {p["id"]: p["price_ncr"]
+              for p in data.prices["furniture"]["items"]}
+    price_ref = item["price_ref"]
+    if price_ref not in prices:
+        raise ValueError(
+            f"furniture item {item_id!r}: price_ref {price_ref!r}"
+            " has no prices.json furniture price")
+    price = prices[price_ref]
+    head = lost_items_mod.household_head(store, household_id)
+    if head is None:
+        return None
+    home = home_property(store, household_id)
+    if home is None:
+        return None
+    payer = head
+    if store.balance(payer) < price:
+        richest = payer
+        richest_balance = store.balance(payer)
+        for m in members(store, household_id):
+            bal = store.balance(m["character_id"])
+            if bal > richest_balance:
+                richest, richest_balance = m["character_id"], bal
+        payer = richest
+    if store.balance(payer) < price:
+        return None
+    if price > 0:
+        store.transfer(payer, "SYS-MARKET", price, "purchase",
+                       game_minutes,
+                       note=f"{item_id} furniture purchase",
+                       event_ref=f"month:{month_index}")
+    made = lost_items_mod.seed_furniture_rows(
+        store, data, head, [item_id], item["tier"],
+        home["property_id"], game_minutes, allow_duplicate=True)
+    return made[0] if made else None

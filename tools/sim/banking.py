@@ -403,6 +403,14 @@ def _foreclose(store, loan, game_minutes):
                          started_at_game_minutes=game_minutes)
     from . import memory as memory_mod
     borrower = loan["borrower_character_id"]
+    # Queue 21 Unit ER: the foreclosure surrenders the deed — the
+    # paper follows the right (GDD-04 §3.3, GDD-10 §8). A deed the
+    # borrower still holds is deleted, so a later re-purchase is
+    # issued a fresh deed; a deed already lost/found stays lost
+    # (the paper is not in hand to surrender) and remains the deed
+    # of record.
+    from . import lost_items as lost_items_mod
+    lost_items_mod.surrender_property_deed(store, borrower, pid)
     memory_mod.log_life_event(store, borrower, "foreclosure",
                               game_minutes,
                               details={"property_id": pid,
