@@ -30,7 +30,50 @@ follow-up):
   to the v7 baseline (the v6 md5 is kept in test_no_regression.py
   as history). No tuning call: the storm month is weather, not a
   balance problem.
+- Queue 24 adds two follow-ups to v7 (Units GC–GE, same version):
+  Unit GC checks the tool against the settlement and finds the
+  recorded "measured" position (days 3 and 22) is the 0-based day
+  indices — the settlement's storms fall on 1-based days 4 and 23
+  (docs/ECONOMY-SIM-REPORT-V7.md §6); Unit GD adds the
+  two-earner storm-position scenario below; Unit GE wires the
+  worst storm-position dip into the bridge check. The pinned md5
+  moves again (the v7 md5 is kept in test_no_regression.py as
+  history).
+
+What v7 adds vs v6, Queue 24 Unit GD (the two-earner
+storm-position scenario):
+- `simulate()` takes an optional `second_earner` (default
+  False): a second construction worker at the same tier, on the
+  same storm days and the same day-wage rule. Gross and tax are
+  doubled per earner (each earner is taxed on their own gross,
+  as the settlement taxes each earner on what they received);
+  the household costs follow `engine._living_costs` for two
+  adults — food and clothing scaled ×2, transport and eating out
+  scaled ×2 (both are per-earner lines in `_living_costs`),
+  utilities / services / medical and rent flat, and the
+  lifestyle uplift doubled (the settlement sums it per earner).
+  The default run gains a two-earner storm-position section
+  beside the single-earner one. `second_earner` is refused for
+  any non-day-wage profession and together with the v3
+  side-income/expense lines (those belong to one person; a
+  two-earner household with side income needs a split this unit
+  does not design). No tuning call: the storm month is weather,
+  not a balance problem — and the finding here is that a second
+  earner does not help the early-position dip at all (no pay has
+  arrived for anyone on days 1–2), it only helps once pay starts
+  landing.
 - Run: python3 tools/economy_sim.py [--shibnagar] [--v3|--v4]
+
+What v7 adds vs v6, Queue 24 Unit GE (the storm-position bridge
+line):
+- The first-month bridge check prints a second line for the
+  construction_worker entry row: starting balance + the worst
+  storm-position minbal (the minimum across the early / mid /
+  late / measured positions) = the worst storm-month balance. A
+  failing storm line joins BRIDGE FAIL. The storm bridge is now
+  part of the tool's output rather than a report-only observation
+  (V7 §5: entry 5,000 − 500 = 4,500). The pinned md5 moves again
+  (the v7 md5 is kept in test_no_regression.py as history).
 
 What v6 changes vs v5 (Queue 22, Unit EY — the ES day-wage
 follow-up):
@@ -301,7 +344,8 @@ def load_shibnagar_rents(prices):
 def simulate(prices, wage_row, tier, extra_daily_cost=0, label_suffix="",
              tutoring_income=0, tutoring_expense=0, part_time_income=0,
              medicine_expense=0, rent_override=None,
-             day_wage_worked_days=None, storm_days=None):
+             day_wage_worked_days=None, storm_days=None,
+             second_earner=False):
     pid = wage_row["profession_id"]
     band = band_for(wage_row["entry"])
     lc = prices["living_costs_monthly"]
@@ -400,6 +444,42 @@ def simulate(prices, wage_row, tier, extra_daily_cost=0, label_suffix="",
                     if pid in BUSINESS_PROFESSIONS else wage_row["entry"])
     uplift = round(max(0, gross - entry_income) * uplift_pct / 100.0)
 
+    # Queue 24 / Unit GD: the second earner — a construction
+    # worker at the same tier, on the same storm days and the same
+    # day-wage rule. Gross and tax double per earner (each earner
+    # is taxed on their own gross, as the settlement taxes each
+    # earner on what they received); the uplift doubles too (the
+    # settlement sums it per earner, engine._settle_month). The
+    # household costs follow engine._living_costs for two adults:
+    # food and clothing ×2, transport and eating out ×2 (both are
+    # per-earner lines in _living_costs — the queue draft's "rest
+    # flat" gloss is corrected here against the source: only
+    # utilities / services / medical and rent are flat), and the
+    # trajectory needs no change — the doubled pay lands on the
+    # same worked days at the doubled daily rate, and the doubled
+    # costs accrue daily. Refused for any non-day-wage profession
+    # and together with the v3 side-income/expense lines (those
+    # belong to one person; a two-earner household with side income
+    # needs a split this unit does not design).
+    if second_earner:
+        if sched != "daily":
+            raise ValueError(
+                "second_earner is a day-wage scenario"
+                f" (construction_worker only); {pid} pays {sched}")
+        if tutoring_income or tutoring_expense or part_time_income \
+                or medicine_expense:
+            raise ValueError(
+                "second_earner cannot combine with the v3"
+                " side-income/expense lines — those belong to one"
+                " person")
+        gross *= 2
+        tax *= 2
+        uplift *= 2
+        food *= 2
+        clothing *= 2
+        transport *= 2
+        eating *= 2
+
     # Queue 6 / v3 new lines (all default 0) + Queue 7 / v4: the
     # medical line is a base cost now (see `medical` above), so the
     # medicine_expense kwarg models only an EXTRA episode on top.
@@ -483,6 +563,10 @@ def simulate(prices, wage_row, tier, extra_daily_cost=0, label_suffix="",
         "net": round(net), "rate": round(rate, 1),
         "min_balance": round(min_balance), "flags": flags, "pnl": pnl,
         "extra_income": extra_income, "extra_expense": extra_expense,
+        # Queue 24 / Unit GD: whether the row models a two-earner
+        # household (a second construction worker at the same tier,
+        # same storm days, same day-wage rule).
+        "second_earner": second_earner,
         # Queue 22 / v6 (Unit EY): the trajectory's final balance —
         # it must equal net (the trajectory models the same month
         # the headline figures describe); the v5 daily branch ended
@@ -714,6 +798,12 @@ def main():
 
     # First-month bridge check (Finding 3): apply each profession's
     # starting balance to its entry row's zero-start trajectory.
+    # Queue 24 / Unit GE: the construction_worker entry row also
+    # prints its worst storm-position dip (the minimum month-1
+    # balance across the four storm positions, Unit FB) against
+    # the same starting balance — so the storm bridge is part of
+    # the tool's output rather than a report-only observation
+    # (V7 §5). A failing storm line joins BRIDGE FAIL.
     print()
     print("first-month bridge check (entry rows: starting balance + zero-start dip = worst month-1 balance):")
     bridge_fail = []
@@ -726,6 +816,19 @@ def main():
         if worst < 0:
             bridge_fail.append(r["pid"])
         print(f"  {r['pid']:22} start {start:>6} + dip {r['min_balance']:>7} = {worst:>7}  {status}")
+        if r["pid"] == "construction_worker":
+            worst_storm = min(
+                simulate(prices, bands["construction_worker"], "entry",
+                         storm_days=pos)["min_balance"]
+                for pos in (STORM_EARLY_DAYS, STORM_MID_DAYS,
+                            STORM_LATE_DAYS, STORM_MEASURED_DAYS))
+            storm_worst = start + worst_storm
+            storm_status = "OK" if storm_worst >= 0 else "BRIDGE FAIL"
+            if storm_worst < 0:
+                bridge_fail.append("construction_worker (storm)")
+            print(f"  {r['pid']:22} start {start:>6} + storm dip "
+                  f"{worst_storm:>7} = {storm_worst:>7}  {storm_status}"
+                  f"  (worst storm position)")
     # The renting-cab variant shares the taxi driver's starting balance.
     rent_row = next(r for r in rows if "renting" in r["profession"])
     start = start_balances.get("taxi_driver", 0)
@@ -802,6 +905,48 @@ def main():
                             storm_days=STORM_MEASURED_DAYS)
         even = simulate(prices, w, tier,
                         day_wage_worked_days=28)
+        print(f"{early['profession']:28} {early['tier']:7} "
+              f"{early['min_balance']:>7} {mid['min_balance']:>7} "
+              f"{late['min_balance']:>7} {measured['min_balance']:>8} "
+              f"{even['min_balance']:>7}  (net {early['net']})")
+
+    # Queue 24 / v7 (Unit GD): the two-earner storm-position
+    # scenario — the same 28 worked days and the same storm
+    # positions, but the household has a second construction
+    # worker at the same tier (same storm_days, same day-wage
+    # rule) and its costs follow engine._living_costs for two
+    # adults (food/clothing ×2, transport/eating ×2 per earner,
+    # the rest flat; uplift per earner). The measured position
+    # dips nothing — a second earner pays from day 3 on — but the
+    # early position dips DEEPER in NCr than the single-earner
+    # household (two adults burn the daily cost with no pay
+    # arriving on days 1–2): a second earner does not help the
+    # early dip at all. The net is the same for every position;
+    # only the month-1 minimum balance moves. No tuning call.
+    print()
+    print("two-earner storm-position month (Unit GD — same 28 worked "
+          "days of 30; second earner is a construction worker at "
+          "the same tier, same storm days; month-1 minbal by storm "
+          "position):")
+    print(f"{'profession':28} {'tier':7} {'early':>7} {'mid':>7} "
+          f"{'late':>7} {'measured':>8} {'even':>7}  (net/mo)")
+    for tier in ("entry", "mid", "senior"):
+        w = bands["construction_worker"]
+        early = simulate(prices, w, tier,
+                         storm_days=STORM_EARLY_DAYS,
+                         second_earner=True)
+        mid = simulate(prices, w, tier,
+                       storm_days=STORM_MID_DAYS,
+                       second_earner=True)
+        late = simulate(prices, w, tier,
+                        storm_days=STORM_LATE_DAYS,
+                        second_earner=True)
+        measured = simulate(prices, w, tier,
+                            storm_days=STORM_MEASURED_DAYS,
+                            second_earner=True)
+        even = simulate(prices, w, tier,
+                        day_wage_worked_days=28,
+                        second_earner=True)
         print(f"{early['profession']:28} {early['tier']:7} "
               f"{early['min_balance']:>7} {mid['min_balance']:>7} "
               f"{late['min_balance']:>7} {measured['min_balance']:>8} "

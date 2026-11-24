@@ -66,10 +66,15 @@ def main():
     check("day_wage_worked_days=28" in main_src,
           "economy_sim.py: the v6 even-spread section is unchanged")
 
-    # 2. The pin + the tests.
-    check('ECONOMY_SIM_BASELINE_MD5 = "e598e416c07b21bacee9fe98fdb27244"'
+    # 2. The pin + the tests. (Queue 24 Units GD–GE moved the
+    # default-run md5 to d699ae7d37fe8ca077f873ba238dd86b; the v7
+    # pin is kept in test_no_regression.py as history, and this
+    # script checks that instead of the live pin.)
+    check("e598e416c07b21bacee9fe98fdb27244" in regress,
+          "test_no_regression.py: the v7 md5 is kept as history")
+    check('ECONOMY_SIM_BASELINE_MD5 = "d699ae7d37fe8ca077f873ba238dd86b"'
           in regress,
-          "test_no_regression.py: the v7 md5 is pinned")
+          "test_no_regression.py: the Queue 24 md5 is pinned")
     check("9ac10779c231b7aa6120a6ff457982de" in regress,
           "test_no_regression.py: the v6 md5 is kept as history")
     check("test_storm_position_minbal_is_measured" in regress,
@@ -119,13 +124,14 @@ def main():
           "GDD-03 §2: the V7 report is cited")
 
     # 5. Live: the tool runs and its md5 matches the pin.
+    # (Queue 24 Units GD–GE moved the pin; the v7 pin is history.)
     out = subprocess.run([sys.executable,
                           str(ROOT / "tools" / "economy_sim.py")],
                          capture_output=True, cwd=ROOT)
     check(out.returncode == 0, "live: economy_sim.py runs clean")
     md5 = hashlib.md5(out.stdout).hexdigest()
-    check(md5 == "e598e416c07b21bacee9fe98fdb27244",
-          "live: the default-run md5 matches the v7 pin", md5)
+    check(md5 == "d699ae7d37fe8ca077f873ba238dd86b",
+          "live: the default-run md5 matches the Queue 24 pin", md5)
     text = out.stdout.decode()
     check("day-wage storm-position month (Unit FB" in text,
           "live: the storm-position section prints")
