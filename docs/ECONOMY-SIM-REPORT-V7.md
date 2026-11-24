@@ -1237,7 +1237,10 @@ the base table and all other rows are unchanged.
 **Open, recorded:** the business-employed taxi driver's
 unsurged pay (above) — a settlement question, not a tool
 gap; the Shibnagar variant's bridge check still prints
-single-earner lines only — Queue 29 Unit KD.
+single-earner lines only — Queue 29 Unit KD. *(Both closed
+by Queue 30, 2026-11-25: the business-employed case cannot
+arise — Unit KF, §19 — and the storm line is wired into the
+variant — Unit KE, §18.)*
 
 ## 17. Addendum — Two-earner lines in the Shibnagar variant (Unit KD, Queue 29)
 
@@ -1304,3 +1307,106 @@ default run is byte-identical.
 still District 1 only (above) — a small asymmetry, not a
 gap in any household figure; the business-employed taxi
 driver's unsurged pay (§16) stays a settlement question.
+*(Both closed by Queue 30, 2026-11-25: the storm line is
+wired into the variant — Unit KE, §18 — and the
+business-employed case cannot arise — Unit KF, §19.)*
+
+## 18. Addendum — Storm-position bridge line in the Shibnagar variant (Unit KE, Queue 30)
+
+**Date:** 2026-11-25. **Method:** re-run the single-earner
+construction-worker storm rows on Shibnagar rents —
+`simulate(..., rent_override = rents[SHIBNAGAR_RENT_TIER
+["construction_worker"]])` — for every storm position, and
+compare minbal, net and end balance against the District 1
+run; then wire the storm line into
+`print_shibnagar_variant`'s bridge check, computed on the
+variant's own rents rather than quoted from District 1.
+
+**Verified: the figures are identical — every storm
+position, 0 differences.** Shibnagar's tier-1 rent is the
+prices.json tier-1 rent (2,500 — asserted by
+`load_shibnagar_rents`, not assumed), and the storm line is
+about the first earner's own dip, so the identity holds by
+construction — and it is verified, not asserted: early −500,
+mid 0, late 0, measured −100 on both rents, worst −500, so
+the line is 5,000 − 500 = 4,500 in both cities.
+
+Verbatim output (the Shibnagar bridge check now):
+
+```
+shibnagar first-month bridge check (same starting balances):
+  construction_worker    start   5000 + dip       0 =    5000  OK
+  construction_worker    start   5000 + storm dip    -500 =    4500  OK  (worst storm position)
+  construction_worker + taxi-driver    start  10000 + mixed dip     -72 =    9928  OK  (worst mixed storm position)
+  construction_worker + civil-engineer start  30000 + mixed dip   -8623 =   21377  OK  (worst mixed storm position)
+  construction_worker + construction-worker start  10000 + same-tier dip   -1231 =    8769  OK  (worst same-tier storm position)
+  construction_worker + taxi-driver (mid) start  10000 + other-tier dip       0 =   10000  OK  (worst other-tier storm position)
+  construction_worker + civil-engineer (entry) start  30000 + other-tier dip   -3210 =   26790  OK  (worst other-tier storm position)
+  construction_worker + taxi-driver (mid, renting) start  10000 + renting dip     -56 =    9944  OK  (worst renting storm position)
+```
+
+The KC baseline stands: the pinned md5 does not move — the
+KE wiring touches only the `--shibnagar` output, and the
+default run is byte-identical.
+
+**No tuning call.** Nothing in the data moves.
+
+**Open, recorded:** the storm line sweeps storm positions
+at the entry tier only — the two-earner lines sweep the
+first earner's tiers, the single-earner storm line does not.
+Measured while wiring: the worst single-earner storm dip
+across tiers is senior early −726 (mid −595, entry −500),
+which against the same 5,000 start leaves 4,274 — still OK,
+so no bridge failure is hidden, but the printed line
+(5,000 − 500 = 4,500) is the entry row's worst, not the
+household's worst across tiers. Whether the line should
+sweep tiers like the two-earner lines is a decision for a
+later unit (Queue 31 Unit LA).
+
+## 19. Addendum — Business-employed taxi surge (Unit KF, Queue 30)
+
+**Date:** 2026-11-25. **Method:** audit every route by
+which a taxi driver could come to be paid by a business —
+read every vacancy source, every employment-creation site,
+and the job-change path — and measure a live world
+(`Simulation`, seed `kf-measure`, `generate_population
+(120)`, 90 days) for business-employed taxi drivers and
+business wage rows to taxi drivers.
+
+**Measured: the case cannot arise.** No vacancy source ever
+posts a taxi driver: business staffing posts chef,
+construction_worker and software_developer
+(`labour.STAFFING`); civic posts teacher, doctor and
+police_officer (`labour.CIVIC_RATIOS`); government posts
+police_officer, doctor and civil_engineer
+(`admin.STAFFING`); the Session 05 employment programme
+posts construction_worker (`policies.py`). Genesis
+(`population.py`) and the seek-employment hire
+(`decisions._hire`) insert employments with no business
+employer, and a job change (`decisions.py`, the vacancy
+path) takes the vacancy's profession — so a taxi driver
+who changes jobs stops being a taxi driver. The live world
+confirms it: 0 taxi vacancies ever posted, 4 taxi drivers
+in the world, 0 business-employed, 0 wage rows from a
+business to a taxi driver, 12 taxi wage rows in total — all
+from SYS-EMPLOYERS; the only vacancy professions ever
+posted were civil_engineer, construction_worker and
+software_developer.
+
+**DECIDED: no settlement change.** The surge stays
+SYS-EMPLOYERS-only, not because the business path was
+judged wrong, but because no business-employed taxi driver
+can exist for it to apply to: `_pay_business_wages` is
+unreachable for taxi_driver, so adding a surge there would
+be behaviour for a case the machinery cannot produce. The
+§16 question is closed as a measurement, not as a
+judgement: if a future staffing change ever posts taxi
+driver vacancies, the question re-opens — and a guard test
+(`test_economy_labour_banking.py`,
+`TestBusinessEmployedTaxiSurge`) fails loudly if it does.
+
+**No tuning call.** Nothing in the data moves, and no sim
+code changes — `engine.py` is byte-identical.
+
+**Open, recorded:** none from this unit. The §16 open item
+is closed.

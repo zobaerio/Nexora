@@ -1170,6 +1170,31 @@ def print_shibnagar_variant(prices, d1_rows, start_balances):
             bridge_fail.append(r["pid"])
         print(f"  {r['pid']:22} start {start:>6} + dip {r['min_balance']:>7} = {worst:>7}  {status}")
         if r["pid"] == "construction_worker":
+            # Queue 30 / Unit KE: the single-earner storm line —
+            # the same worst storm-position dip the District 1
+            # check prints (Unit GE), re-run on Shibnagar rents.
+            # The construction worker rents tier 1 in both cities
+            # (2,500 — asserted by load_shibnagar_rents, not
+            # assumed), so the figure matches District 1:
+            # 5,000 − 500 = 4,500 — verified live by the KE
+            # tests (every storm position identical). The line
+            # is wired here rather than quoted from the
+            # District 1 run, so the variant's check stands on
+            # its own rents; a failing line joins BRIDGE FAIL,
+            # as in District 1.
+            worst_storm = min(
+                simulate(prices, bands["construction_worker"],
+                         "entry", storm_days=pos,
+                         rent_override=shib_rent)["min_balance"]
+                for pos in (STORM_EARLY_DAYS, STORM_MID_DAYS,
+                            STORM_LATE_DAYS, STORM_MEASURED_DAYS))
+            storm_worst = start + worst_storm
+            storm_status = "OK" if storm_worst >= 0 else "BRIDGE FAIL"
+            if storm_worst < 0:
+                bridge_fail.append("construction_worker (storm)")
+            print(f"  {r['pid']:22} start {start:>6} + storm dip "
+                  f"{worst_storm:>7} = {storm_worst:>7}  {storm_status}"
+                  f"  (worst storm position)")
             # Unit IA (Queue 26): the mixed two-earner bridge
             # lines — the worst mixed minbal per second-earner
             # profession, against the combined canonical start.
