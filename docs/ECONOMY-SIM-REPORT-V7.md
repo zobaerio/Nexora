@@ -1410,3 +1410,63 @@ code changes — `engine.py` is byte-identical.
 
 **Open, recorded:** none from this unit. The §16 open item
 is closed.
+
+## 20. Addendum — Single-earner storm line across tiers (Unit LA, Queue 31)
+
+**Date:** 2026-11-25. **Method:** re-run the single-earner
+construction-worker storm rows for every tier (entry, mid,
+senior) at every storm position (early, mid, late,
+measured), in District 1 and on Shibnagar rents, and decide
+whether the storm bridge line should sweep tiers like the
+two-earner lines (Unit IA) or stay entry-only (Unit GE).
+
+**Measured: the worst dip is senior early, not entry
+early.** Per-tier worst dips across the four positions:
+
+| tier | early | mid | late | measured | worst |
+|---|---|---|---|---|---|
+| entry | −500 | 0 | 0 | −100 | −500 |
+| mid | −595 | 0 | 0 | 0 | −595 |
+| senior | −726 | 0 | 0 | 0 | −726 |
+
+The early position is worst at every tier; the deeper
+senior dip is Unit V's tier-scaled living costs meeting the
+day-wage rule, and the storm position is what exposes it in
+month 1. The figures are identical on Shibnagar rents at
+every tier — the rent is the tier-1 rent in both cities and
+the dip is the first earner's own.
+
+**DECIDED: sweep the tiers.** The bridge check's stated
+purpose is the household's worst month-1 balance, and the
+entry-only line understated it by 226: it printed the entry
+row's worst (5,000 − 500 = 4,500) rather than the
+household's worst across tiers. The two-earner lines already
+sweep the first earner's tiers (Unit IA), so the
+single-earner line was the inconsistent one. The start is
+the same 5,000 at every tier (`starting_balance_ncr` is per
+profession, not per tier), so the sweep stays one
+household's worst. The line is now 5,000 − 726 = 4,274 in
+both cities:
+
+```
+  construction_worker    start   5000 + storm dip    -726 =    4274  OK  (worst storm position, all tiers)
+```
+
+Still OK — no bridge failure was hidden; the correction
+is 226 of headroom the check was overstating. The KE §18
+figure (5,000 − 500 = 4,500) is superseded by this section:
+it was the entry row's worst, correctly measured, and is
+now replaced as the printed line.
+
+The pinned md5 moves to `2b9d24f9663f88ad0d13be1f5e86c40c`
+(the KC md5 is kept in `test_no_regression.py` as
+history): the printed bridge line is part of the default
+run, so the sweep changes the default output.
+
+**No tuning call.** Nothing in the data moves.
+
+**Open, recorded:** the single-earner renting-cab row's
+bridge line is entry-only, like the storm line was — the
+renting row itself is modelled at the entry tier alone, so
+there is no mid/senior renting row to sweep (Queue 32 Unit
+MA).

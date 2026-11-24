@@ -239,6 +239,26 @@ line):
   (V7 §5: entry 5,000 − 500 = 4,500). The pinned md5 moves again
   (the v7 md5 is kept in test_no_regression.py as history).
 
+What v7 adds vs v6, Queue 31 Unit LA (the single-earner storm
+line across tiers):
+- DECIDED: the storm line sweeps tiers, like the two-earner
+  lines already do (Unit IA). The GE line swept storm positions
+  at the entry tier only, so it printed the entry row's worst
+  (5,000 − 500 = 4,500) rather than the household's worst across
+  tiers: measured per-tier worst dips are entry −500, mid −595,
+  senior −726 (early position worst at every tier; the deeper
+  senior dip is Unit V's tier-scaled living costs meeting the
+  day-wage rule, exposed by the storm position). The line is now
+  5,000 − 726 = 4,274 — still OK, so no bridge failure was
+  hidden, but the check's stated purpose is the worst month-1
+  balance and the entry-only line understated it by 226. The
+  start is the same 5,000 at every tier (starting_balance_ncr
+  is per profession, not per tier), so the sweep stays one
+  household's worst. The Shibnagar variant's storm line sweeps
+  the same way on its own rents (identical figures, verified).
+  The pinned md5 moves again (the KC md5 is kept in
+  test_no_regression.py as history). No tuning call.
+
 What v6 changes vs v5 (Queue 22, Unit EY — the ES day-wage
 follow-up):
 - The construction worker is now modelled on the settlement's
@@ -1173,19 +1193,21 @@ def print_shibnagar_variant(prices, d1_rows, start_balances):
             # Queue 30 / Unit KE: the single-earner storm line —
             # the same worst storm-position dip the District 1
             # check prints (Unit GE), re-run on Shibnagar rents.
-            # The construction worker rents tier 1 in both cities
-            # (2,500 — asserted by load_shibnagar_rents, not
-            # assumed), so the figure matches District 1:
-            # 5,000 − 500 = 4,500 — verified live by the KE
-            # tests (every storm position identical). The line
-            # is wired here rather than quoted from the
-            # District 1 run, so the variant's check stands on
-            # its own rents; a failing line joins BRIDGE FAIL,
-            # as in District 1.
+            # Queue 31 / Unit LA: the line sweeps tiers like the
+            # District 1 line — the minimum across the
+            # construction worker's tiers and the four storm
+            # positions, on the variant's own rents. Measured
+            # per-tier worst dips are entry −500, mid −595,
+            # senior −726 on both rents (the tier-1 rent is
+            # identical, and the dip is the first earner's own),
+            # so the line is 5,000 − 726 = 4,274 in both cities.
+            # A failing line joins BRIDGE FAIL, as in
+            # District 1.
             worst_storm = min(
                 simulate(prices, bands["construction_worker"],
-                         "entry", storm_days=pos,
+                         tier, storm_days=pos,
                          rent_override=shib_rent)["min_balance"]
+                for tier in ("entry", "mid", "senior")
                 for pos in (STORM_EARLY_DAYS, STORM_MID_DAYS,
                             STORM_LATE_DAYS, STORM_MEASURED_DAYS))
             storm_worst = start + worst_storm
@@ -1194,7 +1216,7 @@ def print_shibnagar_variant(prices, d1_rows, start_balances):
                 bridge_fail.append("construction_worker (storm)")
             print(f"  {r['pid']:22} start {start:>6} + storm dip "
                   f"{worst_storm:>7} = {storm_worst:>7}  {storm_status}"
-                  f"  (worst storm position)")
+                  f"  (worst storm position, all tiers)")
             # Unit IA (Queue 26): the mixed two-earner bridge
             # lines — the worst mixed minbal per second-earner
             # profession, against the combined canonical start.
@@ -1402,9 +1424,22 @@ def main():
             bridge_fail.append(r["pid"])
         print(f"  {r['pid']:22} start {start:>6} + dip {r['min_balance']:>7} = {worst:>7}  {status}")
         if r["pid"] == "construction_worker":
+            # Queue 31 / Unit LA: the storm line sweeps tiers
+            # like the two-earner lines below (Unit IA) — the
+            # minimum across the first earner's tiers and the
+            # four storm positions. The GE line swept positions
+            # at the entry tier only and printed the entry row's
+            # worst (5,000 − 500 = 4,500), not the household's
+            # worst across tiers: measured worst dips are entry
+            # −500, mid −595, senior −726 (early worst at every
+            # tier), so the line is now 5,000 − 726 = 4,274.
+            # The start is the same 5,000 at every tier
+            # (starting_balance_ncr is per profession, not per
+            # tier), so the sweep stays one household's worst.
             worst_storm = min(
-                simulate(prices, bands["construction_worker"], "entry",
-                         storm_days=pos)["min_balance"]
+                simulate(prices, bands["construction_worker"],
+                         tier, storm_days=pos)["min_balance"]
+                for tier in ("entry", "mid", "senior")
                 for pos in (STORM_EARLY_DAYS, STORM_MID_DAYS,
                             STORM_LATE_DAYS, STORM_MEASURED_DAYS))
             storm_worst = start + worst_storm
@@ -1413,7 +1448,7 @@ def main():
                 bridge_fail.append("construction_worker (storm)")
             print(f"  {r['pid']:22} start {start:>6} + storm dip "
                   f"{worst_storm:>7} = {storm_worst:>7}  {storm_status}"
-                  f"  (worst storm position)")
+                  f"  (worst storm position, all tiers)")
             # Queue 26 / Unit IA: the mixed two-earner bridge
             # lines — the worst mixed minbal per second-earner
             # profession (the minimum across the first earner's
