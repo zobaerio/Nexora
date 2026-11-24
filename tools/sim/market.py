@@ -41,14 +41,22 @@ Owner-run shops' takings are their settlement P&L (Session 01) —
 they are not paid twice; their shelves still empty. Households
 that ended the month in arrears consume less (the hardship
 factor), and a household that cannot get food records a real
-needs consequence. Households with a head haggle food and clothing
-stalls down to the catalogue base price when the shelf stands above
-it (Queue 23 Unit FA — the live haggle call site for mission 2.3;
-Queue 24 Unit GA extends the same rule from the mission's food
-goods to `clothing_set`); the same spend buys more goods, and the
+needs consequence. Households with a head haggle food, clothing
+and household-supply stalls down to the catalogue base price when
+the shelf stands above it (Queue 23 Unit FA — the live haggle
+call site for mission 2.3; Queue 24 Unit GA extends the same rule
+from the mission's food goods to `clothing_set`; Queue 25 Unit HB
+extends it to `household_supplies` — the last good the pass bought
+at shelf prices); the same spend buys more goods, and the
 shelves are paid what the buyers actually paid. The money households
 pay is the settlement's single payment — this pass allocates its
-goods side; it does not charge anyone twice.
+goods side; it does not charge anyone twice. (Queue 25 Unit HC:
+the per-good purchase audit — `purchase_audit` per household per
+good (intended / spend / residual) and `takings_audit` per city
+per good (spend / system takings / owner share) — records the
+per-good split beside the settlement's combined `purchase` row,
+so the month's per-good purchase in reconciles to the takings out
++ the residual; no ledger row is added.)
 """
 import json
 import math
@@ -65,10 +73,11 @@ FISH_SHARE_OF_FOOD_SPEND = 0.25
 # over — the mission's food goods (GDD-04 §3.6, mission 2.3 "The
 # Market Run": buy a week's food at Boro Bazar and haggle once),
 # plus clothing (Queue 24 Unit GA — the same rule: the head haggles
-# to the catalogue base price when the shelf stands above it).
-# Household supplies are bought at shelf prices; haggling them is
-# not modelled.
-HAGGLE_GOODS = ("food_basket", "fish", "clothing_set")
+# to the catalogue base price when the shelf stands above it),
+# plus household supplies (Queue 25 Unit HB — the same rule; the
+# basket is now fully haggled: every good the pass buys).
+HAGGLE_GOODS = ("food_basket", "fish", "clothing_set",
+                "household_supplies")
 STORM_HALT_DAYS = 5
 PRICE_FLOOR_RATIO = 0.5
 PRICE_CAP_RATIO = 2.0
@@ -669,6 +678,24 @@ def retail_allocation(store, data, month_index, game_minutes):
                 paid[good_id] = pay_price
                 key = (city, good_id)
                 city_want[key] = city_want.get(key, 0.0) + units
+        # Queue 25 Unit HB: the supplies want — one household-month
+        # unit (the good's own unit, data/economy-goods.json),
+        # scaled by the same hardship factor as the other wants.
+        # There is no settlement budget line for supplies
+        # (engine._living_costs has none), so no spend line is
+        # invented: the household buys the one unit at the price
+        # it faces, and the spend is that unit at the paid price
+        # (haggled to base when the shelf stands above it — the
+        # same rule as food and clothing, recorded the same way).
+        price = price_of(store, data, city, "household_supplies")
+        pay_price = _haggled_price(data, "household_supplies",
+                                   price, head)
+        units = hardship * demand_factor
+        if units > 0:
+            wants["household_supplies"] = units
+            paid["household_supplies"] = pay_price
+            key = (city, "household_supplies")
+            city_want[key] = city_want.get(key, 0.0) + units
         wants_by_household[hid] = (household, city, wants, paid, head)
         totals["households"] += 1
     # Coverage per (city, good): stocked supply over total want.
@@ -689,6 +716,10 @@ def retail_allocation(store, data, month_index, game_minutes):
     store.execute("DELETE FROM inventory_items WHERE item_type = 'goods'")
     city_got = {}
     city_paid = {}
+    # Queue 25 Unit HC: Σ recorded spend per (city, good) — the
+    # takings audit's spend column (the sum of the rounded
+    # per-household spends, so the audit identity is exact).
+    city_spend = {}
     for hid, (household, city, wants, paid, head) \
             in wants_by_household.items():
         got = {}
@@ -716,12 +747,31 @@ def retail_allocation(store, data, month_index, game_minutes):
                             pay_price, game_minutes) is not None:
                         totals["haggles"] += 1
             unmet = round(want_units - got_units, 3)
+            spend = int(round(got_units * pay_price))
             store.execute(
                 "INSERT OR REPLACE INTO household_consumption"
                 " (household_id, month_index, good_id, units,"
                 " spend_ncr, unmet_units) VALUES (?, ?, ?, ?, ?, ?)",
                 (hid, month_index, good_id, round(got_units, 3),
-                 int(round(got_units * pay_price)), unmet))
+                 spend, unmet))
+            # Queue 25 Unit HC: the per-good purchase audit — the
+            # split beside the settlement's combined `purchase`
+            # row. intended is the want at the paid price (the
+            # household's goods-side claim on the settled payment);
+            # spend is what the shelves actually gave (the same
+            # figure as the consumption row); residual is the
+            # unmet-want shortfall value, derived as intended −
+            # spend so intended = spend + residual holds exactly.
+            intended = int(round(want_units * pay_price))
+            store.execute(
+                "INSERT OR REPLACE INTO purchase_audit"
+                " (household_id, month_index, good_id,"
+                " intended_spend_ncr, spend_ncr, residual_ncr,"
+                " game_minutes) VALUES (?, ?, ?, ?, ?, ?, ?)",
+                (hid, month_index, good_id, intended, spend,
+                 intended - spend, game_minutes))
+            skey = (city, good_id)
+            city_spend[skey] = city_spend.get(skey, 0) + spend
             totals["units"] += got_units
             totals["unmet_units"] += unmet
             if good_id == "food_basket" and want_units > 0 \
@@ -742,9 +792,28 @@ def retail_allocation(store, data, month_index, game_minutes):
         # shelf price times the units.
         paid_value = city_paid[(city, good_id)]
         unit_price = paid_value / units if units > 0 else None
-        _draw_from_shelves(store, data, city, good_id, units,
-                           month_index, game_minutes, totals,
-                           unit_price=unit_price)
+        drawn = _draw_from_shelves(store, data, city, good_id, units,
+                                   month_index, game_minutes, totals,
+                                   unit_price=unit_price)
+        # Queue 25 Unit HC: the takings split for this city+good.
+        # spend is the households' recorded spend; system_takings
+        # is what the draw paid the system retailers (the ledger
+        # rows); owner_share is the residual — the value of the
+        # goods drawn from owner-run shelves at the paid price,
+        # which has no ledger row of its own (their P&L is the
+        # settlement's). Derived, so spend = takings + owner holds
+        # exactly; the per-seller draw behind it is in
+        # inventory_movements (kind 'retail_sale').
+        spend_total = city_spend.get((city, good_id), 0)
+        system_takings = drawn["system_takings_ncr"]
+        store.execute(
+            "INSERT OR REPLACE INTO takings_audit"
+            " (city_id, month_index, good_id, spend_ncr,"
+            " system_takings_ncr, owner_share_ncr, game_minutes)"
+            " VALUES (?, ?, ?, ?, ?, ?, ?)",
+            (city, month_index, good_id, spend_total,
+             system_takings, spend_total - system_takings,
+             game_minutes))
     return totals
 
 
@@ -784,9 +853,11 @@ def retail_allocation(store, data, month_index, game_minutes):
 # row records the paid price, and the shelves are paid what the
 # buyers actually paid. (Unit GA extends the same rule to the
 # clothing purchase — clothing_set — so the head haggles clothing
-# stalls down to base too, recorded the same way. Household
-# supplies are still bought at shelf prices — haggling them is not
-# modelled.) A household that got no food bought nothing and
+# stalls down to base too, recorded the same way. Unit HB extends
+# it to the supplies purchase — household_supplies, one
+# household-month unit per household — so the head haggles the
+# supplies stall down to base too; the basket is now fully
+# haggled.) A household that got no food bought nothing and
 # records no haggle; a headless household has no haggler. No
 # dialogue runtime is invented here: no stall conversation runs in
 # the sim, and the haggle is the pass's own deterministic rule, not
@@ -810,18 +881,19 @@ def market_zone_of_city(data, city_id):
 def _haggled_price(data, good_id, shelf_price_ncr, head_character_id):
     """The price a household pays per unit of a good (Queue 23
     Unit FA — the live haggle call site, GDD-04 §3.6 mission 2.3;
-    Queue 24 Unit GA extends it to clothing_set): for the haggled
-    goods, a household WITH a head haggles the stall down to the
-    good's catalogue base price whenever the shelf price stands
-    above it — the buyer knows the fair price (the dialogue line:
-    "The stalls respect a buyer who knows the price"), and the base
-    price is the catalogue's own fact (`data/economy-goods.json`
-    `base_price_ncr`), not a rate this module invents. The shelf
-    price is the asked price, the base price is the paid price, and
-    success is derived (paid < asked) by record_haggle(). A headless
-    household has no haggler; a shelf at or below base leaves
-    nothing to win; a non-haggled good (household_supplies) is
-    bought at shelf prices (haggling it is not modelled).
+    Queue 24 Unit GA extends it to clothing_set; Queue 25 Unit HB
+    extends it to household_supplies — the basket is now fully
+    haggled): for the haggled goods, a household WITH a head
+    haggles the stall down to the good's catalogue base price
+    whenever the shelf price stands above it — the buyer knows the
+    fair price (the dialogue line: "The stalls respect a buyer who
+    knows the price"), and the base price is the catalogue's own
+    fact (`data/economy-goods.json` `base_price_ncr`), not a rate
+    this module invents. The shelf price is the asked price, the
+    base price is the paid price, and success is derived
+    (paid < asked) by record_haggle(). A headless household has no
+    haggler; a shelf at or below base leaves nothing to win; a good
+    outside HAGGLE_GOODS would buy at shelf prices.
     Returns the shelf price in all those cases."""
     if head_character_id is None or good_id not in HAGGLE_GOODS:
         return shelf_price_ncr
@@ -886,11 +958,14 @@ def _draw_from_shelves(store, data, city_id, good_id, want_units,
     """Draw units from the city's retail/food-service shelves in
     proportion to stock. System retailers are paid takings for
     what left their shelf; owner-run shops are not (their P&L is
-    the settlement's). Returns units actually drawn. The takings
-    price is `unit_price` when the caller passes one (Queue 23
-    Unit FA: the blended price the buyers actually paid — shelf
-    price where nobody haggled, lower where heads haggled the
-    stall down), else the shelf price."""
+    the settlement's). Returns {"drawn": units actually drawn,
+    "system_takings_ncr": the takings paid to system retailers}
+    (Queue 25 Unit HC: the caller needs the takings to write the
+    takings audit — the owner share is the spend minus these
+    takings). The takings price is `unit_price` when the caller
+    passes one (Queue 23 Unit FA: the blended price the buyers
+    actually paid — shelf price where nobody haggled, lower where
+    heads haggled the stall down), else the shelf price."""
     sellers = []
     for b in business_mod.active_businesses(store):
         if b["category"] not in ("retail", "food_service"):
@@ -902,10 +977,11 @@ def _draw_from_shelves(store, data, city_id, good_id, want_units,
             sellers.append((b, qty))
     total_stock = sum(q for _b, q in sellers)
     if total_stock <= 0 or want_units <= 0:
-        return 0.0
+        return {"drawn": 0.0, "system_takings_ncr": 0}
     price = unit_price if unit_price is not None else price_of(
         store, data, city_id, good_id)
     drawn = 0.0
+    system_takings = 0
     for b, qty in sellers:
         share = want_units * qty / total_stock
         take = min(qty, share)
@@ -927,7 +1003,8 @@ def _draw_from_shelves(store, data, city_id, good_id, want_units,
                                event_ref=f"month:{month_index}",
                                to_business_id=b["business_id"])
                 totals["takings_ncr"] += takings
-    return drawn
+                system_takings += takings
+    return {"drawn": drawn, "system_takings_ncr": system_takings}
 
 
 def _food_hardship(store, household, game_minutes, severity):
