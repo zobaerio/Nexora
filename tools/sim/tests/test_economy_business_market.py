@@ -420,5 +420,129 @@ class TestNoHaggleAtBasePrices(unittest.TestCase):
             self.store, self.data, cid, 10 ** 8 + 200))
 
 
+class TestHaggleClothingAtTheMonthlyPass(unittest.TestCase):
+    # Queue 24 Unit GA — the same rule, extended to clothing
+    # (GDD-04 §3.6, mission 2.3): the monthly shopping pass
+    # haggles clothing stalls too. Rupsha's clothing_set shelf is
+    # raised above the catalogue base price (900 vs base 600)
+    # before the month-1 settlement, so every headed Rupsha
+    # household that buys clothing haggles the stall down to base
+    # — and the haggle records, moves the money at the paid price,
+    # and satisfies mission 2.3's "haggle once" objective, because
+    # the verifier reads character + zone + success, never the
+    # good. The food shelf stands at base in this run, so no food
+    # haggle fires — the clothing haggle alone must verify 2.3.
+    @classmethod
+    def setUpClass(cls):
+        cls.path = _tmp_path()
+        cls.sim = Simulation(cls.path, seed="q24-ga-clothing")
+        cls.sim.generate_population(60)
+        cls.store = cls.sim.store
+        cls.data = cls.sim.data
+        cls.store.execute(
+            "UPDATE market_prices SET price_ncr = 900 WHERE"
+            " city_id = 'rupsha_city' AND good_id = 'clothing_set'")
+        cls.sim.run_days(32)
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.sim.close()
+        os.remove(cls.path)
+
+    def _rupsha_households_with_clothing(self):
+        out = []
+        for r in self.store.rows(
+                "SELECT hc.household_id, hc.units, hc.spend_ncr,"
+                " h.district_id FROM household_consumption hc"
+                " JOIN households h ON h.household_id ="
+                " hc.household_id WHERE hc.month_index = 1 AND"
+                " hc.good_id = 'clothing_set' AND hc.units > 0"):
+            if cities_mod.city_of_zone(self.data,
+                                       r["district_id"]) != "rupsha_city":
+                continue
+            head = self.store.row(
+                "SELECT character_id FROM household_members WHERE"
+                " household_id = ? AND role = 'head' AND"
+                " left_at_game_minutes IS NULL",
+                (r["household_id"],))
+            out.append((r, head["character_id"] if head else None))
+        return out
+
+    def test_haggled_clothing_purchase_records_a_successful_haggle(self):
+        rows = self.store.rows(
+            "SELECT * FROM haggle_events WHERE good_id ="
+            " 'clothing_set'")
+        self.assertTrue(rows)
+        # Every clothing haggle is in Boro Bazar, won down to the
+        # catalogue base price (600) from a shelf above it — the
+        # asked price is read from the row, not assumed to be the
+        # raised 900, because the monthly price pass may step the
+        # shelf before the allocation reads it.
+        for r in rows:
+            self.assertEqual(r["zone"], "d1_market")
+            self.assertEqual(r["outcome"], "success")
+            self.assertEqual(r["paid_price_ncr"], 600)
+            self.assertGreater(r["asked_price_ncr"], 600)
+        # Exactly one clothing haggle per headed Rupsha household
+        # that bought clothing — one stall purchase, one record.
+        haggled = {r["character_id"] for r in rows}
+        for _row, head in self._rupsha_households_with_clothing():
+            if head is None:
+                continue
+            self.assertIn(head, haggled)
+            self.assertEqual(
+                sum(1 for r in rows
+                    if r["character_id"] == head), 1)
+
+    def test_haggled_clothing_households_spend_the_paid_price(self):
+        haggled = {r["character_id"]
+                   for r in self.store.rows(
+                       "SELECT character_id FROM haggle_events WHERE"
+                       " good_id = 'clothing_set'")}
+        checked = 0
+        for row, head in self._rupsha_households_with_clothing():
+            if head is None or head not in haggled:
+                continue
+            checked += 1
+            # The consumption row records the paid price (600), and
+            # the same spend bought more clothing than the shelf
+            # price would have bought. (Units are stored rounded to
+            # 3 decimals while spend is computed from the unrounded
+            # units, so the paid-price check allows ±2 NCr.)
+            self.assertLessEqual(
+                abs(row["spend_ncr"] - round(row["units"] * 600)),
+                2)
+            self.assertGreater(row["units"] * 900, row["spend_ncr"])
+        self.assertGreater(checked, 0)
+
+    def test_clothing_haggle_satisfies_mission_2_3(self):
+        # A clothing haggle in d1_market satisfies objective (2):
+        # the verifier is good-agnostic. The household also bought
+        # food this month (objective (1)), so the month verifies
+        # 2.3 with no food haggle anywhere in the world.
+        self.assertEqual(
+            self.store.rows("SELECT * FROM haggle_events WHERE"
+                            " good_id = 'food_basket'"), [])
+        cid = None
+        for row, head in self._rupsha_households_with_clothing():
+            if head is None:
+                continue
+            food = self.store.row(
+                "SELECT 1 FROM household_consumption WHERE"
+                " household_id = ? AND month_index = 1 AND"
+                " good_id = 'food_basket' AND units > 0",
+                (row["household_id"],))
+            if food is not None:
+                cid = head
+                break
+        self.assertIsNotNone(cid)
+        self.assertTrue(market_mod.has_successful_haggle(
+            self.store, cid, "d1_market"))
+        ms.make_available(self.store, cid, "2.3", 10 ** 8)
+        ms.accept_mission(self.store, cid, "2.3", 10 ** 8 + 100)
+        self.assertTrue(ms.verify_mission_2_3(
+            self.store, self.data, cid, 10 ** 8 + 200))
+
+
 if __name__ == "__main__":
     unittest.main()

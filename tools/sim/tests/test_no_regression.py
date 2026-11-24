@@ -12,15 +12,15 @@ import unittest
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__),
                                     "..", "..", ".."))
 # Pinned default-run md5 of tools/economy_sim.py.
-# v7 baseline (Unit FB, Queue 23, 2026-11-24): the storm-position
-# scenario — the same 28 worked days with the two storm days
-# early / mid / late / at the measured position, plus the v6
-# even-spread baseline for comparison. See
-# docs/ECONOMY-SIM-REPORT-V7.md. Previous baseline (v6, pinned
+# v7 + Queue 24 baseline (Units GD–GE, 2026-11-24): the
+# two-earner storm-position section (GD) and the storm-position
+# bridge line (GE). See docs/ECONOMY-SIM-REPORT-V7.md §§7–8.
+# Previous baseline (v7, pinned 2026-11-24 through Queue 23):
+# e598e416c07b21bacee9fe98fdb27244. Previous baseline (v6, pinned
 # 2026-11-24 through Queue 22): 9ac10779c231b7aa6120a6ff457982de.
 # v5 baseline: 318c6114c143a81a579e70b39ccca8f8. v2 baseline (pinned
 # 2026-11-21 through v3): 16740182867525bd659735deeb05150a.
-ECONOMY_SIM_BASELINE_MD5 = "e598e416c07b21bacee9fe98fdb27244"
+ECONOMY_SIM_BASELINE_MD5 = "d699ae7d37fe8ca077f873ba238dd86b"
 
 
 class TestDayWageModelling(unittest.TestCase):
@@ -160,6 +160,157 @@ class TestDayWageModelling(unittest.TestCase):
         with self.assertRaises(ValueError):
             econ.simulate(prices, teacher, "entry",
                           storm_days=(1, 2))
+
+
+    # Queue 24 Unit GD — the two-earner storm-position scenario:
+    # a second construction worker at the same tier, on the same
+    # storm days and the same day-wage rule, with the household
+    # costs following engine._living_costs for two adults. The
+    # measured position dips nothing (a second earner pays from
+    # day 3 on), but the early position dips DEEPER in NCr than
+    # the single-earner household — two adults burn the daily cost
+    # with no pay arriving on days 1–2.
+    def test_two_earner_storm_position_minbal_is_measured(self):
+        from tools import economy_sim as econ
+        prices = econ.load("prices.json")
+        w = next(w for w in prices["wages_monthly"]
+                 if w["profession_id"] == "construction_worker")
+        early = econ.simulate(prices, w, "entry",
+                              storm_days=econ.STORM_EARLY_DAYS,
+                              second_earner=True)
+        self.assertEqual(early["min_balance"], -780)
+        self.assertEqual(early["net"], 5100)
+        measured = econ.simulate(prices, w, "entry",
+                                 storm_days=econ.STORM_MEASURED_DAYS,
+                                 second_earner=True)
+        self.assertEqual(measured["min_balance"], 0)
+        self.assertEqual(measured["net"], 5100)
+        for tier in ("entry", "mid", "senior"):
+            for pos in (econ.STORM_MID_DAYS, econ.STORM_LATE_DAYS,
+                        econ.STORM_MEASURED_DAYS):
+                self.assertEqual(
+                    econ.simulate(prices, w, tier, storm_days=pos,
+                                  second_earner=True)["min_balance"],
+                    0, f"{tier}/{pos}")
+        # The early dip is deeper than the single-earner one in
+        # NCr (two adults, no pay on days 1–2) — the second earner
+        # does not help the early position.
+        self.assertEqual(
+            econ.simulate(prices, w, "mid",
+                          storm_days=econ.STORM_EARLY_DAYS,
+                          second_earner=True)["min_balance"], -970)
+        self.assertEqual(
+            econ.simulate(prices, w, "senior",
+                          storm_days=econ.STORM_EARLY_DAYS,
+                          second_earner=True)["min_balance"], -1231)
+        self.assertEqual(
+            econ.simulate(prices, w, "mid",
+                          storm_days=econ.STORM_EARLY_DAYS,
+                          second_earner=True)["net"], 11588)
+        self.assertEqual(
+            econ.simulate(prices, w, "senior",
+                          storm_days=econ.STORM_EARLY_DAYS,
+                          second_earner=True)["net"], 18502)
+
+    def test_two_earner_costs_follow_engine_scaling(self):
+        from tools import economy_sim as econ
+        prices = econ.load("prices.json")
+        w = next(w for w in prices["wages_monthly"]
+                 if w["profession_id"] == "construction_worker")
+        # Storm month at the measured position: the two-earner
+        # costs are the single-earner costs plus the second
+        # adult's food/clothing/transport/eating (4,200 at the
+        # lower band) plus the second earner's own uplift.
+        for tier, delta in (("entry", 4200), ("mid", 5623),
+                            ("senior", 7583)):
+            single = econ.simulate(prices, w, tier,
+                                   storm_days=econ.STORM_MEASURED_DAYS)
+            two = econ.simulate(prices, w, tier,
+                                storm_days=econ.STORM_MEASURED_DAYS,
+                                second_earner=True)
+            self.assertEqual(two["costs_total"]
+                             - single["costs_total"], delta, tier)
+            # Gross doubles; tax is per person (senior: 2 x 183).
+            self.assertEqual(two["gross"], 2 * single["gross"], tier)
+            self.assertEqual(two["tax"], 2 * single["tax"], tier)
+            self.assertEqual(two["uplift"], 2 * single["uplift"],
+                             tier)
+            self.assertTrue(two["second_earner"])
+            self.assertFalse(single["second_earner"])
+
+    def test_two_earner_trajectory_still_ends_at_net(self):
+        from tools import economy_sim as econ
+        prices = econ.load("prices.json")
+        w = next(w for w in prices["wages_monthly"]
+                 if w["profession_id"] == "construction_worker")
+        for tier in ("entry", "mid", "senior"):
+            for pos in (econ.STORM_EARLY_DAYS, econ.STORM_MID_DAYS,
+                        econ.STORM_LATE_DAYS, econ.STORM_MEASURED_DAYS):
+                row = econ.simulate(prices, w, tier, storm_days=pos,
+                                    second_earner=True)
+                self.assertEqual(row["end_balance"], row["net"],
+                                 f"{tier}/{pos}")
+
+    def test_second_earner_is_refused_off_day_wage(self):
+        from tools import economy_sim as econ
+        prices = econ.load("prices.json")
+        w = next(w for w in prices["wages_monthly"]
+                 if w["profession_id"] == "construction_worker")
+        teacher = next(w for w in prices["wages_monthly"]
+                       if w["profession_id"] == "teacher")
+        with self.assertRaises(ValueError):
+            econ.simulate(prices, teacher, "entry",
+                          second_earner=True)
+        with self.assertRaises(ValueError):
+            econ.simulate(prices, w, "entry", second_earner=True,
+                          tutoring_income=2400)
+        # Without the flag, the single-earner figures are
+        # untouched by the new kwarg.
+        row = econ.simulate(prices, w, "entry",
+                            storm_days=econ.STORM_MEASURED_DAYS)
+        self.assertEqual(row["min_balance"], -150)
+        self.assertEqual(row["net"], 900)
+
+
+    # Queue 24 Unit GE — the storm-position bridge line: the
+    # bridge check prints the construction_worker entry row's
+    # starting balance + its worst storm-position dip. The worst
+    # dip is the early position (−500 entry); the line must carry
+    # the report's bridge observation (5,000 − 500 = 4,500).
+    def test_storm_position_bridge_line_is_printed(self):
+        import subprocess
+        out = subprocess.run(
+            [sys.executable, os.path.join(ROOT, "tools",
+                                          "economy_sim.py")],
+            capture_output=True, cwd=ROOT)
+        self.assertEqual(out.returncode, 0)
+        text = out.stdout.decode()
+        self.assertIn(
+            "construction_worker    start   5000 + storm dip"
+            "    -500 =    4500  OK  (worst storm position)", text)
+        self.assertIn("BRIDGE FAIL rows: []", text)
+
+    def test_worst_storm_position_dip_is_the_early_one(self):
+        from tools import economy_sim as econ
+        prices = econ.load("prices.json")
+        w = next(w for w in prices["wages_monthly"]
+                 if w["profession_id"] == "construction_worker")
+        # The worst dip across the four positions is the early
+        # one, for every tier — the bridge line wires the minimum,
+        # not the measured position.
+        for tier, worst in (("entry", -500), ("mid", -595),
+                            ("senior", -726)):
+            dips = [econ.simulate(prices, w, tier, storm_days=pos)
+                    ["min_balance"]
+                    for pos in (econ.STORM_EARLY_DAYS,
+                                econ.STORM_MID_DAYS,
+                                econ.STORM_LATE_DAYS,
+                                econ.STORM_MEASURED_DAYS)]
+            self.assertEqual(min(dips), worst, tier)
+            self.assertEqual(
+                econ.simulate(prices, w, tier,
+                              storm_days=econ.STORM_EARLY_DAYS)
+                ["min_balance"], worst, tier)
 
 
 class TestNoRegression(unittest.TestCase):

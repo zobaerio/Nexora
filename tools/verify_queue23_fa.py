@@ -34,9 +34,12 @@ def main():
              / "test_economy_business_market.py").read_text()
     ev_script = (ROOT / "tools" / "verify_queue22_ev.py").read_text()
 
-    # 1. The haggle rule: food goods, head haggles to base.
-    check('HAGGLE_GOODS = ("food_basket", "fish")' in market_src,
-          "market.py: the pass haggles the mission's food goods")
+    # 1. The haggle rule: food goods + clothing, head haggles to
+    # base. (Queue 24 Unit GA extended HAGGLE_GOODS with
+    # clothing_set; the tuple below is the GA tuple.)
+    check('HAGGLE_GOODS = ("food_basket", "fish", "clothing_set")'
+          in market_src,
+          "market.py: the pass haggles the food goods + clothing")
     hag = market_src.split("def _haggled_price(")[1].split("def ")[0]
     check('data.goods[good_id]["base_price_ncr"]' in hag,
           "market.py: the paid price is the catalogue base price")

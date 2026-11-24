@@ -41,13 +41,14 @@ Owner-run shops' takings are their settlement P&L (Session 01) —
 they are not paid twice; their shelves still empty. Households
 that ended the month in arrears consume less (the hardship
 factor), and a household that cannot get food records a real
-needs consequence. Households with a head haggle food stalls
-down to the catalogue base price when the shelf stands above it
-(Queue 23 Unit FA — the live haggle call site for mission 2.3);
-the same spend buys more food, and the shelves are paid what the
-buyers actually paid. The money households pay is the settlement's
-single payment — this pass allocates its goods side; it does not
-charge anyone twice.
+needs consequence. Households with a head haggle food and clothing
+stalls down to the catalogue base price when the shelf stands above
+it (Queue 23 Unit FA — the live haggle call site for mission 2.3;
+Queue 24 Unit GA extends the same rule from the mission's food
+goods to `clothing_set`); the same spend buys more goods, and the
+shelves are paid what the buyers actually paid. The money households
+pay is the settlement's single payment — this pass allocates its
+goods side; it does not charge anyone twice.
 """
 import json
 import math
@@ -62,10 +63,12 @@ SHIPPING_NCR_PER_UNIT_KM = 1
 FISH_SHARE_OF_FOOD_SPEND = 0.25
 # Queue 23 Unit FA: the goods the monthly shopping pass haggles
 # over — the mission's food goods (GDD-04 §3.6, mission 2.3 "The
-# Market Run": buy a week's food at Boro Bazar and haggle once).
-# Clothing and household supplies are bought at shelf prices;
-# haggling them is not modelled.
-HAGGLE_GOODS = ("food_basket", "fish")
+# Market Run": buy a week's food at Boro Bazar and haggle once),
+# plus clothing (Queue 24 Unit GA — the same rule: the head haggles
+# to the catalogue base price when the shelf stands above it).
+# Household supplies are bought at shelf prices; haggling them is
+# not modelled.
+HAGGLE_GOODS = ("food_basket", "fish", "clothing_set")
 STORM_HALT_DAYS = 5
 PRICE_FLOOR_RATIO = 0.5
 PRICE_CAP_RATIO = 2.0
@@ -779,12 +782,14 @@ def retail_allocation(store, data, month_index, game_minutes):
 # goods) down to the catalogue base price when the shelf stands
 # above it; the same spend then buys more food, the consumption
 # row records the paid price, and the shelves are paid what the
-# buyers actually paid. Clothing and household supplies are still
-# bought at shelf prices — haggling them is not modelled. A
-# household that got no food bought nothing and records no
-# haggle; a headless household has no haggler. No dialogue
-# runtime is invented here: no stall conversation runs in the
-# sim, and the haggle is the pass's own deterministic rule, not
+# buyers actually paid. (Unit GA extends the same rule to the
+# clothing purchase — clothing_set — so the head haggles clothing
+# stalls down to base too, recorded the same way. Household
+# supplies are still bought at shelf prices — haggling them is not
+# modelled.) A household that got no food bought nothing and
+# records no haggle; a headless household has no haggler. No
+# dialogue runtime is invented here: no stall conversation runs in
+# the sim, and the haggle is the pass's own deterministic rule, not
 # a played-out negotiation.
 
 def market_zone_of_city(data, city_id):
@@ -804,18 +809,19 @@ def market_zone_of_city(data, city_id):
 
 def _haggled_price(data, good_id, shelf_price_ncr, head_character_id):
     """The price a household pays per unit of a good (Queue 23
-    Unit FA — the live haggle call site, GDD-04 §3.6 mission 2.3):
-    for the mission's food goods, a household WITH a head haggles
-    the stall down to the good's catalogue base price whenever the
-    shelf price stands above it — the buyer knows the fair price
-    (the dialogue line: "The stalls respect a buyer who knows
-    the price"), and the base price is the catalogue's own fact
-    (`data/economy-goods.json` `base_price_ncr`), not a rate this
-    module invents. The shelf price is the asked price, the base
-    price is the paid price, and success is derived (paid < asked)
-    by record_haggle(). A headless household has no haggler; a
-    shelf at or below base leaves nothing to win; a non-food good
-    is bought at shelf prices (haggling it is not modelled).
+    Unit FA — the live haggle call site, GDD-04 §3.6 mission 2.3;
+    Queue 24 Unit GA extends it to clothing_set): for the haggled
+    goods, a household WITH a head haggles the stall down to the
+    good's catalogue base price whenever the shelf price stands
+    above it — the buyer knows the fair price (the dialogue line:
+    "The stalls respect a buyer who knows the price"), and the base
+    price is the catalogue's own fact (`data/economy-goods.json`
+    `base_price_ncr`), not a rate this module invents. The shelf
+    price is the asked price, the base price is the paid price, and
+    success is derived (paid < asked) by record_haggle(). A headless
+    household has no haggler; a shelf at or below base leaves
+    nothing to win; a non-haggled good (household_supplies) is
+    bought at shelf prices (haggling it is not modelled).
     Returns the shelf price in all those cases."""
     if head_character_id is None or good_id not in HAGGLE_GOODS:
         return shelf_price_ncr
