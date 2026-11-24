@@ -12,10 +12,16 @@ import unittest
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__),
                                     "..", "..", ".."))
 # Pinned default-run md5 of tools/economy_sim.py.
-# v7 + Queue 25 baseline (Unit HD, 2026-11-24): the
-# mixed-profession two-earner storm-position section (HD).
-# See docs/ECONOMY-SIM-REPORT-V7.md §9.
-# Previous baseline (v7 + Queue 25, Unit HA):
+# v7 + Queue 26 baseline (Unit IC, 2026-11-24): the
+# second-earner-at-other-tiers sections (IC).
+# See docs/ECONOMY-SIM-REPORT-V7.md §12.
+# Previous baseline (v7 + Queue 26, Unit IB):
+# 27464ea221694880a4369f805d8cd455. Previous baseline (v7 +
+# Queue 26, Unit IA):
+# 45a45edc63cee4b142891da938ef79bd. Previous baseline (v7 +
+# Queue 25, Unit HD):
+# 5431558ffa3d023c436366c26535f932. Previous baseline (v7 +
+# Queue 25, Unit HA):
 # ede430d0bf391fac3f8599334f55b77b. Previous baseline (v7 +
 # Queue 24, Units GD–GE):
 # d699ae7d37fe8ca077f873ba238dd86b. Previous baseline (v7, pinned
@@ -24,7 +30,7 @@ ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__),
 # 2026-11-24 through Queue 22): 9ac10779c231b7aa6120a6ff457982de.
 # v5 baseline: 318c6114c143a81a579e70b39ccca8f8. v2 baseline (pinned
 # 2026-11-21 through v3): 16740182867525bd659735deeb05150a.
-ECONOMY_SIM_BASELINE_MD5 = "5431558ffa3d023c436366c26535f932"
+ECONOMY_SIM_BASELINE_MD5 = "d198a2fe0970e11aaa105bcc4bfb19f9"
 
 
 class TestDayWageModelling(unittest.TestCase):
@@ -486,6 +492,310 @@ class TestDayWageModelling(unittest.TestCase):
                 econ.simulate(prices, w, tier,
                               storm_days=econ.STORM_EARLY_DAYS)
                 ["min_balance"], worst, tier)
+
+    # Queue 26 Unit IA — the mixed two-earner bridge lines: the
+    # bridge check prints the combined canonical start plus the
+    # worst mixed minbal per second-earner profession. Each
+    # earner brings their own genesis balance
+    # (professions.json starting_balance_ncr: construction_worker
+    # 5,000, taxi_driver 5,000, civil_engineer 25,000) — so the
+    # taxi-second start is 10,000 and the civil-engineer-second
+    # start is 30,000, not the 10,000 HD's prose carried for
+    # both (V7 §9's 10,000 − 8,623 = 1,377 understates the
+    # engineer's start by 20,000; corrected here to 30,000 −
+    # 8,623 = 21,377).
+    def test_mixed_two_earner_bridge_line_is_printed(self):
+        import subprocess
+        out = subprocess.run(
+            [sys.executable, os.path.join(ROOT, "tools",
+                                          "economy_sim.py")],
+            capture_output=True, cwd=ROOT)
+        self.assertEqual(out.returncode, 0)
+        text = out.stdout.decode()
+        self.assertIn(
+            "construction_worker + taxi-driver    start  10000"
+            " + mixed dip     -72 =    9928  OK  (worst mixed"
+            " storm position)", text)
+        self.assertIn(
+            "construction_worker + civil-engineer start  30000"
+            " + mixed dip   -8623 =   21377  OK  (worst mixed"
+            " storm position)", text)
+        self.assertIn("BRIDGE FAIL rows: []", text)
+
+    def test_worst_mixed_dip_is_measured_per_pairing(self):
+        from tools import economy_sim as econ
+        prices = econ.load("prices.json")
+        w = next(w for w in prices["wages_monthly"]
+                 if w["profession_id"] == "construction_worker")
+        # The worst mixed dip is the minimum across the first
+        # earner's tiers and the four storm positions: taxi-second
+        # −72 (senior, early — the only negative anywhere) and
+        # civil-engineer-second −8,623 (entry, early/mid/
+        # measured — the late position is shallower).
+        for pid2, worst in (("taxi_driver", -72),
+                            ("civil_engineer", -8623)):
+            dips = [econ.simulate(prices, w, tier, storm_days=pos,
+                                  second_earner=pid2)["min_balance"]
+                    for tier in ("entry", "mid", "senior")
+                    for pos in (econ.STORM_EARLY_DAYS,
+                                econ.STORM_MID_DAYS,
+                                econ.STORM_LATE_DAYS,
+                                econ.STORM_MEASURED_DAYS)]
+            self.assertEqual(min(dips), worst, pid2)
+        # The combined starts are the sums of the two earners'
+        # own genesis balances, read from the source data — not
+        # a single figure applied to both pairings.
+        profs = econ.load("professions.json")
+        starts = {p["id"]: p.get("starting_balance_ncr", 0)
+                  for p in profs["professions"]}
+        self.assertEqual(starts["construction_worker"]
+                         + starts["taxi_driver"], 10000)
+        self.assertEqual(starts["construction_worker"]
+                         + starts["civil_engineer"], 30000)
+
+    # Queue 26 Unit IB — the renting-cab taxi second earner:
+    # the same entry taxi driver (14,000, per-fare), but renting
+    # the licensed cab. The rental follows the settlement's rule
+    # (engine._settle_month: cab_rental_ncr_per_day × WORK_DAYS
+    # = 200 × 26 = 5,200/month flat) and is a monthly cost line,
+    # so the net drops by exactly 5,200 at every tier and the
+    # early dip the owning driver had closed re-opens (the
+    # rental accrues daily while the construction pay waits).
+    def test_renting_cab_second_earner_minbal_is_measured(self):
+        from tools import economy_sim as econ
+        prices = econ.load("prices.json")
+        w = next(w for w in prices["wages_monthly"]
+                 if w["profession_id"] == "construction_worker")
+        renting = {t: econ.simulate(
+            prices, w, t, storm_days=econ.STORM_MEASURED_DAYS,
+            second_earner="taxi_driver",
+            second_earner_renting_cab=True) for t in
+            ("entry", "mid", "senior")}
+        self.assertEqual(renting["entry"]["min_balance"], 0)
+        self.assertEqual(renting["mid"]["min_balance"], 0)
+        self.assertEqual(renting["senior"]["min_balance"], 0)
+        for tier, dip, net in (("entry", -193, 5500),
+                               ("mid", -288, 8744),
+                               ("senior", -419, 12201)):
+            row = econ.simulate(
+                prices, w, tier, storm_days=econ.STORM_EARLY_DAYS,
+                second_earner="taxi_driver",
+                second_earner_renting_cab=True)
+            self.assertEqual(row["min_balance"], dip, tier)
+            self.assertEqual(row["net"], net, tier)
+            self.assertEqual(row["second_earner_rental"], 5200,
+                             tier)
+            self.assertTrue(row["second_earner_renting_cab"])
+        # The rental is exactly the settlement's charge: 200/day
+        # × 26 worked days, read from the source data.
+        self.assertEqual(
+            prices["taxi_fares"]["cab_rental_ncr_per_day"]
+            * econ.WORK_DAYS, 5200)
+
+    def test_renting_cab_second_earner_costs_and_net(self):
+        from tools import economy_sim as econ
+        prices = econ.load("prices.json")
+        w = next(w for w in prices["wages_monthly"]
+                 if w["profession_id"] == "construction_worker")
+        # The rental is a monthly cost line on top of the owning
+        # variant: costs +5,200, net −5,200, gross and tax
+        # untouched, at every tier and every position.
+        for tier in ("entry", "mid", "senior"):
+            for pos in (econ.STORM_EARLY_DAYS, econ.STORM_MID_DAYS,
+                        econ.STORM_LATE_DAYS,
+                        econ.STORM_MEASURED_DAYS):
+                owning = econ.simulate(
+                    prices, w, tier, storm_days=pos,
+                    second_earner="taxi_driver")
+                renting = econ.simulate(
+                    prices, w, tier, storm_days=pos,
+                    second_earner="taxi_driver",
+                    second_earner_renting_cab=True)
+                self.assertEqual(renting["costs_total"]
+                                 - owning["costs_total"], 5200,
+                                 f"{tier}/{pos}")
+                self.assertEqual(owning["net"] - renting["net"],
+                                 5200, f"{tier}/{pos}")
+                self.assertEqual(renting["gross"], owning["gross"],
+                                 f"{tier}/{pos}")
+                self.assertEqual(renting["tax"], owning["tax"],
+                                 f"{tier}/{pos}")
+                self.assertEqual(renting["end_balance"],
+                                 renting["net"], f"{tier}/{pos}")
+        # The owning driver charges no rental.
+        owning = econ.simulate(
+            prices, w, "entry", storm_days=econ.STORM_MEASURED_DAYS,
+            second_earner="taxi_driver")
+        self.assertEqual(owning["second_earner_rental"], 0)
+        self.assertFalse(owning["second_earner_renting_cab"])
+
+    def test_renting_cab_second_earner_refusals(self):
+        from tools import economy_sim as econ
+        prices = econ.load("prices.json")
+        w = next(w for w in prices["wages_monthly"]
+                 if w["profession_id"] == "construction_worker")
+        # The rental belongs to the taxi driver alone — not to
+        # the civil engineer, not to the same-tier second earner,
+        # and not to a household with no second earner.
+        with self.assertRaises(ValueError):
+            econ.simulate(prices, w, "entry",
+                          second_earner="civil_engineer",
+                          second_earner_renting_cab=True)
+        with self.assertRaises(ValueError):
+            econ.simulate(prices, w, "entry", second_earner=True,
+                          second_earner_renting_cab=True)
+        with self.assertRaises(ValueError):
+            econ.simulate(prices, w, "entry",
+                          second_earner_renting_cab=True)
+
+    # Queue 26 Unit IC — the second earner at another tier: a
+    # mid-tier taxi driver (23,000, per-fare) or an entry civil
+    # engineer (22,000, monthly), each at the tier the source
+    # data actually gives. The measured tier stays the default,
+    # so the HD/IB figures are untouched by the new kwarg.
+    def test_second_earner_at_other_tiers_is_measured(self):
+        from tools import economy_sim as econ
+        prices = econ.load("prices.json")
+        w = next(w for w in prices["wages_monthly"]
+                 if w["profession_id"] == "construction_worker")
+        # Mid-tier taxi: the higher per-fare pay covers the
+        # cost-only days at every tier — no dip anywhere, and the
+        # senior early −72 of the measured tier is gone too.
+        for tier, net in (("entry", 16150), ("mid", 19394),
+                          ("senior", 22851)):
+            for pos in (econ.STORM_EARLY_DAYS, econ.STORM_MID_DAYS,
+                        econ.STORM_LATE_DAYS,
+                        econ.STORM_MEASURED_DAYS):
+                row = econ.simulate(
+                    prices, w, tier, storm_days=pos,
+                    second_earner="taxi_driver",
+                    second_earner_tier="mid")
+                self.assertEqual(row["min_balance"], 0,
+                                 f"taxi/mid/{tier}/{pos}")
+                self.assertEqual(row["net"], net,
+                                 f"taxi/mid/{tier}/{pos}")
+                self.assertEqual(row["second_earner_tier"], "mid")
+                self.assertEqual(row["end_balance"], row["net"])
+        # Entry civil engineer: the monthly lump still lands on
+        # day 30, so the dip is shallower than the measured
+        # mid-tier pairing (−8,623) but deeper than the
+        # taxi pairings — and nearly position-independent again.
+        ce = {t: econ.simulate(
+            prices, w, t, storm_days=econ.STORM_MEASURED_DAYS,
+            second_earner="civil_engineer",
+            second_earner_tier="entry") for t in
+            ("entry", "mid", "senior")}
+        self.assertEqual(ce["entry"]["min_balance"], -3210)
+        self.assertEqual(ce["mid"]["min_balance"], -350)
+        self.assertEqual(ce["senior"]["min_balance"], -31)
+        self.assertEqual(ce["entry"]["net"], 18350)
+        self.assertEqual(
+            econ.simulate(prices, w, "entry",
+                          storm_days=econ.STORM_EARLY_DAYS,
+                          second_earner="civil_engineer",
+                          second_earner_tier="entry")
+            ["min_balance"], -3210)
+        self.assertEqual(
+            econ.simulate(prices, w, "entry",
+                          storm_days=econ.STORM_LATE_DAYS,
+                          second_earner="civil_engineer",
+                          second_earner_tier="entry")
+            ["min_balance"], -2910)
+        self.assertEqual(
+            econ.simulate(prices, w, "mid",
+                          storm_days=econ.STORM_EARLY_DAYS,
+                          second_earner="civil_engineer",
+                          second_earner_tier="entry")
+            ["min_balance"], -875)
+        self.assertEqual(
+            econ.simulate(prices, w, "senior",
+                          storm_days=econ.STORM_EARLY_DAYS,
+                          second_earner="civil_engineer",
+                          second_earner_tier="entry")
+            ["min_balance"], -1006)
+
+    def test_second_earner_tier_uses_sourced_wages(self):
+        from tools import economy_sim as econ
+        prices = econ.load("prices.json")
+        w = next(w for w in prices["wages_monthly"]
+                 if w["profession_id"] == "construction_worker")
+        # The tier wages come from the source data, not the test:
+        # mid taxi 23,000 (tax 400, uplift 35% of 9,000) and
+        # entry civil engineer 22,000 (tax 350, uplift 0).
+        wages = {x["profession_id"]: x
+                 for x in prices["wages_monthly"]}
+        self.assertEqual(wages["taxi_driver"]["mid"], 23000)
+        self.assertEqual(wages["civil_engineer"]["entry"], 22000)
+        taxi_mid = econ.simulate(
+            prices, w, "entry", storm_days=econ.STORM_MEASURED_DAYS,
+            second_earner="taxi_driver", second_earner_tier="mid")
+        taxi_entry = econ.simulate(
+            prices, w, "entry", storm_days=econ.STORM_MEASURED_DAYS,
+            second_earner="taxi_driver")
+        self.assertEqual(taxi_mid["gross"] - taxi_entry["gross"],
+                         9000)
+        self.assertEqual(taxi_mid["tax"] - taxi_entry["tax"], 400)
+        self.assertEqual(taxi_mid["costs_total"]
+                         - taxi_entry["costs_total"], 3150)
+        ce_entry = econ.simulate(
+            prices, w, "entry", storm_days=econ.STORM_MEASURED_DAYS,
+            second_earner="civil_engineer",
+            second_earner_tier="entry")
+        ce_mid = econ.simulate(
+            prices, w, "entry", storm_days=econ.STORM_MEASURED_DAYS,
+            second_earner="civil_engineer")
+        self.assertEqual(ce_mid["gross"] - ce_entry["gross"], 16000)
+        self.assertEqual(ce_mid["tax"] - ce_entry["tax"], 800)
+        self.assertEqual(ce_mid["costs_total"]
+                         - ce_entry["costs_total"], 5600)
+        # The default is still the measured tier — the kwarg
+        # changes nothing unless it is given.
+        self.assertEqual(taxi_entry["second_earner_tier"], "entry")
+        self.assertEqual(ce_mid["second_earner_tier"], "mid")
+        self.assertEqual(
+            econ.simulate(prices, w, "entry",
+                          storm_days=econ.STORM_MEASURED_DAYS,
+                          second_earner="taxi_driver")
+            ["min_balance"], 0)
+        for tier in ("entry", "mid", "senior"):
+            for pos in (econ.STORM_EARLY_DAYS, econ.STORM_MID_DAYS,
+                        econ.STORM_LATE_DAYS,
+                        econ.STORM_MEASURED_DAYS):
+                for pid2, tier2 in (("taxi_driver", "mid"),
+                                    ("civil_engineer", "entry")):
+                    row = econ.simulate(
+                        prices, w, tier, storm_days=pos,
+                        second_earner=pid2,
+                        second_earner_tier=tier2)
+                    self.assertEqual(row["end_balance"], row["net"],
+                                     f"{pid2}/{tier2}/{tier}/{pos}")
+
+    def test_second_earner_tier_refusals(self):
+        from tools import economy_sim as econ
+        prices = econ.load("prices.json")
+        w = next(w for w in prices["wages_monthly"]
+                 if w["profession_id"] == "construction_worker")
+        # A tier override needs a mixed second earner — not the
+        # same-tier case, not no second earner — and must name a
+        # real tier.
+        with self.assertRaises(ValueError):
+            econ.simulate(prices, w, "entry", second_earner=True,
+                          second_earner_tier="mid")
+        with self.assertRaises(ValueError):
+            econ.simulate(prices, w, "entry",
+                          second_earner_tier="mid")
+        with self.assertRaises(ValueError):
+            econ.simulate(prices, w, "entry",
+                          second_earner="taxi_driver",
+                          second_earner_tier="principal")
+        # The renting variant stays the measured-tier (entry)
+        # one — a renting second earner at another tier is a
+        # further scenario, not modelled here.
+        with self.assertRaises(ValueError):
+            econ.simulate(prices, w, "entry",
+                          second_earner="taxi_driver",
+                          second_earner_renting_cab=True,
+                          second_earner_tier="mid")
 
 
 class TestNoRegression(unittest.TestCase):

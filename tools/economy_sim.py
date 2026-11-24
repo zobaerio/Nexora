@@ -66,8 +66,10 @@ What v7 adds vs v6, Queue 25 Unit HD (the mixed-profession
     `second_earner="taxi_driver"` (per-fare pay, entry 14,000)
     or `second_earner="civil_engineer"` (monthly pay, mid
     38,000) — the settlement's measured pairings (V7 §6); the
-    second earner's tier is fixed at the measured one while the
-    first earner varies. Each earner is taxed on their own gross
+    second earner's tier defaults to the measured one while the
+    first earner varies (Queue 26 Unit IC lets a caller name
+    another tier the source data gives — `second_earner_tier`).
+    Each earner is taxed on their own gross
     and carries their own lifestyle uplift; the household costs
     follow `engine._living_costs` for two adults (food/clothing
     ×2, transport/eating ×2 per earner, utilities/services/
@@ -79,9 +81,10 @@ What v7 adds vs v6, Queue 25 Unit HD (the mixed-profession
     forcing a storm effect where the pay rule has none. The
     default run gains the mixed-profession section beside the
     same-tier one. The taxi second earner is the owning driver
-    (no cab rental — the renting variant is a further scenario,
-    not taken here). The pinned md5 moves again (the HA md5 is
-    kept in test_no_regression.py as history). No tuning call.
+    (no cab rental — the renting variant is Queue 26 Unit IB,
+    `second_earner_renting_cab=True`). The pinned md5 moves
+    again (the HA md5 is kept in test_no_regression.py as
+    history). No tuning call.
 
 What v7 adds vs v6, Queue 24 Unit GD (the two-earner
 storm-position scenario):
@@ -89,7 +92,9 @@ storm-position scenario):
   False): a second construction worker at the same tier, on the
   same storm days and the same day-wage rule — or, since Queue 25
   Unit HD, a profession id (`"taxi_driver"` / `"civil_engineer"`)
-  for a mixed-profession second earner at the measured tier. Gross and tax are
+  for a mixed-profession second earner at the measured tier (or,
+  since Queue 26 Unit IC, at a named tier — `second_earner_tier`).
+  Gross and tax are
   doubled per earner (each earner is taxed on their own gross,
   as the settlement taxes each earner on what they received);
   the household costs follow `engine._living_costs` for two
@@ -108,6 +113,60 @@ storm-position scenario):
   arrived for anyone on days 1–2), it only helps once pay starts
   landing.
 - Run: python3 tools/economy_sim.py [--shibnagar] [--v3|--v4]
+
+What v7 adds vs v6, Queue 26 Unit IC (the second earner at
+other tiers):
+- `simulate()` takes `second_earner_tier="mid" | "entry" |
+  "senior"` with a mixed second earner: the tier no longer has
+  to be the measured one — a mid-tier taxi driver (23,000,
+  per-fare) or an entry civil engineer (22,000, monthly) as
+  second earner is now modelled, each at the tier the source
+  data actually gives (prices.json wages_monthly). The
+  default (no tier given) is still the measured tier, so the
+  HD/IB sections are unchanged. Refused with the same-tier
+  second earner (that case uses the first earner's tier by
+  definition) and with no second earner. The pinned md5 moves
+  again (the IB md5 is kept in test_no_regression.py as
+  history). No tuning call.
+
+What v7 adds vs v6, Queue 26 Unit IB (the renting-cab taxi
+second earner):
+- `simulate()` takes `second_earner_renting_cab=True` with
+  `second_earner="taxi_driver"`: the same entry taxi driver
+  (14,000, per-fare), but renting the licensed cab. The rental
+  follows the settlement's rule — engine._settle_month charges
+  `cab_rental_ncr_per_day` (200) × WORK_DAYS (26) = 5,200/month
+  flat for the month, not storm-dependent and not
+  Sunday-excluded — and is modelled as a monthly cost line of
+  5,200, accruing evenly in the daily model like rent (the
+  settlement charges the same 5,200 once at month-end; HE's
+  daily model stands). The net drops by exactly 5,200 at every
+  tier. Refused with any other second earner. The pinned md5
+  moves again (the IA md5 is kept in test_no_regression.py as
+  history). Honest limit recorded in the report: the tool's
+  single-earner renting-cab row still charges the rental via
+  extra_daily_cost on days ≤ 26 excluding Sundays (23 days =
+  4,600), while the settlement charges 26 days flat (5,200) —
+  the two renting rows disagree by 600/month, and reconciling
+  the single-earner row is a later unit, not this one.
+
+What v7 adds vs v6, Queue 26 Unit IA (the two-earner bridge
+line):
+- The first-month bridge check prints a mixed two-earner line
+  for each measured second-earner profession: the combined
+  canonical start (each earner brings their own genesis
+  balance — population.py seeds starting_balance_ncr per
+  profession: construction_worker 5,000, taxi_driver 5,000,
+  civil_engineer 25,000) plus the worst mixed minbal (the
+  minimum across the first earner's tiers and the four storm
+  positions) = the worst mixed storm-month balance. Taxi-driver
+  second earner: 10,000 − 72 = 9,928; civil-engineer second
+  earner: 30,000 − 8,623 = 21,377. HD's prose (V7 §9) carried
+  GD's 2 × 5,000 figure for the CE household too (10,000 −
+  8,623 = 1,377), which understates the engineer's start by
+  20,000 — corrected here against professions.json. A failing
+  mixed line joins BRIDGE FAIL. The pinned md5 moves again
+  (the HD md5 is kept in test_no_regression.py as history).
 
 What v7 adds vs v6, Queue 24 Unit GE (the storm-position bridge
 line):
@@ -319,12 +378,14 @@ STORM_MEASURED_DAYS = (4, 23)
 # the settlement's measured pairings (V7 report §6: Priya's
 # household has a taxi-driver second earner at 14,000, Mariam's
 # a civil-engineer second earner at 38,000). The second earner's
-# tier is FIXED at the measured one — taxi_driver at entry
+# tier defaults to the measured one — taxi_driver at entry
 # (14,000), civil_engineer at mid (38,000) — while the first
 # earner (construction_worker) varies over entry/mid/senior; the
-# table's entry row is the measured household in each case. Only
-# these two pairings are modelled (any other pid is refused): the
-# scenario is the measured households, not arbitrary professions.
+# table's entry row is the measured household in each case.
+# Queue 26 / Unit IC: a caller may name another tier the source
+# data actually gives (second_earner_tier). Only these two
+# pairings are modelled (any other pid is refused): the scenario
+# is the measured households, not arbitrary professions.
 SECOND_EARNER_MEASURED_TIER = {"taxi_driver": "entry",
                                "civil_engineer": "mid"}
 
@@ -406,7 +467,8 @@ def simulate(prices, wage_row, tier, extra_daily_cost=0, label_suffix="",
              tutoring_income=0, tutoring_expense=0, part_time_income=0,
              medicine_expense=0, rent_override=None,
              day_wage_worked_days=None, storm_days=None,
-             second_earner=False):
+             second_earner=False, second_earner_renting_cab=False,
+             second_earner_tier=None):
     pid = wage_row["profession_id"]
     band = band_for(wage_row["entry"])
     lc = prices["living_costs_monthly"]
@@ -550,6 +612,18 @@ def simulate(prices, wage_row, tier, extra_daily_cost=0, label_suffix="",
     second_tier = None
     second_sched = None
     second_net = 0
+    second_rental = 0
+    # Queue 26 / Unit IC: a tier override needs a mixed second
+    # earner — not the same-tier case (that earner takes the
+    # first earner's tier by definition) and not no second
+    # earner at all.
+    if second_earner_tier is not None and not (
+            isinstance(second_earner, str)
+            and second_earner in SECOND_EARNER_MEASURED_TIER):
+        raise ValueError(
+            "second_earner_tier needs a mixed second earner"
+            f" ({sorted(SECOND_EARNER_MEASURED_TIER)}); got "
+            f"second_earner={second_earner!r}")
     if second_earner:
         if sched != "daily":
             raise ValueError(
@@ -566,7 +640,21 @@ def simulate(prices, wage_row, tier, extra_daily_cost=0, label_suffix="",
         elif isinstance(second_earner, str) and second_earner \
                 in SECOND_EARNER_MEASURED_TIER:
             second_pid = second_earner
-            second_tier = SECOND_EARNER_MEASURED_TIER[second_pid]
+            # Queue 26 / Unit IC: the second earner's tier is
+            # selectable — the measured tier is the default, but
+            # a caller may name another tier the source data
+            # actually gives (mid-tier taxi driver, entry civil
+            # engineer). The tier must be one of entry / mid /
+            # senior; any other value is refused, not silently
+            # treated as the measured one.
+            if second_earner_tier is None:
+                second_tier = SECOND_EARNER_MEASURED_TIER[second_pid]
+            elif second_earner_tier in ("entry", "mid", "senior"):
+                second_tier = second_earner_tier
+            else:
+                raise ValueError(
+                    "second_earner_tier is entry, mid or senior;"
+                    f" got {second_earner_tier!r}")
         else:
             raise ValueError(
                 "second_earner is True (the same profession, GD)"
@@ -605,6 +693,33 @@ def simulate(prices, wage_row, tier, extra_daily_cost=0, label_suffix="",
             transport += transport2
             eating *= 2
             second_net = second_gross - second_tax
+    # Queue 26 / Unit IB: the renting-cab variant of the taxi
+    # second earner. The rental follows the settlement's rule —
+    # engine._settle_month charges cab_rental_ncr_per_day ×
+    # WORK_DAYS (200 × 26 = 5,200/month) flat for the month: the
+    # settlement does not vary it by worked days, storm days or
+    # Sundays, and neither does this model. It is a monthly cost
+    # line (5,200), accruing evenly in the daily model like rent
+    # — the settlement charges the same 5,200 once at month-end.
+    # Refused with any second earner but the taxi driver (and
+    # with no second earner at all).
+    if second_earner_renting_cab:
+        if second_pid != "taxi_driver":
+            raise ValueError(
+                "second_earner_renting_cab is the renting-cab"
+                " variant of the taxi-driver second earner;"
+                f" got second earner {second_pid!r}")
+        # Queue 26 / Unit IC: the renting variant is defined for
+        # the measured entry taxi driver (IB) — a renting
+        # second earner at another tier is a further scenario,
+        # not modelled here.
+        if second_earner_tier is not None:
+            raise ValueError(
+                "second_earner_renting_cab is the measured-tier"
+                " (entry) renting variant; a renting second"
+                f" earner at {second_earner_tier} is not modelled")
+        second_rental = (prices["taxi_fares"]
+                         ["cab_rental_ncr_per_day"] * WORK_DAYS)
 
     # Queue 6 / v3 new lines (all default 0) + Queue 7 / v4: the
     # medical line is a base cost now (see `medical` above), so the
@@ -626,7 +741,8 @@ def simulate(prices, wage_row, tier, extra_daily_cost=0, label_suffix="",
     extra_income_net = extra_income - (tax - base_tax)
 
     monthly_costs = rent + food + utilities + clothing + transport \
-        + eating + services + medical + uplift + extra_expense
+        + eating + services + medical + uplift + extra_expense \
+        + second_rental
     extra_monthly = extra_daily_cost * WORK_DAYS
     net = gross - tax - monthly_costs - extra_monthly
 
@@ -719,6 +835,16 @@ def simulate(prices, wage_row, tier, extra_daily_cost=0, label_suffix="",
         # "civil_engineer" for the mixed measured pairings).
         "second_earner": second_earner,
         "second_earner_pid": second_pid,
+        # Queue 26 / Unit IC: which tier the mixed second earner
+        # works (None for a single-earner row; the measured tier
+        # unless second_earner_tier names another).
+        "second_earner_tier": second_tier,
+        # Queue 26 / Unit IB: whether the taxi second earner
+        # rents the cab, and the monthly rental charged (0 for
+        # the owning driver) — the settlement's rule, 200/day ×
+        # 26 worked days = 5,200/month.
+        "second_earner_renting_cab": second_earner_renting_cab,
+        "second_earner_rental": second_rental,
         # Queue 22 / v6 (Unit EY): the trajectory's final balance —
         # it must equal net (the trajectory models the same month
         # the headline figures describe); the v5 daily branch ended
@@ -981,6 +1107,44 @@ def main():
             print(f"  {r['pid']:22} start {start:>6} + storm dip "
                   f"{worst_storm:>7} = {storm_worst:>7}  {storm_status}"
                   f"  (worst storm position)")
+            # Queue 26 / Unit IA: the mixed two-earner bridge
+            # lines — the worst mixed minbal per second-earner
+            # profession (the minimum across the first earner's
+            # tiers and the four storm positions), against the
+            # combined canonical start: each earner brings their
+            # own genesis balance (population.py seeds
+            # starting_balance_ncr per profession, randomised
+            # ±15% in the settlement — the bridge check is
+            # canonical, HE). Taxi-driver second earner: 5,000 +
+            # 5,000 = 10,000; civil-engineer second earner:
+            # 5,000 + 25,000 = 30,000 — HD's prose (V7 §9)
+            # carried GD's 2 × 5,000 figure for the CE household
+            # too, which understates the engineer's start by
+            # 20,000; the 10,000 − 8,623 = 1,377 figure is
+            # corrected here to 30,000 − 8,623 = 21,377. A
+            # failing mixed line joins BRIDGE FAIL.
+            for second_pid, second_label in (
+                    ("taxi_driver", "taxi-driver"),
+                    ("civil_engineer", "civil-engineer")):
+                worst_mixed = min(
+                    simulate(prices, bands["construction_worker"],
+                             tier, storm_days=pos,
+                             second_earner=second_pid)["min_balance"]
+                    for tier in ("entry", "mid", "senior")
+                    for pos in (STORM_EARLY_DAYS, STORM_MID_DAYS,
+                                STORM_LATE_DAYS, STORM_MEASURED_DAYS))
+                mixed_start = (start_balances["construction_worker"]
+                               + start_balances[second_pid])
+                mixed_worst = mixed_start + worst_mixed
+                mixed_status = ("OK" if mixed_worst >= 0
+                                else "BRIDGE FAIL")
+                if mixed_worst < 0:
+                    bridge_fail.append(
+                        f"construction_worker + {second_pid}")
+                print(f"  {'construction_worker + ' + second_label:36}"
+                      f" start {mixed_start:>6} + mixed dip "
+                      f"{worst_mixed:>7} = {mixed_worst:>7}  "
+                      f"{mixed_status}  (worst mixed storm position)")
     # The renting-cab variant shares the taxi driver's starting balance.
     rent_row = next(r for r in rows if "renting" in r["profession"])
     start = start_balances.get("taxi_driver", 0)
@@ -1158,6 +1322,123 @@ def main():
                   f"{even['min_balance']:>7}  (net {early['net']})"
                   f"  {single_early['min_balance']:>12} "
                   f"{single_measured['min_balance']:>15}")
+
+    # Queue 26 / Unit IB: the renting-cab variant of the taxi
+    # second earner — the same entry taxi driver (14,000,
+    # per-fare), but renting the licensed cab at 200 NCr/day ×
+    # 26 worked days = 5,200/month, the settlement's rule
+    # (engine._settle_month charges rental_day × WORK_DAYS flat
+    # for the month — not storm-dependent, not Sunday-excluded).
+    # Modelled as a monthly cost line (5,200), accruing evenly
+    # in the daily model like rent; the settlement charges the
+    # same 5,200 once at month-end. The net drops by exactly
+    # 5,200 at every tier against the owning-driver figures in
+    # the section above; only the month-1 minimum balance moves
+    # by position. No tuning call.
+    print()
+    print("renting-cab taxi-driver second earner storm-position "
+          "month (Unit IB — same 28 worked days of 30; "
+          "taxi-driver second earner (entry 14,000, per-fare) "
+          "renting the cab at 200/day x 26 = 5,200/mo; month-1 "
+          "minbal by storm position):")
+    print(f"{'profession':28} {'tier':7} {'early':>7} {'mid':>7} "
+          f"{'late':>7} {'measured':>8} {'even':>7}  (net/mo)"
+          f"  owning-early  owning-measured")
+    for tier in ("entry", "mid", "senior"):
+        w = bands["construction_worker"]
+        early = simulate(prices, w, tier,
+                         storm_days=STORM_EARLY_DAYS,
+                         second_earner="taxi_driver",
+                         second_earner_renting_cab=True)
+        mid = simulate(prices, w, tier,
+                       storm_days=STORM_MID_DAYS,
+                       second_earner="taxi_driver",
+                       second_earner_renting_cab=True)
+        late = simulate(prices, w, tier,
+                        storm_days=STORM_LATE_DAYS,
+                        second_earner="taxi_driver",
+                        second_earner_renting_cab=True)
+        measured = simulate(prices, w, tier,
+                            storm_days=STORM_MEASURED_DAYS,
+                            second_earner="taxi_driver",
+                            second_earner_renting_cab=True)
+        even = simulate(prices, w, tier,
+                        day_wage_worked_days=28,
+                        second_earner="taxi_driver",
+                        second_earner_renting_cab=True)
+        owning_early = simulate(prices, w, tier,
+                                storm_days=STORM_EARLY_DAYS,
+                                second_earner="taxi_driver")
+        owning_measured = simulate(
+            prices, w, tier, storm_days=STORM_MEASURED_DAYS,
+            second_earner="taxi_driver")
+        print(f"{early['profession']:28} {early['tier']:7} "
+              f"{early['min_balance']:>7} {mid['min_balance']:>7} "
+              f"{late['min_balance']:>7} "
+              f"{measured['min_balance']:>8} "
+              f"{even['min_balance']:>7}  (net {early['net']})"
+              f"  {owning_early['min_balance']:>12} "
+              f"{owning_measured['min_balance']:>15}")
+
+    # Queue 26 / Unit IC: the second earner at another tier — a
+    # mid-tier taxi driver (23,000, per-fare) and an entry civil
+    # engineer (22,000, monthly), each at the tier the source
+    # data actually gives (prices.json wages_monthly). The
+    # measured-tier figures from the HD section above are printed
+    # beside them for comparison; the first earner still varies
+    # over entry/mid/senior. Storm days do not change the second
+    # earner's pay (the per-fare rule has no storm days; the
+    # monthly pay lands on day 30 regardless) — the
+    # storm-position effect still comes from the first earner
+    # alone. No tuning call.
+    for second_pid, second_tier, second_label in (
+            ("taxi_driver", "mid",
+             "taxi-driver second earner (mid 23,000, per-fare)"),
+            ("civil_engineer", "entry",
+             "civil-engineer second earner (entry 22,000,"
+             " monthly)")):
+        print()
+        print(f"second earner at another tier storm-position month"
+              f" (Unit IC — same 28 worked days of 30; "
+              f"{second_label}; month-1 minbal by storm position):")
+        print(f"{'profession':28} {'tier':7} {'early':>7} {'mid':>7} "
+              f"{'late':>7} {'measured':>8} {'even':>7}  (net/mo)"
+              f"  measured-early  measured-measured")
+        for tier in ("entry", "mid", "senior"):
+            w = bands["construction_worker"]
+            early = simulate(prices, w, tier,
+                             storm_days=STORM_EARLY_DAYS,
+                             second_earner=second_pid,
+                             second_earner_tier=second_tier)
+            mid = simulate(prices, w, tier,
+                           storm_days=STORM_MID_DAYS,
+                           second_earner=second_pid,
+                           second_earner_tier=second_tier)
+            late = simulate(prices, w, tier,
+                            storm_days=STORM_LATE_DAYS,
+                            second_earner=second_pid,
+                            second_earner_tier=second_tier)
+            measured = simulate(prices, w, tier,
+                                storm_days=STORM_MEASURED_DAYS,
+                                second_earner=second_pid,
+                                second_earner_tier=second_tier)
+            even = simulate(prices, w, tier,
+                            day_wage_worked_days=28,
+                            second_earner=second_pid,
+                            second_earner_tier=second_tier)
+            meas_early = simulate(prices, w, tier,
+                                  storm_days=STORM_EARLY_DAYS,
+                                  second_earner=second_pid)
+            meas_measured = simulate(
+                prices, w, tier, storm_days=STORM_MEASURED_DAYS,
+                second_earner=second_pid)
+            print(f"{early['profession']:28} {early['tier']:7} "
+                  f"{early['min_balance']:>7} {mid['min_balance']:>7} "
+                  f"{late['min_balance']:>7} "
+                  f"{measured['min_balance']:>8} "
+                  f"{even['min_balance']:>7}  (net {early['net']})"
+                  f"  {meas_early['min_balance']:>14} "
+                  f"{meas_measured['min_balance']:>17}")
 
     if "--shibnagar" in sys.argv:
         print()

@@ -334,12 +334,13 @@ entry workers live with a second earner), and it dips less
 where it matters (the measured position) — the early-position
 depth is a timing fact, not a balance problem.
 
-**Open, recorded (Unit HD DONE 2026-11-24 — see §9):** the
+**Open, recorded (Unit IA DONE 2026-11-24 — see §8):** the
 mixed-profession second earner is now modelled (taxi driver
-at entry, civil engineer at mid — the §6 cases). Still open:
-the two-earner bridge line is not wired into the tool's
-printed bridge check (Unit GE wires the single-earner worst
-dip only).
+at entry, civil engineer at mid — the §6 cases), and the
+mixed bridge lines are now wired into the tool's printed
+bridge check. Still open: the same-tier two-earner bridge
+line (10,000 − 1,231 = 8,769) is prose only — IA wires the
+mixed pairings, not the GD same-tier household.
 
 ## 8. Addendum — Storm-position bridge line (Unit GE, Queue 24)
 
@@ -352,6 +353,8 @@ minimum across the early / mid / late / measured positions):
 first-month bridge check (entry rows: starting balance + zero-start dip = worst month-1 balance):
   construction_worker    start   5000 + dip       0 =    5000  OK
   construction_worker    start   5000 + storm dip    -500 =    4500  OK  (worst storm position)
+  construction_worker + taxi-driver    start  10000 + mixed dip     -72 =    9928  OK  (worst mixed storm position)
+  construction_worker + civil-engineer start  30000 + mixed dip   -8623 =   21377  OK  (worst mixed storm position)
 ```
 
 The worst dip is the early position (−500 entry; mid −595,
@@ -359,19 +362,32 @@ senior −726) — the line wires the minimum, not the measured
 position. The §5 bridge observation (entry 5,000 − 500 = 4,500)
 is now the tool's printed output, not a report-only
 calculation; a failing storm line would join `BRIDGE FAIL`
-(none fails). The two-earner worst dip is not wired into the
-bridge check — the line covers the single-earner entry row only
-(§7 records the two-earner bridge figure, 10,000 − 1,231 =
-8,769, as prose).
+(none fails). (Unit IA · Queue 26 · 2026-11-24: the bridge
+check now also prints a mixed two-earner line per measured
+second-earner profession — the combined canonical start plus
+the worst mixed minbal (the minimum across the first earner's
+tiers and the four storm positions). Taxi-driver second earner:
+10,000 − 72 = 9,928; civil-engineer second earner: 30,000 −
+8,623 = 21,377. Each earner brings their own genesis balance
+(`population.py` seeds `starting_balance_ncr` per profession:
+construction worker 5,000, taxi driver 5,000, civil engineer
+25,000) — so the CE household's combined start is 30,000, not
+the 10,000 HD's prose carried for both pairings; see the
+correction note in §9. A failing mixed line would join `BRIDGE
+FAIL` too. The GD same-tier two-earner bridge figure (10,000 −
+1,231 = 8,769, §7) is still prose only — IA wires the mixed
+pairings, not the same-tier household.)
 
-Full default-run md5: `5431558ffa3d023c436366c26535f932` (HA:
-`ede430d0bf391fac3f8599334f55b77b` — kept in
-`test_no_regression.py` as history, with GE
+Full default-run md5: `45a45edc63cee4b142891da938ef79bd` (HD:
+`5431558ffa3d023c436366c26535f932` — kept in
+`test_no_regression.py` as history, with HA
+`ede430d0bf391fac3f8599334f55b77b`, GE
 `d699ae7d37fe8ca077f873ba238dd86b`, v7
 `e598e416c07b21bacee9fe98fdb27244` and v6
-`9ac10779c231b7aa6120a6ff457982de`). The only diffs vs HA are
-the §9 mixed-profession section; the §7 two-earner section,
-this bridge line, the base table, business P&L, pacing and
+`9ac10779c231b7aa6120a6ff457982de`). The diffs vs HA are
+the §9 mixed-profession section and these mixed bridge lines
+(IA); the §7 two-earner section, the single-earner storm line,
+the base table, business P&L, pacing and
 all other rows are unchanged.
 
 **No tuning call.**
@@ -461,11 +477,25 @@ measured share it exactly, and only the late position is
 shallower (−8,323, because the day-29 storm costs a day of
 construction pay that the day-30 lump then covers). The storm
 position barely matters for this household; the pay timing does.
-Against the combined canonical starting balance (2 × 5,000 =
-10,000) the worst dips leave 9,928 (taxi-second) and 1,377
+Against the combined canonical starting balances (taxi-second:
+2 × 5,000 = 10,000; civil-engineer-second: 5,000 + 25,000 =
+30,000 — each earner brings their own genesis balance,
+`population.py` seeds `starting_balance_ncr` per profession)
+the worst dips leave 9,928 (taxi-second) and 21,377
 (civil-engineer-second) — no bridge failure in any position, and
 no TIGHT or SURVIVAL FAIL anywhere in the sections (savings rates
 47.8–53.3% taxi-second, 60.2–61.1% civil-engineer-second).
+**Correction (Unit IA · Queue 26 · 2026-11-24):** this section
+as written by HD quoted the civil-engineer-second bridge figure
+as 10,000 − 8,623 = 1,377 — that applied the construction
+worker's 5,000 genesis balance to the civil engineer too, but
+`professions.json` gives the civil engineer a 25,000 starting
+balance, so the combined start is 30,000 and the figure is
+30,000 − 8,623 = 21,377. The 1,377 is superseded wherever it
+appears (including §10's seed caveat, updated the same way);
+the taxi-second figure (10,000 − 72 = 9,928) is unchanged, and
+no measured dip moves — only the start the dip is measured
+against.
 
 **Honest limit, recorded not hidden:** the
 civil-engineer-second dip is the tool's daily-trajectory timing,
@@ -488,15 +518,22 @@ Mariam's), and the finding is a timing fact, not a balance
 problem.
 
 **Open, recorded:** the taxi second earner is the owning driver
-— the renting-cab variant (200/day × 26) is a further scenario,
-not taken here; the second earner's tier is fixed at the measured
-one (a mid-tier taxi driver or an entry civil engineer as second
-earner is not modelled); only the two measured pairings are
-modelled (any other profession is refused by the tool); the
-mixed two-earner bridge line is not wired into the tool's printed
-bridge check (GE wires the single-earner worst dip only — the
-figures here, 10,000 − 72 = 9,928 and 10,000 − 8,623 = 1,377,
-stand as prose).
+— the renting-cab variant is modelled now
+(Unit IB DONE 2026-11-24 — see §11: 200/day × 26 = 5,200/month,
+the settlement's rule; early dips −193 / −288 / −419, measured 0,
+nets 5,500 / 8,744 / 12,201); the second earner's tier is fixed
+at the measured one — a mid-tier taxi driver or an entry civil
+engineer as second earner is now modelled (Unit IC DONE
+2026-11-24 — see §12: mid-tier taxi 0 everywhere, nets 16,150 /
+19,394 / 22,851; entry civil engineer −3,210 / −350 / −31 at the
+measured position, nets 18,350 / 21,594 / 25,051); only the two
+measured pairings are modelled (any other profession is refused
+by the tool).
+(Unit IA DONE 2026-11-24 — see §8: the mixed two-earner bridge
+lines are now wired into the tool's printed bridge check —
+10,000 − 72 = 9,928 taxi-second, 30,000 − 8,623 = 21,377
+civil-engineer-second — with the CE combined start corrected
+from HD's 10,000 to the sourced 30,000.)
 
 ## 10. Addendum — Settlement-Timing Trajectory Decision (Unit HE, Queue 25)
 
@@ -570,17 +607,225 @@ Should the tool model that monthly timing, or stay daily?
   ±15% (5,385 / 4,496 measured). A household whose seed rolls
   low starts up to 750 below the canonical line. Every bridge
   figure in this report is canonical, not settled — for the
-  civil-engineer-second household (§9: 10,000 − 8,623 = 1,377)
-  the lowest measured seed would leave 1,377 − 504 = 873 (504 =
-  5,000 − 4,496), still no failure, but the margin is the
-  seed's, not the model's.
+  civil-engineer-second household (§9: 30,000 − 8,623 = 21,377)
+  the seed randomisation applies to both earners, so the lowest
+  roll takes up to 4,500 off the canonical start (750
+  construction worker + 3,750 civil engineer), leaving 16,877 —
+  still no failure, but the margin is the seed's, not the
+  model's. (Unit IA · Queue 26 corrected §9's figure here too:
+  HD had quoted 10,000 − 8,623 = 1,377 with the construction
+  worker's seed alone; the civil engineer's own 25,000 start
+  is in the combined figure now.)
 - **The monthly-settlement alternative stays open as a
   documented alternative, not implemented:** a future unit
   could add a monthly-timing view BESIDE the daily one (a second
   trajectory that pays and charges at month-end), if a use for
   it appears — but it must not replace the daily model, because
   it would destroy the storm-position signal. No use for it is
-  recorded today.
+  recorded today. (Unit ID · Queue 26 · 2026-11-24: checked
+  again — still no use is named, so the view stays open and
+  unimplemented; no monthly-timing view was built and the tool
+  is byte-identical — default-run md5 still
+  `d198a2fe0970e11aaa105bcc4bfb19f9`.)
 
 **No tuning call.** Nothing in the data moves. The decision is
 about what the tool models, not about any rate.
+
+## 11. Addendum — Renting-cab taxi-driver second earner (Unit IB, Queue 26)
+
+**Date:** 2026-11-24. **Method:** `simulate(...,
+second_earner="taxi_driver", second_earner_renting_cab=True)` —
+the same entry taxi driver (14,000, per-fare) as §9's owning
+driver, but renting the licensed cab. The rental days follow the
+settlement's rule, read from the source — `engine._settle_month`
+charges `cab_rental_ncr_per_day` (200, `data/prices.json`) ×
+`WORK_DAYS` (26) = 5,200/month flat for the month, per taxi
+driver in the household. The settlement does not vary the rental
+by worked days, storm days or Sundays, and neither does this
+model: the rental is a monthly cost line of 5,200, accruing
+evenly in the daily model like rent (the settlement charges the
+same 5,200 once at month-end; HE's daily model stands). The
+first earner (construction worker) still varies over
+entry/mid/senior; the second earner's tier stays the measured
+entry one. Storm days do not change the second earner's pay or
+rental — the per-fare rule has no storm days — so the
+storm-position effect still comes from the first earner alone.
+
+Measured month-1 minimum balance by storm position,
+renting-cab taxi-driver second earner beside the owning-driver
+figures from §9:
+
+| Tier | Early (1–2) | Mid (15–16) | Late (29–30) | Measured (4, 23) | Even (v6) | Net/mo | Owning early | Owning measured | Owning net |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| entry | −193 | 0 | 0 | 0 | 0 | 5,500 | 0 | 0 | 10,700 |
+| mid | −288 | 0 | 0 | 0 | 0 | 8,744 | 0 | 0 | 13,944 |
+| senior | −419 | 0 | 0 | 0 | 0 | 12,201 | −72 | 0 | 17,401 |
+
+Costs (storm month, measured position): owning 11,700 / 13,123 /
+15,083 → renting 16,900 / 18,323 / 20,283 — the rental adds
+exactly 5,200 at every tier, so the net drops by exactly 5,200
+too (gross and tax untouched). Against the combined canonical
+starting balance (2 × 5,000 = 10,000) the worst renting dip
+leaves 10,000 − 419 = 9,581 — no bridge failure in any position,
+and no TIGHT or SURVIVAL FAIL anywhere in the section.
+
+Verbatim output (new default-run section):
+
+```
+renting-cab taxi-driver second earner storm-position month (Unit IB — same 28 worked days of 30; taxi-driver second earner (entry 14,000, per-fare) renting the cab at 200/day x 26 = 5,200/mo; month-1 minbal by storm position):
+profession                   tier      early     mid    late measured    even  (net/mo)  owning-early  owning-measured
+construction_worker          entry      -193       0       0        0       0  (net 5500)             0               0
+construction_worker          mid        -288       0       0        0       0  (net 8744)             0               0
+construction_worker          senior     -419       0       0        0       0  (net 12201)           -72               0
+```
+
+**Finding: the rental re-opens the early dip the owning driver
+had closed.** The owning driver covers the cost-only days 1–2
+with per-fare pay arriving from day 1 (entry: 467/day against a
+390/day household cost). The rental adds 173/day to the cost
+(563/day entry) while the taxi pay stays 467/day, so the
+household burns 96/day for the first two days: −193 entry,
+−288 mid, −419 senior. The measured position still dips nothing
+(pay lands on days 1–3 before the day-4 storm), and the dip is
+a timing fact — the same rental, charged at month-end in the
+settlement, would not dip at all within the month; it is the
+tool's daily accrual that puts it on days 1–2. The renting
+household still nets 5,500 / 8,744 / 12,201 a month — the
+rent-before-you-buy on-ramp survives, clearly worse than owning
+but survivable, exactly as Unit U designed it for the
+single-earner row.
+
+**Honest limit, recorded not hidden:** the tool's single-earner
+renting-cab row charges the rental a different way — via
+`extra_daily_cost` on days ≤ 26 excluding Sundays (23 days =
+4,600/month), while the settlement charges 26 days flat
+(5,200). The two renting rows therefore disagree by 600/month:
+this unit's second-earner rental follows the settlement's rule,
+the v1 single-earner row keeps its own. Reconciling the
+single-earner row with the settlement's 26-day charge is a later
+unit, not this one — changing it would move the base table's
+renting row and its bridge line, and it is out of this unit's
+scope.
+
+Full default-run md5: `27464ea221694880a4369f805d8cd455` (IA:
+`45a45edc63cee4b142891da938ef79bd` — kept in
+`test_no_regression.py` as history). The only diff vs IA is this
+renting-cab section; the bridge lines, the mixed sections, the
+base table and all other rows are unchanged.
+
+**No tuning call.** Nothing in the data moves.
+
+**Open, recorded:** the second earner's tier is now selectable
+(Unit IC DONE 2026-11-24 — see §12: mid-tier taxi driver and
+entry civil engineer as second earner, at the tiers the source
+data gives); the renting variant is modelled for the taxi second
+earner only (no other second earner rents anything); only the two
+measured pairings are modelled (any other profession is refused
+by the tool).
+
+## 12. Addendum — Second earner at other tiers (Unit IC, Queue 26)
+
+**Date:** 2026-11-24. **Method:** `simulate(...,
+second_earner="taxi_driver", second_earner_tier="mid")` and
+`simulate(..., second_earner="civil_engineer",
+second_earner_tier="entry")` — the same two measured pairings
+as §9, but at the other tier the source data actually gives: a
+mid-tier taxi driver (23,000, per-fare) and an entry civil
+engineer (22,000, monthly), both from `prices.json`
+`wages_monthly`. The measured tier stays the default when no
+tier is named, so the §9/§11 figures are unchanged. Each earner
+is taxed on their own gross with their own uplift (mid taxi:
+tax 400, uplift 35% of 23,000 − 14,000 = 3,150; entry civil
+engineer: tax 350, uplift 0 — 22,000 is the entry wage); costs
+follow `engine._living_costs` for two adults, as before. Storm
+days do not change the second earner's pay — the per-fare rule
+has no storm days, and the monthly pay lands on day 30
+regardless — so the storm-position effect still comes from the
+first earner alone. No tier's pay is invented: if a tier's wage
+were not in the source data, it would be recorded as unmodelled
+instead — both tiers here are in `prices.json`.
+
+Measured month-1 minimum balance by storm position, beside the
+measured-tier figures from §9:
+
+Mid-tier taxi-driver second earner (23,000, per-fare):
+
+| Tier | Early (1–2) | Mid (15–16) | Late (29–30) | Measured (4, 23) | Even (v6) | Net/mo | Measured-tier early | Measured-tier measured | Measured-tier net |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| entry | 0 | 0 | 0 | 0 | 0 | 16,150 | 0 | 0 | 10,700 |
+| mid | 0 | 0 | 0 | 0 | 0 | 19,394 | 0 | 0 | 13,944 |
+| senior | 0 | 0 | 0 | 0 | 0 | 22,851 | −72 | 0 | 17,401 |
+
+Entry civil-engineer second earner (22,000, monthly):
+
+| Tier | Early (1–2) | Mid (15–16) | Late (29–30) | Measured (4, 23) | Even (v6) | Net/mo | Measured-tier early | Measured-tier measured | Measured-tier net |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| entry | −3,210 | −3,210 | −2,910 | −3,210 | −3,190 | 18,350 | −8,623 | −8,623 | 27,950 |
+| mid | −875 | −465 | 0 | −350 | −54 | 21,594 | −5,499 | −5,499 | 31,194 |
+| senior | −1,006 | 0 | 0 | −31 | 0 | 25,051 | −2,170 | −2,170 | 34,651 |
+
+Costs (storm month, measured position): mid-tier taxi-second
+14,850 / 16,273 / 18,233 (the measured-tier taxi-second costs
+11,700 / 13,123 / 15,083 plus the 3,150 uplift on the higher
+wage) and entry civil-engineer-second 11,700 / 13,123 / 15,083
+(the same second-adult lines as the taxi-second household, with
+no uplift — 22,000 is the civil engineer's entry wage). Against
+the combined canonical starting balances the worst dips leave
+10,000 − 0 = 10,000 (mid-tier taxi-second) and
+30,000 − 3,210 = 26,790 (entry civil-engineer-second) — no bridge
+failure in any position, and no TIGHT or SURVIVAL FAIL anywhere
+in the sections (savings rates 51.4–54.8% mid-tier taxi-second,
+60.4–61.6%
+entry civil-engineer-second).
+
+Verbatim output (new default-run sections):
+
+```
+second earner at another tier storm-position month (Unit IC — same 28 worked days of 30; taxi-driver second earner (mid 23,000, per-fare); month-1 minbal by storm position):
+profession                   tier      early     mid    late measured    even  (net/mo)  measured-early  measured-measured
+construction_worker          entry         0       0       0        0       0  (net 16150)               0                 0
+construction_worker          mid           0       0       0        0       0  (net 19394)               0                 0
+construction_worker          senior        0       0       0        0       0  (net 22851)             -72                 0
+
+second earner at another tier storm-position month (Unit IC — same 28 worked days of 30; civil-engineer second earner (entry 22,000, monthly); month-1 minbal by storm position):
+profession                   tier      early     mid    late measured    even  (net/mo)  measured-early  measured-measured
+construction_worker          entry     -3210   -3210   -2910    -3210   -3190  (net 18350)           -8623             -8623
+construction_worker          mid        -875    -465       0     -350     -54  (net 21594)           -5499             -5499
+construction_worker          senior    -1006       0       0      -31       0  (net 25051)           -2170             -2170
+```
+
+**Finding: the tier moves the dip more than the position
+does.** The mid-tier taxi driver's per-fare pay (753/day net)
+covers the household cost at every tier, so the early dip is
+gone everywhere — even senior, where the measured-tier driver
+left −72. The entry civil engineer still waits for day 30, so
+the household still dips — but only −3,210 at entry, against
+−8,623 for the mid-tier engineer: the lower monthly lump is
+more than offset by the lower daily cost (390/day against
+577/day — no uplift on the entry wage, and the same 4,200 of
+second-adult lines). The position pattern inside the
+civil-engineer rows is the same shape as §9 (early deepest,
+late shallowest, mid and senior nearly flat at the measured
+position) — the first earner's pay timing still sets the shape,
+the second earner's tier sets the depth. The bridge lines (§8)
+are unchanged: the worst mixed dips are still the measured-tier
+ones (−72 taxi-second, −8,623 civil-engineer-second), because
+the other-tier pairings dip less.
+
+Full default-run md5: `d198a2fe0970e11aaa105bcc4bfb19f9` (IB:
+`27464ea221694880a4369f805d8cd455` — kept in
+`test_no_regression.py` as history). The only diffs vs IB are
+these two sections; the bridge lines, the mixed sections, the
+renting-cab section, the base table and all other rows are
+unchanged.
+
+**No tuning call.** Nothing in the data moves.
+
+**Open, recorded:** the senior taxi driver (36,000) and the
+senior civil engineer (65,000) as second earner are not
+modelled — the wages exist in `prices.json`, but no measured
+household pairs the construction worker with either, so they
+stay unmodelled rather than assumed; the renting variant stays
+the measured-tier (entry) one; only the two measured pairings
+are modelled (any other profession is refused by the tool).
+
