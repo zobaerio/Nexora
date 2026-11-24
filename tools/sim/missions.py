@@ -105,6 +105,36 @@ and memory event are the Phase 6 reward step, and the "Friend
 favour missions" unlock is a Phase 6 system. After this unit
 every shipped mission tree has a §3.6 condition and a verifier.
 
+Mission 2.3 "The Market Run" (GDD-04 §2, Unit EO Queue 21) is the
+sixth: ``verify_mission_2_3()`` checks the first objective — "Buy
+a week's food at Boro Bazar" — against the household consumption
+record: a ``household_consumption`` row stands for the character's
+household (``household_members``, ``left_at_game_minutes IS NULL``)
+with a food good (``food_basket`` or ``fish``) and units > 0, the
+monthly shopping pass's own record (``tools/sim/market.py``
+``retail_allocation``), and the household's city is Rupsha City
+(``cities.RUPSHA``) — Boro Bazar is District 1's market, so a
+Shibnagar household's food comes from Shibnagar's shelves, not
+Boro Bazar, and does not verify. The second objective — "Haggle
+once, successfully" — has NO world-state record in any merged
+system (no haggle event exists, no haggle outcome is written
+anywhere), so the writer verifies the food purchase only and
+completes the mission on it; the haggle is recorded in GDD-04
+§3.6 as unverified, not faked, and a haggle record is a later
+unit's job. The "week" is the mission's fiction, not a measured
+quantity: the sim records food shopping monthly (per
+``month_index``) and no source gives a weekly food quantity, so
+the verifier reads "bought food" from the monthly record. The
+food purchase may predate the mission's acceptance (a bought
+week's food is a fact about the world, verified like 2.1's
+pre-existing skill level). Completing 2.3 pays nothing here: its
+500 NCr and +5 market reputation are the Phase 6 reward step,
+and the "Haggling" and "Market regular status" unlocks are Phase
+6 systems. After this unit every Level 1–2 mission has a §3.6
+condition and a verifier (1.1/1.2 have neither a tree nor a
+condition — they are not shipped mission trees, so the DS
+suite's tree assertion does not cover them).
+
 Favour instances are rows too (DG §3.6): the generator asks this
 module to create the row (``side:<type>:<giver>:<minute>``), and the
 same transitions move it. Verification for the two favour kinds
@@ -156,6 +186,15 @@ MISSION_2_2_SAVINGS_TARGET = 15000
 # — the threshold is the mission's own number, and the mean is the
 # dialogue condition's own reading (GDD-15 §12.3).
 MISSION_2_4_FRIENDSHIP_MEAN = 40
+# GDD-04 §2 mission 2.3: "Buy a week's food at Boro Bazar"
+# (data/missions.json, id "2.3", first objective) — the food goods
+# are the two food goods of the monthly shopping pass
+# (tools/sim/market.py retail_allocation: food_basket + fish).
+MISSION_2_3_FOOD_GOODS = ("food_basket", "fish")
+# Boro Bazar is District 1's market (data/district1-blockout.json:
+# the Boro Bazar market hall sits in zone d1_market), so the city
+# that contains it is Rupsha City (tools/sim/cities.py RUPSHA).
+BORO_BAZAR_CITY = "rupsha_city"
 
 
 # GDD-04 §3.6: the missions with a specified completion condition —
@@ -167,12 +206,15 @@ MISSION_2_4_FRIENDSHIP_MEAN = 40
 # §3.6 text, and the verifiers disagree — a mission that ships a
 # verifier without a condition, or a condition without a verifier,
 # breaks the suite. Every shipped mission tree now has a condition
-# (Unit EJ, Queue 20, closed the last one — 2.4).
+# (Unit EJ, Queue 20, closed the last one — 2.4; Unit EO, Queue
+# 21, ships the 2.3 tree and its condition together, so the
+# invariant holds for the new tree too).
 CONDITIONED_MISSIONS = {
     "1.3": "verify_mission_1_3",
     "1.4": "verify_mission_1_4",
     "2.1": "verify_mission_2_1",
     "2.2": "verify_mission_2_2",
+    "2.3": "verify_mission_2_3",
     "2.4": "verify_mission_2_4",
 }
 
@@ -435,6 +477,78 @@ def verify_mission_2_2(store, data, character_id, game_minutes):
             < starting + MISSION_2_2_SAVINGS_TARGET:
         return False
     return set_objectives_complete(store, character_id, "2.2",
+                                   game_minutes)
+
+
+def household_of(store, character_id):
+    """The character's household — the ``household_members`` row
+    with ``left_at_game_minutes IS NULL`` (the live membership).
+    None when the character belongs to no household — a character
+    with no household has no household shopping to read."""
+    row = store.row(
+        "SELECT household_id FROM household_members"
+        " WHERE character_id = ? AND left_at_game_minutes IS NULL",
+        (character_id,))
+    return row["household_id"] if row else None
+
+
+def household_bought_food(store, household_id):
+    """Whether the household has bought food — a
+    ``household_consumption`` row stands for it with a food good
+    (``food_basket`` or ``fish``, the monthly shopping pass's food
+    goods) and units > 0. A row with 0 units is an unmet want, not
+    a purchase: the row records the covered share, and 0 means the
+    household got nothing. A clothing row (``clothing_set``) is a
+    different good and does not count — the mission is food."""
+    return store.row(
+        "SELECT 1 FROM household_consumption WHERE household_id = ?"
+        " AND good_id IN ('food_basket', 'fish') AND units > 0"
+        " LIMIT 1",
+        (household_id,)) is not None
+
+
+def verify_mission_2_3(store, data, character_id, game_minutes):
+    """Verify mission 2.3's first objective against world state
+    (GDD-04 §3.6, Unit EO): "Buy a week's food at Boro Bazar"
+    holds iff the character's household has a
+    ``household_consumption`` row with a food good and units > 0
+    (``household_bought_food()``) AND the household's city is
+    Rupsha City (``cities.city_of_zone()`` on the household's
+    ``district_id`` — Boro Bazar is District 1's market, so a
+    Shibnagar household's food comes from Shibnagar's shelves,
+    not Boro Bazar, and does not verify). On success sets
+    ``objectives_complete`` while the row is still `active` and
+    returns True. Returns False when the row is not `active`, the
+    character has no household, the household is not in Rupsha
+    City, or no food row stands for it — including a food row for
+    a DIFFERENT household, which is not this character's shopping.
+    The second objective — "Haggle once, successfully" — has no
+    world-state record in any merged system, so it is NOT verified
+    here: the writer completes the mission on the food purchase
+    and records the haggle as unverified in GDD-04 §3.6, rather
+    than faking a check. The food purchase may predate the
+    mission's acceptance (a bought week's food is a fact about
+    the world, verified like 2.1's pre-existing skill level). The
+    500 NCr and +5 market reputation are not paid here (the Phase
+    6 reward step, per the DL boundary)."""
+    from . import cities as cities_mod
+    row = get_row(store, character_id, "2.3")
+    if row is None or row["status"] != "active":
+        return False
+    household_id = household_of(store, character_id)
+    if household_id is None:
+        return False
+    household = store.row(
+        "SELECT * FROM households WHERE household_id = ?",
+        (household_id,))
+    if household is None:
+        return False
+    if cities_mod.city_of_zone(data, household["district_id"]) \
+            != BORO_BAZAR_CITY:
+        return False
+    if not household_bought_food(store, household_id):
+        return False
+    return set_objectives_complete(store, character_id, "2.3",
                                    game_minutes)
 
 

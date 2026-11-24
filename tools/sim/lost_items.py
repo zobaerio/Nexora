@@ -716,6 +716,12 @@ def _furniture_items(data):
             data.furniture_file.get("items", [])}
 
 
+def furniture_item(data, item_id):
+    """One catalogue row by id, or None (Unit ET: the purchase
+    event validates against the catalogue before pricing)."""
+    return _furniture_items(data).get(item_id)
+
+
 def furniture_tier_items(data, furniture_tier):
     """The cumulative piece ids of a furniture tier — the tier's own
     pieces plus every lower tier's (GDD-10 §5: each tier's set is
@@ -731,13 +737,17 @@ def furniture_tier_items(data, furniture_tier):
 
 
 def seed_furniture_rows(store, data, character_id, item_ids,
-                        furniture_tier, property_id, game_minutes):
+                        furniture_tier, property_id, game_minutes,
+                        allow_duplicate=False):
     """Write one inventory row per furniture piece, item_type
     "furniture", owned by the household head, located at the
     property. An unknown catalogue id raises ValueError (the CX
     rule, as with clothing). Pieces the owner already holds a
-    standing furniture row for are skipped. Returns the new item
-    ids, in catalogue order as passed."""
+    standing furniture row for are skipped — unless
+    allow_duplicate is set, in which case a second row is written:
+    a purchase is not a seeding (Unit ET: the purchase event buys
+    a replacement beside a lost or broken original). Returns the
+    new item ids, in catalogue order as passed."""
     catalogue = _furniture_items(data)
     made = []
     for item_id in item_ids:
@@ -749,7 +759,7 @@ def seed_furniture_rows(store, data, character_id, item_ids,
             "SELECT 1 FROM inventory_items WHERE"
             " owner_character_id = ? AND item_type = 'furniture'"
             " AND item_ref = ?", (character_id, item_id))
-        if held is not None:
+        if held is not None and not allow_duplicate:
             continue
         iid = store.next_id("INV", "inventory_items", "item_instance_id")
         store.insert("inventory_items", item_instance_id=iid,
@@ -875,6 +885,41 @@ def seed_document_row(store, data, character_id, document_id,
                  state=json.dumps(state),
                  acquired_at_game_minutes=game_minutes)
     return iid
+
+
+def surrender_property_deed(store, character_id, property_id):
+    """Surrender the owner's property deed for a property (Unit ER,
+    Queue 21 — the foreclosure-to-repurchase lifecycle, GDD-04 §3.3
+    + GDD-10 §8): the paper follows the right. The deed row the
+    owner still HOLDS for that property (state
+    ``{"property_id": <id>}``) is deleted, so a later re-purchase
+    is issued a fresh deed by ``seed_document_row()`` instead of
+    being refused by its duplicate guard. A deed already lost or
+    found is NOT surrendered — the paper is not in the owner's
+    hands to give up, so the row stands and remains the deed of
+    record (a re-purchase while it is lost is refused by the guard,
+    and the returned paper serves as the deed again). Returns the
+    surrendered item id, or None when no held deed stood for the
+    property (no deed, or only a lost/found one). The foreclosure
+    life event and the ledger preserve the history; the properties
+    row is the right, and this deletes only the paper."""
+    for row in store.rows(
+            "SELECT * FROM inventory_items WHERE"
+            " owner_character_id = ? AND item_type = 'document'"
+            " AND item_ref = 'property_deed'", (character_id,)):
+        try:
+            state = json.loads(row["state"] or "{}")
+        except ValueError:
+            continue
+        if state.get("property_id") != property_id:
+            continue
+        if _item_is_away(store, row["item_instance_id"]):
+            continue
+        store.execute("DELETE FROM inventory_items"
+                      " WHERE item_instance_id = ?",
+                      (row["item_instance_id"],))
+        return row["item_instance_id"]
+    return None
 
 
 # -- Queue 17 Unit DK: school uniform + age-up outfits --------------
@@ -1132,9 +1177,11 @@ def apply_furniture_exposure_wear(store, data, zones, game_minutes):
     disaster impact; the same exposure rule the environment pass
     applies to buildings, read off the row's
     ``location_property_id`` property's district). Called from
-    ``environment.daily_pass`` for each active disaster's exposed
-    zones. Rows with no location are skipped — furniture without a
-    home has no zone to expose. Returns the worn item ids."""
+    ``environment.daily_pass`` once per day over the union of the
+    active disasters' exposed zones (Unit EP, Queue 21 — a zone
+    under two simultaneous disasters is worn once, not once per
+    disaster). Rows with no location are skipped — furniture without
+    a home has no zone to expose. Returns the worn item ids."""
     zones = set(zones)
     if not zones:
         return []
@@ -1170,12 +1217,11 @@ def apply_tool_weather_wear(store, data, zones, game_minutes):
     consequence. A character with no household (no home to expose)
     wears nothing; a tool already at 0 wears nothing further and
     logs no second event. Called from `environment.daily_pass`
-    beside `apply_furniture_exposure_wear`, one call per active
-    disaster over that disaster's exposed zones — so a zone under
-    two simultaneous disasters wears twice in one day, furniture
-    and tools alike (the EF wiring has the same shape; deduping
-    exposure wear per day across concurrent disasters is an open
-    edge, recorded in GDD-04 §3.3, not silently fixed here).
+    beside `apply_furniture_exposure_wear`, once per day over the
+    union of the active disasters' exposed zones (Unit EP, Queue
+    21 — a zone under two simultaneous disasters is worn once,
+    not once per disaster; the per-disaster call shape the EG
+    note recorded is gone).
     Returns the worn item ids."""
     from . import memory as memory_mod
     zones = set(zones)
@@ -1258,6 +1304,40 @@ def repair_furniture(store, item_instance_id):
     return _repair(store, item_instance_id, "furniture")
 
 
+def monthly_repair_sweep(store, data, game_minutes):
+    """Queue 21 Unit EU - the monthly tool service (GDD-04 §3.3,
+    Unit EH's repair, DQ's service rule). Every living
+    character's tools of the trade at or below SERVICE_THRESHOLD
+    (60) - broken tools included - are repaired to
+    RESTORED_CONDITION (90) with no ledger charge (the DQ price
+    rule: repair writes no ledger row). The vehicle precedent,
+    adopted: transport's monthly maintenance services every
+    vehicle below its threshold; this services every due tool.
+    The sweep services what tool_needs_service reports - the
+    same rows the wear touches, lost tools included (the
+    predicate's call, not the sweep's). A repair is a world
+    action on the row, not a purchase: nothing is charged and no
+    life event is logged (the break was the event; the repair
+    lifts the scheduler's refusal the next day the tool is
+    needed). Returns {"repaired": [item ids], "broken": [item
+    ids repaired from condition 0]} - the row's condition is the
+    record; the return is for the caller and the tests."""
+    repaired = []
+    broken = []
+    for char in store.rows(
+            "SELECT character_id FROM characters WHERE is_system = 0"
+            " AND died_at_game_minutes IS NULL"
+            " ORDER BY character_id"):
+        cid = char["character_id"]
+        for row in tool_needs_service(store, data, cid):
+            was_broken = item_condition(row) == 0
+            if repair_tool(store, row["item_instance_id"]) is not None:
+                repaired.append(row["item_instance_id"])
+                if was_broken:
+                    broken.append(row["item_instance_id"])
+    return {"repaired": repaired, "broken": broken}
+
+
 # GDD-10 §5: the home restore multipliers follow the EFFECTIVE
 # furnishing tier — the highest tier whose pieces ALL stand
 # (condition > 0). A tier counts only when the household head holds
@@ -1318,11 +1398,11 @@ def effective_furniture_tier(store, data, character_id):
 def furniture_restore_multiplier(store, data, character_id):
     """The GDD-10 §5 restore multiplier for the character's
     effective furnishing tier (0.7 / 1.0 / 1.15 / 1.3). None when
-    no tier stands — the caller (the Phase 5/6 home loop, which
-    does not scale restores by furniture today) must decide that
-    case; this module invents no fallback rate. No live consumer
-    reads this yet: the needs engine applies fixed home restores,
-    and wiring the multiplier into it is Phase 5/6 work."""
+    no tier stands — the caller must decide that case; this module
+    invents no fallback rate. The live consumer is the needs
+    engine (Unit EQ, Queue 21): ``needs.apply_activity`` scales
+    the rest/sleep restores of home/sleep blocks by this rate, and
+    applies no scaling when it is None."""
     tier = effective_furniture_tier(store, data, character_id)
     if tier is None:
         return None

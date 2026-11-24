@@ -50,12 +50,18 @@ def main():
           "an empty zone set wears nothing")
 
     # 2. The environment pass wires it beside the furniture wear.
+    # Queue 21 Unit EP changed the shape: the pass unions the
+    # exposed zones across all active disasters and calls each wear
+    # helper once per day over that union (a doubly-exposed zone
+    # wears once, not once per disaster).
     check("apply_tool_weather_wear(" in environment,
           "environment.daily_pass calls apply_tool_weather_wear")
+    check("exposed |= set(exposed_zones(" in environment,
+          "the pass unions the exposed zones across disasters")
     call = environment.split("apply_tool_weather_wear(")[1] \
         .split("game_minutes)")[0]
-    check("exposed_zones(" in call,
-          "the call passes the disaster's exposed zones")
+    check("exposed" in call,
+          "the call passes the unioned exposed zones (EP)")
     check("apply_furniture_exposure_wear(" in environment,
           "the furniture wear call still stands beside it")
 

@@ -7,14 +7,25 @@ an explicit rate of 1.0 to the event functions, or set the config
 rate around a single end-to-end move and restore it.
 """
 import json
+import os
+import tempfile
 import unittest
 
+from tools.sim import banking as banking_mod
 from tools.sim import households as hh
 from tools.sim import lost_items as li
+from tools.sim.engine import Simulation
 from tools.sim.tests.common import (data, make_household, make_person,
                                     make_store, rng)
 
 GM = 480
+
+
+def _tmp_path():
+    fd, path = tempfile.mkstemp(suffix=".db")
+    os.close(fd)
+    os.remove(path)
+    return path
 
 
 def _item(store, owner, item_type="goods", item_ref="food_basket",
@@ -1018,6 +1029,143 @@ class TestDocumentSeeding(unittest.TestCase):
                                    " inventory_items")["n"], 0)
 
 
+class TestDeedLifecycle(unittest.TestCase):
+    """Queue 21 Unit ER — foreclosure-to-repurchase deed lifecycle
+    (GDD-04 §3.3, GDD-10 §8): a foreclosure surrenders the deed
+    the borrower still holds, so a re-purchase is issued a fresh
+    deed; a deed already lost/found is not surrendered and remains
+    the deed of record."""
+
+    def _deeded_owner(self, store, d):
+        cid = make_person(store, age=40, first="Owner")
+        hid, pid = make_household(store, [cid])
+        # A real stock unit, so rent_of_property resolves and the
+        # foreclosure writes the bank tenancy (a synthetic "test"
+        # building_ref prices to None and the tenancy branch skips).
+        unit = next(u for u in d.residential_stock()
+                    if u["rent"] == 2500)
+        store.execute("UPDATE properties SET building_ref = ?,"
+                      " unit_index = ? WHERE property_id = ?",
+                      (unit["building_id"], unit["unit_index"], pid))
+        # The pre-foreclosure state is an owner-occupier with a
+        # mortgage: the purchase closures set the ownership, and
+        # _foreclose reads owner_household_id for the tenancy.
+        store.execute("UPDATE properties SET owner_household_id = ?,"
+                      " owner_character_id = ?, status = 'owned'"
+                      " WHERE property_id = ?", (hid, cid, pid))
+        deed = li.seed_document_row(store, d, cid, "property_deed",
+                                    GM, {"property_id": pid})
+        return cid, hid, pid, deed
+
+    def _mortgage(self, store, cid, pid):
+        store.insert("loans", loan_id="LN-TEST-ER",
+                     borrower_character_id=cid, kind="mortgage",
+                     principal_ncr=400000, outstanding_ncr=400000,
+                     annual_rate_percent=9.0, term_months=240,
+                     months_elapsed=0, interest_paid_ncr=0,
+                     missed_payments=3, status="defaulted",
+                     property_id=pid, started_at_game_minutes=GM,
+                     updated_at_game_minutes=GM)
+        return store.row("SELECT * FROM loans WHERE loan_id = ?",
+                         ("LN-TEST-ER",))
+
+    def _deed_row(self, store, cid, pid):
+        return store.row(
+            "SELECT * FROM inventory_items WHERE"
+            " owner_character_id = ? AND item_type = 'document'"
+            " AND item_ref = 'property_deed'", (cid,))
+
+    def test_foreclosure_surrenders_the_held_deed(self):
+        store = make_store()
+        d = data()
+        cid, hid, pid, deed = self._deeded_owner(store, d)
+        loan = self._mortgage(store, cid, pid)
+        banking_mod._foreclose(store, loan, GM)
+        # The paper follows the right: the deed row is gone.
+        self.assertIsNone(self._deed_row(store, cid, pid))
+        prop = store.row("SELECT * FROM properties WHERE property_id"
+                         " = ?", (pid,))
+        self.assertEqual(prop["owner_character_id"], "SYS-BANK")
+        self.assertIsNone(prop["owner_household_id"])
+        self.assertEqual(prop["status"], "rented")
+        # The household stays as the bank's tenant (pre-existing
+        # foreclosure behaviour, unchanged by this unit).
+        ten = store.row("SELECT * FROM tenancies WHERE property_id = ?"
+                        " AND tenant_household_id = ? AND"
+                        " landlord_character_id = 'SYS-BANK'",
+                        (pid, hid))
+        self.assertIsNotNone(ten)
+        event = store.row("SELECT * FROM life_events WHERE"
+                          " character_id = ? AND event_type ="
+                          " 'foreclosure'", (cid,))
+        self.assertIsNotNone(event)
+        self.assertEqual(json.loads(event["details"])["property_id"],
+                         pid)
+
+    def test_repurchase_after_foreclosure_seeds_a_fresh_deed(self):
+        store = make_store()
+        d = data()
+        cid, hid, pid, deed = self._deeded_owner(store, d)
+        loan = self._mortgage(store, cid, pid)
+        banking_mod._foreclose(store, loan, GM)
+        # The same seed call the purchase closures make now writes
+        # a fresh deed — the duplicate guard no longer blocks it.
+        fresh = li.seed_document_row(store, d, cid, "property_deed",
+                                     GM + 100, {"property_id": pid})
+        self.assertIsNotNone(fresh)
+        self.assertNotEqual(fresh, deed)
+        row = store.row("SELECT * FROM inventory_items WHERE"
+                        " item_instance_id = ?", (fresh,))
+        self.assertEqual(json.loads(row["state"]),
+                         {"property_id": pid})
+
+    def test_foreclosure_leaves_a_lost_deed(self):
+        store = make_store()
+        d = data()
+        cid, hid, pid, deed = self._deeded_owner(store, d)
+        finder = make_person(store, age=28, first="Finder")
+        lid = li.record_loss(store, cid, deed, 600, "d1_market",
+                             "market")
+        self.assertIsNotNone(lid)
+        self.assertEqual(li.find_lost_item(store, lid, finder, 900,
+                                           "d1_market", "market"), lid)
+        loan = self._mortgage(store, cid, pid)
+        banking_mod._foreclose(store, loan, GM)
+        # The paper is in the finder's hands, not the borrower's —
+        # it is not surrendered and stays the deed of record.
+        self.assertIsNotNone(self._deed_row(store, cid, pid))
+        # A re-purchase while it is lost is refused by the guard:
+        # the owner still holds a deed for this property.
+        self.assertIsNone(li.seed_document_row(
+            store, d, cid, "property_deed", GM + 100,
+            {"property_id": pid}))
+        # When the paper comes back, it serves as the deed again.
+        self.assertEqual(li.return_lost_item(store, lid, 1000), lid)
+        self.assertIsNotNone(self._deed_row(store, cid, pid))
+
+    def test_foreclosure_without_a_deed_is_a_noop_for_the_paper(self):
+        store = make_store()
+        d = data()
+        cid = make_person(store, age=40, first="Owner")
+        hid, pid = make_household(store, [cid])
+        loan = self._mortgage(store, cid, pid)
+        banking_mod._foreclose(store, loan, GM)
+        self.assertIsNone(self._deed_row(store, cid, pid))
+        self.assertIsNone(li.surrender_property_deed(store, cid, pid))
+        prop = store.row("SELECT * FROM properties WHERE property_id"
+                         " = ?", (pid,))
+        self.assertEqual(prop["owner_character_id"], "SYS-BANK")
+
+    def test_surrender_returns_the_id_then_none(self):
+        store = make_store()
+        d = data()
+        cid, hid, pid, deed = self._deeded_owner(store, d)
+        self.assertEqual(li.surrender_property_deed(store, cid, pid),
+                         deed)
+        self.assertIsNone(self._deed_row(store, cid, pid))
+        self.assertIsNone(li.surrender_property_deed(store, cid, pid))
+
+
 class TestSchoolUniform(unittest.TestCase):
     """Queue 17 Unit DK — school uniform at enrolment (GDD-09 §5)."""
 
@@ -1829,6 +1977,99 @@ class TestToolWeatherWear(unittest.TestCase):
                             for iid in other_tools))
 
 
+class TestExposureWearDedupe(unittest.TestCase):
+    """Queue 21 Unit EP — concurrent-disaster exposure wear dedupe
+    (GDD-04 §3.3, EG follow-up): a zone under two simultaneous
+    disasters wears once per day, furniture and tools alike. The
+    dedupe lives in environment.daily_pass (one call over the
+    union of the disasters' exposed zones), not in the wear
+    helpers — the helpers still wear once per call."""
+
+    def _employ(self, store, cid, profession_id):
+        store.insert("employments",
+                     employment_id=f"EM-TEST-EP-{cid}",
+                     character_id=cid, profession_id=profession_id,
+                     tier=1, wage_per_month=10000,
+                     started_at_game_minutes=GM,
+                     ended_at_game_minutes=None)
+
+    def _condition(self, store, iid):
+        row = store.row("SELECT state FROM inventory_items"
+                        " WHERE item_instance_id = ?", (iid,))
+        return json.loads(row["state"])["condition"]
+
+    def _world_with_exposed_home(self):
+        # (store, data, exposed_zone, worker, tools, furniture)
+        from tools.sim import environment as env_mod
+        from tools.sim.tests.envcommon import env_world
+        store, d = env_world()
+        zones = env_mod.exposed_zones(store, d, "rupsha_city")
+        self.assertTrue(zones)
+        exposed = sorted(zones)[0]
+        worker = make_person(store, age=30, first="Worker")
+        self._employ(store, worker, "construction_worker")
+        hid, pid = make_household(store, [worker])
+        store.execute("UPDATE properties SET district_id = ?"
+                      " WHERE property_id = ?", (exposed, pid))
+        store.execute("UPDATE households SET district_id = ?"
+                      " WHERE household_id = ?", (exposed, hid))
+        tools = li.seed_tool_rows(store, d, worker,
+                                  "construction_worker", GM)
+        furniture = li.seed_furniture_at_move_in(store, d, hid, pid,
+                                                 GM)
+        return store, d, exposed, worker, tools, furniture
+
+    def test_two_simultaneous_disasters_wear_once(self):
+        from tools.sim import environment as env_mod
+        store, d, _exposed, _worker, tools, furniture = \
+            self._world_with_exposed_home()
+        env_mod.start_disaster(store, d, "cyclone", "rupsha_city", 0,
+                               1440)
+        env_mod.start_disaster(store, d, "severe_storm", "rupsha_city",
+                               0, 1440)
+        env_mod.daily_pass(store, d, rng(), 0, 1440)
+        # Before EP this was 98 (one wear per disaster); now 99.
+        self.assertTrue(all(self._condition(store, iid) == 99
+                            for iid in tools))
+        self.assertTrue(all(self._condition(store, iid) == 99
+                            for iid in furniture))
+
+    def test_second_day_wears_again(self):
+        # The dedupe is per day, not permanent: the next day's pass
+        # wears again.
+        from tools.sim import environment as env_mod
+        store, d, _exposed, _worker, tools, furniture = \
+            self._world_with_exposed_home()
+        env_mod.start_disaster(store, d, "cyclone", "rupsha_city", 0,
+                               1440)
+        env_mod.start_disaster(store, d, "cyclone", "rupsha_city", 0,
+                               1440)
+        env_mod.daily_pass(store, d, rng(), 0, 1440)
+        self.assertTrue(all(self._condition(store, iid) == 99
+                            for iid in tools))
+        env_mod.daily_pass(store, d, rng(), 1, 2880)
+        self.assertTrue(all(self._condition(store, iid) == 98
+                            for iid in tools))
+        self.assertTrue(all(self._condition(store, iid) == 98
+                            for iid in furniture))
+
+    def test_helpers_still_wear_once_per_call(self):
+        # The dedupe lives in the pass: calling a wear helper twice
+        # directly still wears twice. This pins the design — a
+        # future caller must go through the pass (or union first).
+        store = make_store()
+        d = data()
+        worker = make_person(store, age=30, first="Worker")
+        hid, pid = make_household(store, [worker])
+        self._employ(store, worker, "construction_worker")
+        made = li.seed_tool_rows(store, d, worker,
+                                "construction_worker", GM)
+        li.apply_tool_weather_wear(store, d, {"d1_midtown"}, GM)
+        li.apply_tool_weather_wear(store, d, {"d1_midtown"}, GM)
+        self.assertTrue(all(self._condition(store, iid) == 98
+                            for iid in made))
+
+
 class TestRepair(unittest.TestCase):
     """Queue 20 Unit EH — tool & furniture repair (GDD-04 §3.3,
     Unit DQ design): restore to 90, no ledger charge."""
@@ -2060,6 +2301,314 @@ class TestLostPieceVsTier(unittest.TestCase):
                       (pid, replacement))
         self.assertEqual(li.effective_furniture_tier(store, d, head),
                          "F1")
+
+
+class TestFurniturePurchase(unittest.TestCase):
+    """Queue 21 Unit ET — the furniture purchase event (GDD-10 §5)."""
+
+    def _home(self, head_funds=100000, member_funds=0, seed=True):
+        store = make_store()
+        head = make_person(store, age=35, first="Head")
+        member = make_person(store, age=30, first="Member")
+        hid, pid = make_household(store, [head, member])
+        store.transfer(None, head, head_funds, "seed", GM)
+        if member_funds:
+            store.transfer(None, member, member_funds, "seed", GM)
+        if seed:
+            li.seed_furniture_at_move_in(store, data(), hid, pid, GM)
+        return store, head, member, hid, pid
+
+    def _ledger_purchase(self, store, payer):
+        return store.row(
+            "SELECT * FROM economy_ledger WHERE from_character_id = ?"
+            " AND to_character_id = 'SYS-MARKET'"
+            " AND reason_code = 'purchase'", (payer,))
+
+    def test_buys_an_f2_piece_at_catalogue_price(self):
+        store, head, _m, hid, pid = self._home()
+        iid = hh.purchase_furniture(store, data(), hid, "sofa", 5, GM)
+        self.assertIsNotNone(iid)
+        self.assertEqual(store.balance(head), 95000)  # sofa 5,000
+        row = self._ledger_purchase(store, head)
+        self.assertIsNotNone(row)
+        self.assertEqual(row["amount"], 5000)
+        bought = store.row(
+            "SELECT * FROM inventory_items WHERE item_instance_id = ?",
+            (iid,))
+        self.assertEqual(bought["item_type"], "furniture")
+        self.assertEqual(bought["item_ref"], "sofa")
+        self.assertEqual(bought["owner_character_id"], head)
+        self.assertEqual(bought["location_property_id"], pid)
+        self.assertEqual(json.loads(bought["state"]),
+                         {"furniture_tier": "F2", "condition": 100})
+        # One F2 sofa alone does not raise the tier (GDD-10 §5).
+        self.assertEqual(
+            li.effective_furniture_tier(store, data(), head), "F1")
+
+    def test_buying_the_full_f2_set_raises_the_tier(self):
+        store, head, _m, hid, _p = self._home()
+        for piece in ("sofa", "bookshelf", "desk", "kitchen_upgrade",
+                      "curtains"):
+            self.assertIsNotNone(
+                hh.purchase_furniture(store, data(), hid, piece, 5, GM))
+        self.assertEqual(store.balance(head), 88000)  # F2 adds 12,000
+        self.assertEqual(
+            li.effective_furniture_tier(store, data(), head), "F2")
+
+    def test_second_row_for_an_already_held_piece(self):
+        store, head, _m, hid, _p = self._home()
+        iid = hh.purchase_furniture(store, data(), hid, "bed", 5, GM)
+        self.assertIsNotNone(iid)
+        self.assertEqual(store.balance(head), 96000)  # bed 4,000
+        beds = store.rows(
+            "SELECT * FROM inventory_items WHERE owner_character_id = ?"
+            " AND item_type = 'furniture' AND item_ref = 'bed'",
+            (head,))
+        self.assertEqual(len(beds), 2)
+        self.assertTrue(all(
+            json.loads(b["state"])["condition"] == 100 for b in beds))
+        self.assertEqual(
+            li.effective_furniture_tier(store, data(), head), "F1")
+
+    def test_refuses_when_the_pool_cannot_cover_it(self):
+        store, head, _m, hid, _p = self._home(head_funds=1000)
+        self.assertIsNone(
+            hh.purchase_furniture(store, data(), hid, "sofa", 5, GM))
+        self.assertEqual(store.balance(head), 1000)
+        self.assertIsNone(self._ledger_purchase(store, head))
+        self.assertEqual(store.row(
+            "SELECT COUNT(*) AS n FROM inventory_items WHERE"
+            " owner_character_id = ? AND item_ref = 'sofa'",
+            (head,))["n"], 0)
+
+    def test_richest_member_covers_when_the_head_is_short(self):
+        store, head, member, hid, _p = self._home(
+            head_funds=1000, member_funds=100000)
+        iid = hh.purchase_furniture(store, data(), hid, "sofa", 5, GM)
+        self.assertIsNotNone(iid)
+        self.assertEqual(store.balance(head), 1000)
+        self.assertEqual(store.balance(member), 95000)
+        self.assertIsNotNone(self._ledger_purchase(store, member))
+
+    def test_unknown_item_raises(self):
+        store, _h, _m, hid, _p = self._home()
+        with self.assertRaises(ValueError):
+            hh.purchase_furniture(store, data(), hid, "not_a_piece",
+                                  5, GM)
+
+    def test_no_head_returns_none(self):
+        store = make_store()
+        hid, _pid = make_household(store, [])
+        self.assertIsNone(
+            hh.purchase_furniture(store, data(), hid, "sofa", 5, GM))
+
+    def test_no_home_returns_none(self):
+        store, head, _m, hid, _p = self._home()
+        store.execute("UPDATE households SET home_property_id = NULL"
+                      " WHERE household_id = ?", (hid,))
+        self.assertIsNone(
+            hh.purchase_furniture(store, data(), hid, "sofa", 5, GM))
+        self.assertEqual(store.balance(head), 100000)
+
+    def test_f0_piece_costs_nothing_and_seeds_a_second_row(self):
+        store, head, _m, hid, _p = self._home()
+        iid = hh.purchase_furniture(store, data(), hid,
+                                    "floor_mattress", 5, GM)
+        self.assertIsNotNone(iid)
+        self.assertEqual(store.balance(head), 100000)
+        self.assertIsNone(self._ledger_purchase(store, head))
+        rows = store.rows(
+            "SELECT * FROM inventory_items WHERE owner_character_id = ?"
+            " AND item_type = 'furniture'"
+            " AND item_ref = 'floor_mattress'", (head,))
+        self.assertEqual(len(rows), 2)
+
+    def test_a_second_purchase_in_the_same_month_is_a_second_purchase(self):
+        store, head, _m, hid, _p = self._home()
+        first = hh.purchase_furniture(store, data(), hid, "sofa", 5, GM)
+        second = hh.purchase_furniture(store, data(), hid, "sofa", 5, GM)
+        self.assertIsNotNone(first)
+        self.assertIsNotNone(second)
+        self.assertNotEqual(first, second)
+        self.assertEqual(store.balance(head), 90000)
+        self.assertEqual(store.row(
+            "SELECT COUNT(*) AS n FROM economy_ledger WHERE"
+            " from_character_id = ? AND reason_code = 'purchase'",
+            (head,))["n"], 2)
+
+    def test_seed_furniture_rows_still_skips_held_pieces_by_default(self):
+        store = make_store()
+        owner = make_person(store, age=30, first="Owner")
+        made = li.seed_furniture_rows(store, data(), owner, ["bed"],
+                                     "F1", None, GM)
+        self.assertEqual(len(made), 1)
+        self.assertEqual(li.seed_furniture_rows(
+            store, data(), owner, ["bed"], "F1", None, GM), [])
+        again = li.seed_furniture_rows(
+            store, data(), owner, ["bed"], "F1", None, GM,
+            allow_duplicate=True)
+        self.assertEqual(len(again), 1)
+        self.assertNotEqual(again[0], made[0])
+
+
+class TestMonthlyRepairSweep(unittest.TestCase):
+    """Queue 21 Unit EU — the monthly tool service (GDD-04 §3.3)."""
+
+    def _worker_with_tools(self, store,
+                           profession_id="construction_worker"):
+        worker = make_person(store, age=30, first="Worker")
+        store.insert("employments", employment_id="EM-TEST-EU",
+                     character_id=worker, profession_id=profession_id,
+                     tier=1, wage_per_month=10000,
+                     started_at_game_minutes=GM,
+                     ended_at_game_minutes=None)
+        made = li.seed_tool_rows(store, data(), worker,
+                                 profession_id, GM)
+        return worker, made
+
+    def _condition(self, store, iid):
+        row = store.row("SELECT state FROM inventory_items"
+                        " WHERE item_instance_id = ?", (iid,))
+        return json.loads(row["state"])["condition"]
+
+    def _set_condition(self, store, iid, value):
+        row = store.row("SELECT state FROM inventory_items"
+                        " WHERE item_instance_id = ?", (iid,))
+        state = json.loads(row["state"])
+        state["condition"] = value
+        store.execute("UPDATE inventory_items SET state = ?"
+                      " WHERE item_instance_id = ?",
+                      (json.dumps(state), iid))
+
+    def test_repairs_tools_at_or_below_sixty(self):
+        store = make_store()
+        _w, made = self._worker_with_tools(store)
+        self._set_condition(store, made[0], 60)
+        self._set_condition(store, made[1], 61)
+        self._set_condition(store, made[2], 30)
+        self._set_condition(store, made[3], 100)
+        out = li.monthly_repair_sweep(store, data(), GM)
+        self.assertEqual(set(out["repaired"]), {made[0], made[2]})
+        self.assertEqual(out["broken"], [])
+        self.assertEqual(self._condition(store, made[0]), 90)
+        self.assertEqual(self._condition(store, made[1]), 61)
+        self.assertEqual(self._condition(store, made[2]), 90)
+        self.assertEqual(self._condition(store, made[3]), 100)
+
+    def test_repairs_a_broken_tool_and_lists_it_broken(self):
+        store = make_store()
+        _w, made = self._worker_with_tools(store)
+        self._set_condition(store, made[0], 0)
+        out = li.monthly_repair_sweep(store, data(), GM)
+        self.assertEqual(out["broken"], [made[0]])
+        self.assertEqual(self._condition(store, made[0]), 90)
+
+    def test_repairs_every_due_tool_for_every_character(self):
+        store = make_store()
+        _w1, made1 = self._worker_with_tools(store)
+        worker2 = make_person(store, age=28, first="Second")
+        store.insert("employments", employment_id="EM-TEST-EU2",
+                     character_id=worker2,
+                     profession_id="construction_worker",
+                     tier=1, wage_per_month=10000,
+                     started_at_game_minutes=GM,
+                     ended_at_game_minutes=None)
+        made2 = li.seed_tool_rows(store, data(), worker2,
+                                 "construction_worker", GM)
+        self._set_condition(store, made1[0], 45)
+        self._set_condition(store, made2[0], 0)
+        out = li.monthly_repair_sweep(store, data(), GM)
+        self.assertEqual(set(out["repaired"]), {made1[0], made2[0]})
+        self.assertEqual(out["broken"], [made2[0]])
+        self.assertEqual(self._condition(store, made1[0]), 90)
+        self.assertEqual(self._condition(store, made2[0]), 90)
+
+    def test_no_ledger_charge(self):
+        store = make_store()
+        _w, made = self._worker_with_tools(store)
+        self._set_condition(store, made[0], 0)
+        self._set_condition(store, made[1], 20)
+        li.monthly_repair_sweep(store, data(), GM)
+        self.assertEqual(store.row(
+            "SELECT COUNT(*) AS n FROM economy_ledger")["n"], 0)
+
+    def test_ignores_tools_of_another_profession(self):
+        store = make_store()
+        worker, made = self._worker_with_tools(store)
+        chef_tool = li.seed_tool_rows(store, data(), worker,
+                                     "chef", GM)[0]
+        self._set_condition(store, made[0], 10)
+        self._set_condition(store, chef_tool, 10)
+        li.monthly_repair_sweep(store, data(), GM)
+        self.assertEqual(self._condition(store, made[0]), 90)
+        self.assertEqual(self._condition(store, chef_tool), 10)
+
+    def test_dead_characters_are_not_serviced(self):
+        store = make_store()
+        worker, made = self._worker_with_tools(store)
+        self._set_condition(store, made[0], 10)
+        store.execute("UPDATE characters SET died_at_game_minutes = ?"
+                      " WHERE character_id = ?", (GM, worker))
+        out = li.monthly_repair_sweep(store, data(), GM)
+        self.assertEqual(out, {"repaired": [], "broken": []})
+        self.assertEqual(self._condition(store, made[0]), 10)
+
+    def test_sweep_is_a_noop_with_no_tools(self):
+        store = make_store()
+        self.assertEqual(li.monthly_repair_sweep(store, data(), GM),
+                         {"repaired": [], "broken": []})
+
+
+class TestMonthlyRepairHook(unittest.TestCase):
+    """The engine's monthly social pass calls the repair sweep:
+    a worn tool in a live world is repaired at month end."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.path = _tmp_path()
+        cls.sim = Simulation(cls.path, seed="q21-eu")
+        cls.sim.generate_population(60)
+        cls.store = cls.sim.store
+        cls.data = cls.sim.data
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.sim.close()
+        os.remove(cls.path)
+
+    def test_monthly_social_repairs_a_broken_tool(self):
+        worker = self.store.row(
+            "SELECT c.character_id FROM characters c WHERE"
+            " c.is_system = 0 AND c.died_at_game_minutes IS NULL"
+            " AND NOT EXISTS (SELECT 1 FROM employments e WHERE"
+            " e.character_id = c.character_id AND"
+            " e.ended_at_game_minutes IS NULL) LIMIT 1")
+        if worker is None:
+            self.skipTest("no unemployed adult in this world")
+        cid = worker["character_id"]
+        eid = self.store.next_id("EM", "employments",
+                                 "employment_id")
+        self.store.insert(
+            "employments", employment_id=eid, character_id=cid,
+            profession_id="construction_worker",
+            tier=1, wage_per_month=10000,
+            started_at_game_minutes=500, ended_at_game_minutes=None)
+        made = li.seed_tool_rows(self.store, self.data, cid,
+                                 "construction_worker", 500)
+        row = self.store.row(
+            "SELECT state FROM inventory_items"
+            " WHERE item_instance_id = ?", (made[0],))
+        state = json.loads(row["state"])
+        state["condition"] = 0
+        self.store.execute(
+            "UPDATE inventory_items SET state = ?"
+            " WHERE item_instance_id = ?",
+            (json.dumps(state), made[0]))
+        self.sim._monthly_social(29)
+        after = self.store.row(
+            "SELECT state FROM inventory_items"
+            " WHERE item_instance_id = ?", (made[0],))
+        self.assertEqual(json.loads(after["state"])["condition"], 90)
 
 
 if __name__ == "__main__":

@@ -428,6 +428,75 @@ def broken_tool_wage_dock(store, character_id, month_index,
     return 0
 
 
+# -- Queue 21 Unit ES: construction-worker day-wage pay (GDD-03
+# §2, EL follow-up) ------------------------------------------------------
+# DECIDED (recorded in GDD-03 §2 and GDD-04 §3.3): construction
+# workers are paid per worked day — "paid per worked day; no work,
+# no pay" (GDD-03 §2) — not the monthly wage_per_month every other
+# profession receives. The day wage is wage_per_month / 30 (the
+# settlement's DAYS_PER_MONTH; the EL docstring's own figure for
+# "a day's wages"), and a month of 30 worked days pays exactly the
+# band. A day counts as worked when its stored schedule has at
+# least one work block NOT bent by a broken tool — the scheduler
+# keeps the construction morning shift on Fridays, so a normal
+# month is a full month. The EL dock question re-opens here and is
+# resolved by the pay model, not by an exception: rest days,
+# storm-bent days, and broken-tool days all pay 0 — the cause of
+# non-work does not matter, because day-wage pay docks every
+# non-worked day uniformly. The EL no-dock rule stands unchanged
+# for every monthly-paid profession: a bent block never docks a
+# monthly wage, and only the construction worker's pay model
+# differs. The treasury path pays no construction workers (civic
+# posts are teacher/doctor/police only; institutions hire civil
+# servants), so only the business and SYS-EMPLOYERS payment
+# points consult this.
+DAY_WAGE_PROFESSIONS = ("construction_worker",)
+
+
+def worked_days(store, character_id, month_index):
+    """Days in the month with at least one unbent work block, read
+    from the stored instantiated_schedules rows (the same source
+    broken_tool_days reads; months are 1-based, month m covers
+    days (m-1)*30..m*30-1). A day whose work blocks were all bent
+    by a broken tool, a rest day, and a storm-bent day all count
+    zero — none of them is a worked day."""
+    start_day = (month_index - 1) * DAYS_PER_MONTH
+    end_day = start_day + DAYS_PER_MONTH
+    count = 0
+    for row in store.rows(
+            "SELECT blocks_json FROM instantiated_schedules WHERE"
+            " character_id = ? AND day_index >= ? AND day_index < ?",
+            (character_id, start_day, end_day)):
+        blocks = json.loads(row["blocks_json"])
+        if any(b.get("activity") == "work"
+               and not b.get("broken_tool") for b in blocks):
+            count += 1
+    return count
+
+
+def day_wage_due(store, character_id, month_index, wage_per_month):
+    """Day-wage pay for the month, in NCr: worked_days ×
+    (wage_per_month / 30), rounded to the nearest NCr. A month of
+    30 worked days pays exactly the band."""
+    return round(worked_days(store, character_id, month_index)
+                 * wage_per_month / DAYS_PER_MONTH)
+
+
+def wage_due_for(store, character_id, profession_id, month_index,
+                 wage_per_month):
+    """The month's gross wage for one employment: day-wage
+    professions are paid per worked day; every other profession
+    is paid the monthly wage less the broken-tool dock (0 under
+    the no-dock rule). Both settlement payment points call this —
+    the business path and the SYS-EMPLOYERS branch — so the rule
+    is consulted once, at the point of payment."""
+    if profession_id in DAY_WAGE_PROFESSIONS:
+        return day_wage_due(store, character_id, month_index,
+                            wage_per_month)
+    return wage_per_month - broken_tool_wage_dock(
+        store, character_id, month_index, wage_per_month)
+
+
 def unemployment_stats(store, data):
     """Measured labour market state over living residents."""
     from . import identity as identity_mod

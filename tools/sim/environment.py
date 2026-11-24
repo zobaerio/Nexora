@@ -849,23 +849,28 @@ def daily_pass(store, data, rng, day_index, game_minutes):
             store, data, rng, d["disaster_id"], day_index, game_minutes)
     # Queue 19 Unit EF: furniture standing in an exposed zone wears
     # (−1 per exposed day, DQ) — the same exposure the pass applies
-    # to buildings, read off the row's location property. One call
-    # per active flood / cyclone / severe_storm disaster, over that
-    # disaster's exposed zones (floodplain/wetland zones).
+    # to buildings, read off the row's location property.
     # Queue 20 Unit EG: the same exposure wears the tools of
     # characters whose home stands in an exposed zone (DQ's weather
-    # cause for tools, beside the furniture wear — one call per
-    # active disaster, same zones, same −1).
+    # cause for tools, beside the furniture wear — same −1).
+    # Queue 21 Unit EP: the wear is deduped to one −1 per exposed
+    # zone per day — the exposed zones are unioned across all
+    # active flood / cyclone / severe_storm disasters first, and
+    # each wear helper is called ONCE over that union. A zone under
+    # two simultaneous disasters wore twice a day before this unit
+    # (one call per disaster); it now wears once, furniture and
+    # tools alike.
+    exposed = set()
     for d in store.rows("SELECT * FROM disaster_events WHERE status"
                         " = 'active' AND disaster_type IN ('flood',"
                         " 'cyclone', 'severe_storm')"
                         " ORDER BY disaster_id"):
+        exposed |= set(exposed_zones(store, data, d["city_id"]))
+    if exposed:
         lost_items_mod.apply_furniture_exposure_wear(
-            store, data, exposed_zones(store, data, d["city_id"]),
-            game_minutes)
+            store, data, exposed, game_minutes)
         lost_items_mod.apply_tool_weather_wear(
-            store, data, exposed_zones(store, data, d["city_id"]),
-            game_minutes)
+            store, data, exposed, game_minutes)
     # Disaster phase transitions + recovery.
     for d in store.rows("SELECT * FROM disaster_events WHERE status"
                         " = 'active' AND ends_day IS NOT NULL AND"

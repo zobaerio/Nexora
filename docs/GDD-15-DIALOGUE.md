@@ -352,7 +352,7 @@ These are inputs the binding needs that no source supplies. They are recorded he
 | Dialogue (`condition_vocabulary`, `mission`) | `available`, `not_started`, `offered`, `accepted`, `objective_complete`, `completed` | `data/dialogue-lines.json` `condition_vocabulary.mission` |
 | Schema (`mission_progress.status`) | `available`, `active`, `completed`, `failed` | `data/schema.sql`, `CHECK (status IN ('available','active','completed','failed'))` |
 
-The shipped data uses four of the six dialogue states (`available`, `offered`, `accepted`, `objective_complete` — 29 mission-condition nodes across the `1.3`, `1.4`, `2.1`, `2.2` and `2.4` trees). No shipped node conditions on `not_started` or `completed`; the mapping defines them anyway, so future trees can use the full vocabulary without re-opening this gap.
+The shipped data uses four of the six dialogue states (`available`, `offered`, `accepted`, `objective_complete` — 35 mission-condition nodes across the `1.3`, `1.4`, `2.1`, `2.2`, `2.3` and `2.4` trees). No shipped node conditions on `not_started` or `completed`; the mapping defines them anyway, so future trees can use the full vocabulary without re-opening this gap.
 
 ### 13.2 The mapping table
 
@@ -400,7 +400,7 @@ GDD-04 §1 says a mission can be abandoned for a reputation cost, but no source 
 
 ### 13.6 Which nodes become evaluable
 
-With this mapping, all 29 mission-condition nodes in the shipped data evaluate against the schema as written (node → dialogue state → row state): *(Correction, Unit DO · Queue 18: the section as written by Unit BA said 12 — that count was already wrong for its own trees (1.3 has 6 mission-condition nodes and 2.4 has 5, which is 11, not 12), and Unit DM never updated it when the 1.4 tree shipped. The count is now read from the data: 6 × 1.3, 6 × 1.4, 5 × 2.4, 6 × 2.1 = 23. Update, Unit EC · Queue 19: the 2.2 tree adds 6 more — 6 × 2.2 — for 29.)*
+With this mapping, all 35 mission-condition nodes in the shipped data evaluate against the schema as written (node → dialogue state → row state): *(Correction, Unit DO · Queue 18: the section as written by Unit BA said 12 — that count was already wrong for its own trees (1.3 has 6 mission-condition nodes and 2.4 has 5, which is 11, not 12), and Unit DM never updated it when the 1.4 tree shipped. The count is now read from the data: 6 × 1.3, 6 × 1.4, 5 × 2.4, 6 × 2.1 = 23. Update, Unit EC · Queue 19: the 2.2 tree adds 6 more — 6 × 2.2 — for 29. Update, Unit EO · Queue 21: the 2.3 tree adds 6 more — 6 × 2.3 — for 35.)*
 
 | Node | Mission | State | Row state |
 |---|---|---|---|
@@ -424,13 +424,18 @@ With this mapping, all 29 mission-condition nodes in the shipped data evaluate a
 | `dlg_2_2_decline` | `2.2` | `offered` | `status = 'available'` + snapshot `offered` |
 | `dlg_2_2_reminder`, `dlg_2_2_reminder_exit` | `2.2` | `accepted` | `status = 'active'`, `objectives_complete` not `true` |
 | `dlg_2_2_return` | `2.2` | `objective_complete` | `status = 'active'`, `objectives_complete = true` |
+| `dlg_2_3_offer` | `2.3` | `available` | `status = 'available'` |
+| `dlg_2_3_accept` | `2.3` | `offered` | `status = 'available'` + snapshot `offered` |
+| `dlg_2_3_decline` | `2.3` | `offered` | `status = 'available'` + snapshot `offered` |
+| `dlg_2_3_reminder`, `dlg_2_3_reminder_exit` | `2.3` | `accepted` | `status = 'active'`, `objectives_complete` not `true` |
+| `dlg_2_3_return` | `2.3` | `objective_complete` | `status = 'active'`, `objectives_complete = true` |
 | `dlg_2_4_offer` | `2.4` | `available` | `status = 'available'` |
 | `dlg_2_4_accept` | `2.4` | `offered` | `status = 'available'` + snapshot `offered` |
 | `dlg_2_4_decline` | `2.4` | `offered` | `status = 'available'` + snapshot `offered` |
 | `dlg_2_4_progress` | `2.4` | `accepted` | `status = 'active'`, `objectives_complete` not `true` |
 | `dlg_2_4_return` | `2.4` | `objective_complete` | `status = 'active'`, `objectives_complete = true` |
 
-Missions `1.3` ("Know Your Neighbours"), `1.4` ("The River at Dusk"), `2.1` ("Learn the Trade"), `2.2` ("Rainy Day Fund") and `2.4` ("A Friend in the City") all exist in `data/missions.json` with the objectives, rewards and unlocks the §12.2 worked traces quote. **Gap G1 is resolved by this section** — §12.8 G1 now reads as defined, not undefined — with two deliberate limits kept: the `offered` state is snapshot-local by design (it is never persisted), and abandon stays a recommendation (§13.5) until the mission system adopts it. *(Update, Unit DO · Queue 18: the 1.4 and 2.1 rows are added here — Unit DM authored the 1.4 tree without updating this table, and this unit corrects that as well as adding its own. The giver for 2.1 is a condition, not a person: a colleague in the player's profession — an NPC with an open `employments` row in the player's `profession_id`, with the `worked_with_player` pair flag set (GDD-15 §17.7) — resolved at runtime to a real NPC who satisfies it, per the §13.6 rule above. For 1.4 the giver is the riverfront tea-stall neighbour of the tree's fiction, likewise a condition, not a named person. Update, Unit EC · Queue 19: the 2.2 rows are added here, and the count is 29. The giver for 2.2 is a condition, not a person: a neighbour — an NPC joined to the player by a `neighbour` edge (the 1.3 fiction carries over) — resolved at runtime likewise.)*
+Missions `1.3` ("Know Your Neighbours"), `1.4` ("The River at Dusk"), `2.1` ("Learn the Trade"), `2.2` ("Rainy Day Fund"), `2.3` ("The Market Run") and `2.4` ("A Friend in the City") all exist in `data/missions.json` with the objectives, rewards and unlocks the §12.2 worked traces quote. **Gap G1 is resolved by this section** — §12.8 G1 now reads as defined, not undefined — with two deliberate limits kept: the `offered` state is snapshot-local by design (it is never persisted), and abandon stays a recommendation (§13.5) until the mission system adopts it. *(Update, Unit DO · Queue 18: the 1.4 and 2.1 rows are added here — Unit DM authored the 1.4 tree without updating this table, and this unit corrects that as well as adding its own. The giver for 2.1 is a condition, not a person: a colleague in the player's profession — an NPC with an open `employments` row in the player's `profession_id`, with the `worked_with_player` pair flag set (GDD-15 §17.7) — resolved at runtime to a real NPC who satisfies it, per the §13.6 rule above. For 1.4 the giver is the riverfront tea-stall neighbour of the tree's fiction, likewise a condition, not a named person. Update, Unit EC · Queue 19: the 2.2 rows are added here, and the count is 29. The giver for 2.2 is a condition, not a person: a neighbour — an NPC joined to the player by a `neighbour` edge (the 1.3 fiction carries over) — resolved at runtime likewise. Update, Unit EO · Queue 21: the 2.3 rows are added here, and the count is 35. The giver for 2.3 is a condition, not a person: a neighbour — an NPC joined to the player by a `neighbour` edge (the 1.3 fiction carries over) — resolved at runtime likewise.)*
 
 *End of GDD-15 §13 — Unit BA, Queue 10.*
 
