@@ -209,6 +209,25 @@ two-earner bridge lines):
   now. The pinned md5 moves again (the IC md5 is kept in
   test_no_regression.py as history).
 
+What v7 adds vs v6, Queue 28 Unit KA (the renting-cab second
+earner at another tier):
+- `simulate()` now accepts `second_earner_renting_cab=True`
+  combined with `second_earner_tier` for the taxi driver: a
+  renting mid-tier taxi driver (23,000, per-fare) as second
+  earner, at the tier the source data actually gives
+  (prices.json wages_monthly). The rental is the same flat
+  5,200/month (200 × WORK_DAYS 26, the settlement rule JB
+  confirmed) whatever the tier — the tier moves the pay, not
+  the rental. The bridge check prints the renting mid-tier
+  line (the combined canonical start plus the worst renting
+  minbal, the minimum across the first earner's tiers and the
+  four storm positions), same combined-start rule as IA/JA.
+  A renting civil engineer is refused and stays unmodelled:
+  civil engineers hold no cab, so there is no rental to
+  charge — stated explicitly, not modelled. The pinned md5
+  moves again (the JA md5 is kept in test_no_regression.py
+  as history). No tuning call.
+
 What v7 adds vs v6, Queue 24 Unit GE (the storm-position bridge
 line):
 - The first-month bridge check prints a second line for the
@@ -751,16 +770,20 @@ def simulate(prices, wage_row, tier, extra_daily_cost=0, label_suffix="",
             raise ValueError(
                 "second_earner_renting_cab is the renting-cab"
                 " variant of the taxi-driver second earner;"
-                f" got second earner {second_pid!r}")
-        # Queue 26 / Unit IC: the renting variant is defined for
-        # the measured entry taxi driver (IB) — a renting
-        # second earner at another tier is a further scenario,
-        # not modelled here.
-        if second_earner_tier is not None:
-            raise ValueError(
-                "second_earner_renting_cab is the measured-tier"
-                " (entry) renting variant; a renting second"
-                f" earner at {second_earner_tier} is not modelled")
+                " a renting civil engineer is meaningless —"
+                " civil engineers hold no cab, so there is no"
+                f" rental to charge; got second earner"
+                f" {second_pid!r}")
+        # Queue 28 / Unit KA: the renting variant now combines
+        # with a named tier (IC's second_earner_tier) for the
+        # taxi driver — a renting mid-tier taxi driver
+        # (23,000, per-fare) as second earner. The rental is
+        # the same flat 5,200/month whatever the tier (the
+        # settlement charges rental_day × WORK_DAYS per taxi
+        # driver, not per tier); the tier moves the pay, not
+        # the rental. The tier itself was validated above
+        # (entry / mid / senior only), so nothing new is
+        # refused here.
         second_rental = (prices["taxi_fares"]
                          ["cab_rental_ncr_per_day"] * WORK_DAYS)
 
@@ -1263,6 +1286,41 @@ def main():
                       f"{worst_other:>7} = {other_worst:>7}  "
                       f"{other_status}  (worst other-tier storm"
                       " position)")
+            # Queue 28 / Unit KA: the renting mid-tier
+            # taxi-second bridge line — the renting variant of
+            # the IC other-tier pairing, wired the same way as
+            # JA's lines: the combined canonical start (each
+            # earner brings their own genesis balance: 5,000 +
+            # 5,000 = 10,000) plus the worst renting minbal
+            # (the minimum across the first earner's tiers and
+            # the four storm positions). The rental is the same
+            # flat 5,200/month at every tier, so the line
+            # measures the tier's pay against the same rental.
+            # A failing line joins BRIDGE FAIL.
+            worst_rent_mid = min(
+                simulate(prices, bands["construction_worker"],
+                         tier, storm_days=pos,
+                         second_earner="taxi_driver",
+                         second_earner_tier="mid",
+                         second_earner_renting_cab=True)
+                ["min_balance"]
+                for tier in ("entry", "mid", "senior")
+                for pos in (STORM_EARLY_DAYS, STORM_MID_DAYS,
+                            STORM_LATE_DAYS, STORM_MEASURED_DAYS))
+            rent_mid_start = (start_balances["construction_worker"]
+                              + start_balances["taxi_driver"])
+            rent_mid_worst = rent_mid_start + worst_rent_mid
+            rent_mid_status = ("OK" if rent_mid_worst >= 0
+                               else "BRIDGE FAIL")
+            if rent_mid_worst < 0:
+                bridge_fail.append(
+                    "construction_worker + taxi_driver"
+                    " (mid, renting)")
+            print(f"  {'construction_worker + taxi-driver (mid, renting)'}"
+                  f" start {rent_mid_start:>6} + renting dip "
+                  f"{worst_rent_mid:>7} = {rent_mid_worst:>7}  "
+                  f"{rent_mid_status}  (worst renting storm"
+                  " position)")
     # The renting-cab variant shares the taxi driver's starting balance.
     rent_row = next(r for r in rows if "renting" in r["profession"])
     start = start_balances.get("taxi_driver", 0)
@@ -1557,6 +1615,73 @@ def main():
                   f"{even['min_balance']:>7}  (net {early['net']})"
                   f"  {meas_early['min_balance']:>14} "
                   f"{meas_measured['min_balance']:>17}")
+
+    # Queue 28 / Unit KA: the renting-cab second earner at
+    # another tier — the same mid-tier taxi driver (23,000,
+    # per-fare) as the IC section above, but renting the
+    # licensed cab at 200 NCr/day × 26 worked days =
+    # 5,200/month, the settlement's rule (engine._settle_month
+    # charges rental_day × WORK_DAYS flat for the month — not
+    # storm-dependent, not Sunday-excluded). Modelled as a
+    # monthly cost line (5,200), accruing evenly in the daily
+    # model like rent; the settlement charges the same 5,200
+    # once at month-end. The net drops by exactly 5,200 at
+    # every tier against the owning mid-tier figures in the
+    # section above; only the month-1 minimum balance moves
+    # by position. A renting civil engineer is meaningless —
+    # civil engineers hold no cab — so no such section
+    # exists. No tuning call.
+    print()
+    print("renting-cab taxi-driver second earner at another tier"
+          " storm-position month (Unit KA — same 28 worked days"
+          " of 30; taxi-driver second earner (mid 23,000,"
+          " per-fare) renting the cab at 200/day x 26 ="
+          " 5,200/mo; month-1 minbal by storm position):")
+    print(f"{'profession':28} {'tier':7} {'early':>7} {'mid':>7} "
+          f"{'late':>7} {'measured':>8} {'even':>7}  (net/mo)"
+          f"  owning-early  owning-measured")
+    for tier in ("entry", "mid", "senior"):
+        w = bands["construction_worker"]
+        early = simulate(prices, w, tier,
+                         storm_days=STORM_EARLY_DAYS,
+                         second_earner="taxi_driver",
+                         second_earner_tier="mid",
+                         second_earner_renting_cab=True)
+        mid = simulate(prices, w, tier,
+                       storm_days=STORM_MID_DAYS,
+                       second_earner="taxi_driver",
+                       second_earner_tier="mid",
+                       second_earner_renting_cab=True)
+        late = simulate(prices, w, tier,
+                        storm_days=STORM_LATE_DAYS,
+                        second_earner="taxi_driver",
+                        second_earner_tier="mid",
+                        second_earner_renting_cab=True)
+        measured = simulate(prices, w, tier,
+                            storm_days=STORM_MEASURED_DAYS,
+                            second_earner="taxi_driver",
+                            second_earner_tier="mid",
+                            second_earner_renting_cab=True)
+        even = simulate(prices, w, tier,
+                        day_wage_worked_days=28,
+                        second_earner="taxi_driver",
+                        second_earner_tier="mid",
+                        second_earner_renting_cab=True)
+        owning_early = simulate(prices, w, tier,
+                                storm_days=STORM_EARLY_DAYS,
+                                second_earner="taxi_driver",
+                                second_earner_tier="mid")
+        owning_measured = simulate(
+            prices, w, tier, storm_days=STORM_MEASURED_DAYS,
+            second_earner="taxi_driver",
+            second_earner_tier="mid")
+        print(f"{early['profession']:28} {early['tier']:7} "
+              f"{early['min_balance']:>7} {mid['min_balance']:>7} "
+              f"{late['min_balance']:>7} "
+              f"{measured['min_balance']:>8} "
+              f"{even['min_balance']:>7}  (net {early['net']})"
+              f"  {owning_early['min_balance']:>12} "
+              f"{owning_measured['min_balance']:>15}")
 
     if "--shibnagar" in sys.argv:
         print()

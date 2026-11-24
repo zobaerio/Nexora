@@ -12,10 +12,12 @@ import unittest
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__),
                                     "..", "..", ".."))
 # Pinned default-run md5 of tools/economy_sim.py.
-# v7 + Queue 27 baseline (Unit JA, 2026-11-24): the
-# remaining two-earner bridge lines (JA).
-# See docs/ECONOMY-SIM-REPORT-V7.md §12.
-# Previous baseline (v7 + Queue 26, Unit IC):
+# v7 + Queue 28 baseline (Unit KA, 2026-11-24): the
+# renting-cab second earner at another tier (KA).
+# See docs/ECONOMY-SIM-REPORT-V7.md §14.
+# Previous baseline (v7 + Queue 27, Unit JA):
+# b70b18972aeb5c3b2d0273b986060058. Previous baseline (v7 +
+# Queue 26, Unit IC):
 # d198a2fe0970e11aaa105bcc4bfb19f9. Previous baseline (v7 +
 # Queue 26, Unit IB):
 # 27464ea221694880a4369f805d8cd455. Previous baseline (v7 +
@@ -32,7 +34,7 @@ ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__),
 # 2026-11-24 through Queue 22): 9ac10779c231b7aa6120a6ff457982de.
 # v5 baseline: 318c6114c143a81a579e70b39ccca8f8. v2 baseline (pinned
 # 2026-11-21 through v3): 16740182867525bd659735deeb05150a.
-ECONOMY_SIM_BASELINE_MD5 = "b70b18972aeb5c3b2d0273b986060058"
+ECONOMY_SIM_BASELINE_MD5 = "5f50931cbaad263812473ce1c7830e59"
 
 
 class TestDayWageModelling(unittest.TestCase):
@@ -908,14 +910,328 @@ class TestDayWageModelling(unittest.TestCase):
             econ.simulate(prices, w, "entry",
                           second_earner="taxi_driver",
                           second_earner_tier="principal")
-        # The renting variant stays the measured-tier (entry)
-        # one — a renting second earner at another tier is a
-        # further scenario, not modelled here.
+        # Queue 28 Unit KA: the renting variant now combines
+        # with a named tier for the taxi driver — the refusal
+        # this test used to assert is gone (see the KA tests
+        # below); a renting civil engineer stays refused
+        # (civil engineers hold no cab).
+        with self.assertRaises(ValueError):
+            econ.simulate(prices, w, "entry",
+                          second_earner="civil_engineer",
+                          second_earner_renting_cab=True,
+                          second_earner_tier="entry")
+
+    # Queue 28 Unit KA — the renting-cab second earner at
+    # another tier: the same mid-tier taxi driver (23,000,
+    # per-fare) as §12's owning driver, but renting the
+    # licensed cab at the settlement's flat 5,200/month. The
+    # rental is the same at every tier — the tier moves the
+    # pay, not the rental — so the net drops by exactly 5,200
+    # against the owning mid-tier figures, and the early dip
+    # the owning driver had closed re-opens only where the
+    # household's daily cost outruns the taxi pay (senior:
+    # 781/day of cost against 753/day of taxi pay, −28/day
+    # for the two cost-only days = −56).
+    def test_renting_cab_second_earner_at_another_tier_is_measured(
+            self):
+        from tools import economy_sim as econ
+        prices = econ.load("prices.json")
+        w = next(w for w in prices["wages_monthly"]
+                 if w["profession_id"] == "construction_worker")
+        # The measured position dips nothing at any tier; the
+        # early position dips only at senior (−56).
+        for tier, dip, net in (("entry", 0, 10950),
+                               ("mid", 0, 14194),
+                               ("senior", 0, 17651)):
+            row = econ.simulate(
+                prices, w, tier, storm_days=econ.STORM_MEASURED_DAYS,
+                second_earner="taxi_driver",
+                second_earner_tier="mid",
+                second_earner_renting_cab=True)
+            self.assertEqual(row["min_balance"], dip, tier)
+            self.assertEqual(row["net"], net, tier)
+            self.assertEqual(row["second_earner_rental"], 5200,
+                             tier)
+            self.assertTrue(row["second_earner_renting_cab"])
+            self.assertEqual(row["second_earner_tier"], "mid",
+                             tier)
+            self.assertEqual(row["end_balance"], row["net"], tier)
+        for tier, dip in (("entry", 0), ("mid", 0),
+                          ("senior", -56)):
+            row = econ.simulate(
+                prices, w, tier, storm_days=econ.STORM_EARLY_DAYS,
+                second_earner="taxi_driver",
+                second_earner_tier="mid",
+                second_earner_renting_cab=True)
+            self.assertEqual(row["min_balance"], dip, tier)
+        # Mid and late positions dip nothing at any tier.
+        for tier in ("entry", "mid", "senior"):
+            for pos in (econ.STORM_MID_DAYS, econ.STORM_LATE_DAYS):
+                row = econ.simulate(
+                    prices, w, tier, storm_days=pos,
+                    second_earner="taxi_driver",
+                    second_earner_tier="mid",
+                    second_earner_renting_cab=True)
+                self.assertEqual(row["min_balance"], 0,
+                                 f"{tier}/{pos}")
+        # The rental is exactly the settlement's charge:
+        # 200/day × 26 worked days, read from the source data.
+        self.assertEqual(
+            prices["taxi_fares"]["cab_rental_ncr_per_day"]
+            * econ.WORK_DAYS, 5200)
+        # The tier wages come from the source data, not the
+        # test: mid taxi 23,000.
+        wages = {x["profession_id"]: x
+                 for x in prices["wages_monthly"]}
+        self.assertEqual(wages["taxi_driver"]["mid"], 23000)
+
+    def test_renting_cab_second_earner_at_another_tier_costs_and_net(
+            self):
+        from tools import economy_sim as econ
+        prices = econ.load("prices.json")
+        w = next(w for w in prices["wages_monthly"]
+                 if w["profession_id"] == "construction_worker")
+        # The rental is a monthly cost line on top of the
+        # owning mid-tier variant: costs +5,200, net −5,200,
+        # gross and tax untouched, at every tier and every
+        # position.
+        for tier in ("entry", "mid", "senior"):
+            for pos in (econ.STORM_EARLY_DAYS, econ.STORM_MID_DAYS,
+                        econ.STORM_LATE_DAYS,
+                        econ.STORM_MEASURED_DAYS):
+                owning = econ.simulate(
+                    prices, w, tier, storm_days=pos,
+                    second_earner="taxi_driver",
+                    second_earner_tier="mid")
+                renting = econ.simulate(
+                    prices, w, tier, storm_days=pos,
+                    second_earner="taxi_driver",
+                    second_earner_tier="mid",
+                    second_earner_renting_cab=True)
+                self.assertEqual(renting["costs_total"]
+                                 - owning["costs_total"], 5200,
+                                 f"{tier}/{pos}")
+                self.assertEqual(owning["net"] - renting["net"],
+                                 5200, f"{tier}/{pos}")
+                self.assertEqual(renting["gross"], owning["gross"],
+                                 f"{tier}/{pos}")
+                self.assertEqual(renting["tax"], owning["tax"],
+                                 f"{tier}/{pos}")
+                self.assertEqual(renting["end_balance"],
+                                 renting["net"], f"{tier}/{pos}")
+        # The owning mid-tier driver charges no rental.
+        owning = econ.simulate(
+            prices, w, "entry", storm_days=econ.STORM_MEASURED_DAYS,
+            second_earner="taxi_driver",
+            second_earner_tier="mid")
+        self.assertEqual(owning["second_earner_rental"], 0)
+        self.assertFalse(owning["second_earner_renting_cab"])
+
+    def test_renting_cab_second_earner_at_another_tier_refusals(
+            self):
+        from tools import economy_sim as econ
+        prices = econ.load("prices.json")
+        w = next(w for w in prices["wages_monthly"]
+                 if w["profession_id"] == "construction_worker")
+        # A renting civil engineer is meaningless — civil
+        # engineers hold no cab — with or without a named
+        # tier. The rental stays the taxi driver's alone: not
+        # the same-tier second earner, and not a household
+        # with no second earner.
+        with self.assertRaises(ValueError):
+            econ.simulate(prices, w, "entry",
+                          second_earner="civil_engineer",
+                          second_earner_renting_cab=True)
+        with self.assertRaises(ValueError):
+            econ.simulate(prices, w, "entry",
+                          second_earner="civil_engineer",
+                          second_earner_tier="entry",
+                          second_earner_renting_cab=True)
+        with self.assertRaises(ValueError):
+            econ.simulate(prices, w, "entry", second_earner=True,
+                          second_earner_renting_cab=True)
+        with self.assertRaises(ValueError):
+            econ.simulate(prices, w, "entry",
+                          second_earner_renting_cab=True)
+        # A named tier must still be a real tier, even with
+        # the rental.
         with self.assertRaises(ValueError):
             econ.simulate(prices, w, "entry",
                           second_earner="taxi_driver",
-                          second_earner_renting_cab=True,
-                          second_earner_tier="mid")
+                          second_earner_tier="principal",
+                          second_earner_renting_cab=True)
+
+    def test_renting_mid_tier_bridge_line_is_printed(self):
+        import subprocess
+        out = subprocess.run(
+            [sys.executable, os.path.join(ROOT, "tools",
+                                          "economy_sim.py")],
+            capture_output=True, cwd=ROOT)
+        self.assertEqual(out.returncode, 0)
+        text = out.stdout.decode()
+        # The worst renting dip is the senior early −56
+        # against the combined canonical start 10,000.
+        self.assertIn(
+            "construction_worker + taxi-driver (mid, renting)"
+            " start  10000 + renting dip     -56 =    9944  OK"
+            "  (worst renting storm position)", text)
+        self.assertIn("BRIDGE FAIL rows: []", text)
+
+    def test_worst_renting_mid_tier_dip_is_measured(self):
+        from tools import economy_sim as econ
+        prices = econ.load("prices.json")
+        w = next(w for w in prices["wages_monthly"]
+                 if w["profession_id"] == "construction_worker")
+        # The worst dip is the minimum across the first
+        # earner's tiers and the four storm positions: −56
+        # (senior, early) — entry and mid dip nothing
+        # anywhere, so the senior household sets the line.
+        positions = (econ.STORM_EARLY_DAYS, econ.STORM_MID_DAYS,
+                     econ.STORM_LATE_DAYS, econ.STORM_MEASURED_DAYS)
+        worst = min(
+            econ.simulate(prices, w, tier, storm_days=pos,
+                          second_earner="taxi_driver",
+                          second_earner_tier="mid",
+                          second_earner_renting_cab=True)
+            ["min_balance"]
+            for tier in ("entry", "mid", "senior")
+            for pos in positions)
+        self.assertEqual(worst, -56)
+        # The combined start is the sum of the two earners'
+        # own genesis balances, read from the source data.
+        profs = econ.load("professions.json")
+        starts = {p["id"]: p.get("starting_balance_ncr", 0)
+                  for p in profs["professions"]}
+        self.assertEqual(starts["construction_worker"]
+                         + starts["taxi_driver"], 10000)
+
+
+class TestSundayExclusionAudit(unittest.TestCase):
+    # Queue 28 Unit KB — the Sunday-exclusion audit (JB
+    # follow-up): JB found the Sunday exclusion in the renting
+    # row was a v5-daily-schedule leftover with no source behind
+    # it. This audit reads every day-of-week use in the tool and
+    # in the settlement path it mirrors, and finds no other
+    # exclusion in a cost or pay line — the remaining uses are
+    # schedule shaping (transcribed from the data's weekend
+    # notes), a weekly cadence tick, and weather, not weekday,
+    # effects. These tests pin the audit so a later unit cannot
+    # reintroduce a weekday exclusion unnoticed.
+    def test_no_day_of_week_exclusion_in_economy_tool(self):
+        import os
+        with open(os.path.join(ROOT, "tools", "economy_sim.py")) as f:
+            src = f.read()
+        # No weekday arithmetic anywhere in the tool — not
+        # even in a comment: the v5 daily branch and the v1
+        # renting rule are both retired.
+        self.assertNotIn("day % 7", src)
+        self.assertNotIn("weekday", src.lower())
+        # "Sunday" survives only in the module docstring (the
+        # history of the retired rules) and in # comments —
+        # never in live code.
+        lines = src.splitlines()
+        doc_end = 1
+        while lines[doc_end].strip() != '"""':
+            doc_end += 1
+        for i, ln in enumerate(lines):
+            if "sunday" in ln.lower():
+                self.assertTrue(
+                    i <= doc_end or ln.strip().startswith("#"),
+                    f"line {i + 1}: {ln}")
+        # The three WORK_DAYS uses are all flat: the rental
+        # (5,200), the headline extra, and the trajectory
+        # (days 1–26) — no exclusion at any of them.
+        self.assertIn('["cab_rental_ncr_per_day"] * WORK_DAYS',
+                      src)
+        self.assertIn(
+            "extra_monthly = extra_daily_cost * WORK_DAYS", src)
+        self.assertIn(
+            "if extra_daily_cost and day <= WORK_DAYS:", src)
+
+    def test_construction_worker_keeps_work_on_fridays(self):
+        from tools.sim.tests.common import data, rng
+        from tools.sim import scheduler
+        d = data()
+        needs = {"hunger": 90, "thirst": 90, "sleep": 90,
+                 "rest": 90, "safety": 90, "social": 90,
+                 "healthcare": 90, "financial": 90,
+                 "education": 90, "development": 90}
+        ctx = {"character_id": "NEX000001",
+               "template_id": "construction_worker",
+               "is_life_stage": False, "home_zone": "d1_old_town",
+               "workplace_zone": d.professions[
+                   "construction_worker"]["workplace_zone"]}
+        # A work block on every day of a 30-day month,
+        # including all four Fridays (day_index 4, 11, 18, 25)
+        # — the Friday variant keeps the morning shift (work
+        # ends 12:30), so a Friday is a worked day and the
+        # day-wage rule pays it in full.
+        for day in range(30):
+            blocks, _ = scheduler.instantiate(
+                d, ctx, day, rng(), needs=needs)
+            self.assertTrue(
+                any(b["activity"] == "work" for b in blocks),
+                f"day {day}")
+
+    def test_friday_work_loss_does_not_dock_monthly_pay(self):
+        from tools.sim import labour
+        # The Friday variant bends work blocks home for the
+        # monthly-paid professions (civil engineer, teacher,
+        # doctor on rotation, software developer) — but their
+        # pay is the monthly wage, and the settlement docks
+        # nothing: the broken-tool dock is 0 and wage_due_for
+        # returns the full wage.
+        self.assertEqual(
+            labour.broken_tool_wage_dock(None, "NEX000001", 1,
+                                         22000), 0)
+        for pid, wage in (("civil_engineer", 22000),
+                          ("teacher", 15000), ("doctor", 30000),
+                          ("software_developer", 28000),
+                          ("taxi_driver", 14000),
+                          ("chef", 13000)):
+            self.assertEqual(
+                labour.wage_due_for(None, "NEX000001", pid, 1,
+                                    wage), wage, pid)
+
+    def test_weekly_tick_is_cadence_not_exclusion(self):
+        import os
+        with open(os.path.join(ROOT, "tools", "sim",
+                               "engine.py")) as f:
+            lines = f.read().splitlines()
+        idx = next(i for i, ln in enumerate(lines)
+                   if "day % 7 == 6" in ln)
+        block = "\n".join(lines[idx:idx + 6])
+        # The weekly tick runs the weekly passes — drift,
+        # social, infrastructure — and touches no pay or cost
+        # line.
+        self.assertIn("weekly_drift", block)
+        self.assertIn("_weekly_social", block)
+        self.assertIn("weekly_update", block)
+        for word in ("wage", "rental", "living", "cost"):
+            self.assertNotIn(word, block.lower(), word)
+
+    def test_settlement_pay_lines_have_no_weekday_rule(self):
+        import os
+        with open(os.path.join(ROOT, "tools", "sim",
+                               "labour.py")) as f:
+            labour_src = f.read()
+        # The day-wage rule counts worked days from the stored
+        # schedules — no weekday filter anywhere in the module.
+        self.assertNotIn("day % 7", labour_src)
+        self.assertNotIn("weekday", labour_src.lower())
+        self.assertNotIn("sunday", labour_src.lower())
+        with open(os.path.join(ROOT, "tools", "sim",
+                               "engine.py")) as f:
+            engine_src = f.read()
+        # The settlement's rental is flat (JB), and the taxi
+        # surge is weather, not weekday: rain/storm counts.
+        self.assertIn(
+            "taxi_rental_total += rental_day * econ.WORK_DAYS",
+            engine_src)
+        factor = next(ln for ln in engine_src.splitlines()
+                      if ln.strip().startswith("taxi_factor"))
+        self.assertIn("rain_days", factor)
+        self.assertIn("storm_days", factor)
 
 
 class TestNoRegression(unittest.TestCase):
