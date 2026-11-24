@@ -338,9 +338,10 @@ depth is a timing fact, not a balance problem.
 mixed-profession second earner is now modelled (taxi driver
 at entry, civil engineer at mid — the §6 cases), and the
 mixed bridge lines are now wired into the tool's printed
-bridge check. Still open: the same-tier two-earner bridge
-line (10,000 − 1,231 = 8,769) is prose only — IA wires the
-mixed pairings, not the GD same-tier household.
+bridge check. (Unit JA DONE 2026-11-24 — see §8: the
+same-tier two-earner bridge line is now wired too —
+10,000 − 1,231 = 8,769 is the tool's printed output, not
+prose only. No two-earner bridge figure is report-only.)
 
 ## 8. Addendum — Storm-position bridge line (Unit GE, Queue 24)
 
@@ -355,6 +356,9 @@ first-month bridge check (entry rows: starting balance + zero-start dip = worst 
   construction_worker    start   5000 + storm dip    -500 =    4500  OK  (worst storm position)
   construction_worker + taxi-driver    start  10000 + mixed dip     -72 =    9928  OK  (worst mixed storm position)
   construction_worker + civil-engineer start  30000 + mixed dip   -8623 =   21377  OK  (worst mixed storm position)
+  construction_worker + construction-worker start  10000 + same-tier dip   -1231 =    8769  OK  (worst same-tier storm position)
+  construction_worker + taxi-driver (mid) start  10000 + other-tier dip       0 =   10000  OK  (worst other-tier storm position)
+  construction_worker + civil-engineer (entry) start  30000 + other-tier dip   -3210 =   26790  OK  (worst other-tier storm position)
 ```
 
 The worst dip is the early position (−500 entry; mid −595,
@@ -374,9 +378,11 @@ construction worker 5,000, taxi driver 5,000, civil engineer
 25,000) — so the CE household's combined start is 30,000, not
 the 10,000 HD's prose carried for both pairings; see the
 correction note in §9. A failing mixed line would join `BRIDGE
-FAIL` too. The GD same-tier two-earner bridge figure (10,000 −
-1,231 = 8,769, §7) is still prose only — IA wires the mixed
-pairings, not the same-tier household.)
+FAIL` too. (Unit JA · Queue 27 · 2026-11-24: the GD same-tier
+two-earner bridge figure (10,000 − 1,231 = 8,769, §7) and the
+IC other-tier figures (10,000 − 0 = 10,000 and 30,000 − 3,210
+= 26,790, §12) are now wired too — see the JA paragraph
+below; no two-earner bridge figure is report-only.)
 
 Full default-run md5: `45a45edc63cee4b142891da938ef79bd` (HD:
 `5431558ffa3d023c436366c26535f932` — kept in
@@ -389,6 +395,22 @@ the §9 mixed-profession section and these mixed bridge lines
 (IA); the §7 two-earner section, the single-earner storm line,
 the base table, business P&L, pacing and
 all other rows are unchanged.
+
+(Unit JA · Queue 27 · 2026-11-24: the bridge check now also
+prints the three remaining two-earner lines — the GD same-tier
+household and the IC other-tier pairings — each the combined
+canonical start plus the worst minbal (the minimum across the
+first earner's tiers and the four storm positions): same-tier
+10,000 − 1,231 = 8,769; mid-tier taxi-second 10,000 − 0 =
+10,000; entry civil-engineer-second 30,000 − 3,210 = 26,790.
+A failing line would join `BRIDGE FAIL` too. No two-earner
+bridge figure is report-only now. Full default-run md5:
+`b70b18972aeb5c3b2d0273b986060058` (IC:
+`d198a2fe0970e11aaa105bcc4bfb19f9` — kept in
+`test_no_regression.py` as history). The only diff vs IC is
+these three bridge lines; the §7 two-earner section, the mixed
+sections, the renting-cab section, the base table and all other
+rows are unchanged.)
 
 **No tuning call.**
 
@@ -696,16 +718,19 @@ but survivable, exactly as Unit U designed it for the
 single-earner row.
 
 **Honest limit, recorded not hidden:** the tool's single-earner
-renting-cab row charges the rental a different way — via
+renting-cab row charged the rental a different way — via
 `extra_daily_cost` on days ≤ 26 excluding Sundays (23 days =
-4,600/month), while the settlement charges 26 days flat
-(5,200). The two renting rows therefore disagree by 600/month:
-this unit's second-earner rental follows the settlement's rule,
-the v1 single-earner row keeps its own. Reconciling the
-single-earner row with the settlement's 26-day charge is a later
-unit, not this one — changing it would move the base table's
-renting row and its bridge line, and it is out of this unit's
-scope.
+4,600/month in the trajectory), while the settlement charges 26
+days flat (5,200). The two renting rows therefore disagreed by
+600/month: this unit's second-earner rental follows the
+settlement's rule, the v1 single-earner row kept its own.
+(Unit JB DONE 2026-11-24 — see §13: the single-earner row now
+follows the settlement's 26-day charge too. Correction to this
+section's expectation: reconciling the row did NOT move the base
+table's renting row or its bridge line — minbal stays 0 and net
+stays 1,300, because the headline net already subtracted the
+full 5,200; only the row's trajectory end-balance moved, from
+1,900 to exactly net, 1,300.)
 
 Full default-run md5: `27464ea221694880a4369f805d8cd455` (IA:
 `45a45edc63cee4b142891da938ef79bd` — kept in
@@ -776,7 +801,9 @@ the combined canonical starting balances the worst dips leave
 failure in any position, and no TIGHT or SURVIVAL FAIL anywhere
 in the sections (savings rates 51.4–54.8% mid-tier taxi-second,
 60.4–61.6%
-entry civil-engineer-second).
+entry civil-engineer-second). (Unit JA DONE 2026-11-24: both
+figures are now wired into the tool's printed bridge check —
+see §8 — so no two-earner bridge figure is report-only.)
 
 Verbatim output (new default-run sections):
 
@@ -829,3 +856,82 @@ stay unmodelled rather than assumed; the renting variant stays
 the measured-tier (entry) one; only the two measured pairings
 are modelled (any other profession is refused by the tool).
 
+
+## 13. Addendum — Reconcile the single-earner renting-cab row (Unit JB, Queue 27)
+
+**Date:** 2026-11-24. **Decision: follow the settlement's
+26-day charge.** The single-earner renting-cab row now charges
+the rental the way the settlement does — 200 NCr/day × 26
+worked days = 5,200/month flat — and the v1 23-day rule is
+retired, not kept.
+
+**The question, as IB posed it (§11):** the tool's
+single-earner renting-cab row charged the rental via
+`extra_daily_cost` on days ≤ 26 excluding Sundays (23 days =
+4,600/month), while the settlement charges 200 NCr/day × 26
+worked days flat (5,200/month) — a 600/month disagreement
+between the tool's two renting rows. Should the single-earner
+row follow the settlement, or keep the v1 23-day rule?
+
+**The settlement's rule, read from the source:**
+`engine._settle_month` charges `rental_day × WORK_DAYS`
+(`data/prices.json` `taxi_fares.cab_rental_ncr_per_day` = 200 ×
+`WORK_DAYS` = 26) per taxi driver in the household, flat for
+the month — no Sunday exclusion, no storm dependence, no
+worked-day count. The settlement is the tool's own source of
+truth for the charge (IB already followed it for the
+second-earner rental), so the single-earner row following it is
+agreement with the source, not a new rule.
+
+**Why not keep the v1 23-day rule — two reasons, both
+measured, not assumed:**
+
+1. **The v1 rule disagreed with the settlement.** The
+   settlement charges 5,200; the trajectory charged 4,600.
+   Keeping the rule would keep a 600/month disagreement the
+   tool itself records, between its own row and the settlement
+   it models.
+2. **The v1 rule was internally inconsistent.** The headline
+   net already subtracted the full 5,200 (`extra_monthly` =
+   `extra_daily_cost` × `WORK_DAYS`), while the trajectory
+   charged only 4,600 — so the row's trajectory ended at 1,900
+   against a net of 1,300, 600 above its own month. That is the
+   same class of inconsistency Unit EY fixed for the v5 daily
+   branch (a trajectory that did not end at net), and no test
+   pinned the renting row's end-balance, so it stood uncaught.
+
+The Sunday exclusion was a leftover of the v5 daily schedule,
+which paid on 23 days (days 1–26 excluding Sundays); v6
+already moved construction pay off that schedule, and no source
+gives the rental a day-of-week rule. Keeping the 23-day rule
+would need a stated reason, and there is none in any source —
+only the leftover.
+
+**Implementation:** the trajectory now charges
+`extra_daily_cost` on days 1–26 — the sourced `WORK_DAYS`
+count, the tool's existing convention for the row (the same
+first-26-days shape the v1 rule used, minus the Sunday
+exclusion). No count is invented: 26 is `WORK_DAYS`, 200 is
+`prices.json`. The row now charges exactly 5,200 in the
+trajectory and ends exactly at net.
+
+**Measured result (from the tool itself):** the renting-cab
+row (entry): gross 14,000, tax 0, rent 2,500, costs 12,700,
+extra 5,200, net 1,300, rate 9.3%, minbal 0, end_balance 1,300
+(was 1,900) — TIGHT, unchanged. The base table's renting row
+and its bridge line do NOT move: the row still prints net
+1,300 / minbal 0, and the bridge line still prints start 5,000
++ dip 0 = 5,000 OK — because the headline figures were already
+right (the net always subtracted the full 5,200); only the
+trajectory was 600 short. The Shibnagar variant's renting row
+is likewise unchanged (net 1,300, minbal 0, bridge 5,000 OK).
+
+**The md5 does not move.** The default-run output is
+byte-identical (no printed figure changes), so the pinned
+baseline stays the JA baseline
+`b70b18972aeb5c3b2d0273b986060058` — no re-pin is needed, and
+none is made. The `test_no_regression.py` md5 test passes
+unchanged; the new JB test pins the row's `end_balance` ==
+net instead, so the fixed inconsistency stays fixed.
+
+**No tuning call.** Nothing in the data moves.

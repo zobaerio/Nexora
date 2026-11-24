@@ -12,10 +12,12 @@ import unittest
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__),
                                     "..", "..", ".."))
 # Pinned default-run md5 of tools/economy_sim.py.
-# v7 + Queue 26 baseline (Unit IC, 2026-11-24): the
-# second-earner-at-other-tiers sections (IC).
+# v7 + Queue 27 baseline (Unit JA, 2026-11-24): the
+# remaining two-earner bridge lines (JA).
 # See docs/ECONOMY-SIM-REPORT-V7.md §12.
-# Previous baseline (v7 + Queue 26, Unit IB):
+# Previous baseline (v7 + Queue 26, Unit IC):
+# d198a2fe0970e11aaa105bcc4bfb19f9. Previous baseline (v7 +
+# Queue 26, Unit IB):
 # 27464ea221694880a4369f805d8cd455. Previous baseline (v7 +
 # Queue 26, Unit IA):
 # 45a45edc63cee4b142891da938ef79bd. Previous baseline (v7 +
@@ -30,7 +32,7 @@ ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__),
 # 2026-11-24 through Queue 22): 9ac10779c231b7aa6120a6ff457982de.
 # v5 baseline: 318c6114c143a81a579e70b39ccca8f8. v2 baseline (pinned
 # 2026-11-21 through v3): 16740182867525bd659735deeb05150a.
-ECONOMY_SIM_BASELINE_MD5 = "d198a2fe0970e11aaa105bcc4bfb19f9"
+ECONOMY_SIM_BASELINE_MD5 = "b70b18972aeb5c3b2d0273b986060058"
 
 
 class TestDayWageModelling(unittest.TestCase):
@@ -553,6 +555,82 @@ class TestDayWageModelling(unittest.TestCase):
         self.assertEqual(starts["construction_worker"]
                          + starts["civil_engineer"], 30000)
 
+    # Queue 27 Unit JA — the remaining two-earner bridge
+    # lines: the bridge check prints the combined canonical
+    # start plus the worst minbal for the GD same-tier
+    # household and the IC other-tier pairings, wired the same
+    # way as IA's mixed lines. Same-tier: 10,000 − 1,231 =
+    # 8,769. Mid-tier taxi-second: 10,000 − 0 = 10,000. Entry
+    # civil-engineer-second: 30,000 − 3,210 = 26,790. With
+    # these three lines, no two-earner bridge figure is
+    # report-only.
+    def test_remaining_two_earner_bridge_lines_are_printed(self):
+        import subprocess
+        out = subprocess.run(
+            [sys.executable, os.path.join(ROOT, "tools",
+                                          "economy_sim.py")],
+            capture_output=True, cwd=ROOT)
+        self.assertEqual(out.returncode, 0)
+        text = out.stdout.decode()
+        self.assertIn(
+            "construction_worker + construction-worker start"
+            "  10000 + same-tier dip   -1231 =    8769  OK"
+            "  (worst same-tier storm position)", text)
+        self.assertIn(
+            "construction_worker + taxi-driver (mid) start"
+            "  10000 + other-tier dip       0 =   10000  OK"
+            "  (worst other-tier storm position)", text)
+        self.assertIn(
+            "construction_worker + civil-engineer (entry) start"
+            "  30000 + other-tier dip   -3210 =   26790  OK"
+            "  (worst other-tier storm position)", text)
+        self.assertIn("BRIDGE FAIL rows: []", text)
+
+    def test_worst_remaining_dips_are_measured(self):
+        from tools import economy_sim as econ
+        prices = econ.load("prices.json")
+        w = next(w for w in prices["wages_monthly"]
+                 if w["profession_id"] == "construction_worker")
+        # The worst dip is the minimum across the first
+        # earner's tiers and the four storm positions, per
+        # household: same-tier −1,231 (senior, early),
+        # mid-tier taxi-second 0 (nothing dips anywhere),
+        # entry civil-engineer-second −3,210 (entry,
+        # early/mid/measured).
+        positions = (econ.STORM_EARLY_DAYS, econ.STORM_MID_DAYS,
+                     econ.STORM_LATE_DAYS, econ.STORM_MEASURED_DAYS)
+        same = min(
+            econ.simulate(prices, w, tier, storm_days=pos,
+                          second_earner=True)["min_balance"]
+            for tier in ("entry", "mid", "senior")
+            for pos in positions)
+        self.assertEqual(same, -1231)
+        taxi_mid = min(
+            econ.simulate(prices, w, tier, storm_days=pos,
+                          second_earner="taxi_driver",
+                          second_earner_tier="mid")["min_balance"]
+            for tier in ("entry", "mid", "senior")
+            for pos in positions)
+        self.assertEqual(taxi_mid, 0)
+        ce_entry = min(
+            econ.simulate(prices, w, tier, storm_days=pos,
+                          second_earner="civil_engineer",
+                          second_earner_tier="entry")["min_balance"]
+            for tier in ("entry", "mid", "senior")
+            for pos in positions)
+        self.assertEqual(ce_entry, -3210)
+        # The combined starts are the sums of the two earners'
+        # own genesis balances, read from the source data.
+        profs = econ.load("professions.json")
+        starts = {p["id"]: p.get("starting_balance_ncr", 0)
+                  for p in profs["professions"]}
+        self.assertEqual(2 * starts["construction_worker"],
+                         10000)
+        self.assertEqual(starts["construction_worker"]
+                         + starts["taxi_driver"], 10000)
+        self.assertEqual(starts["construction_worker"]
+                         + starts["civil_engineer"], 30000)
+
     # Queue 26 Unit IB — the renting-cab taxi second earner:
     # the same entry taxi driver (14,000, per-fare), but renting
     # the licensed cab. The rental follows the settlement's rule
@@ -647,6 +725,48 @@ class TestDayWageModelling(unittest.TestCase):
         with self.assertRaises(ValueError):
             econ.simulate(prices, w, "entry",
                           second_earner_renting_cab=True)
+
+    # Queue 27 Unit JB — the single-earner renting-cab row
+    # follows the settlement's rental charge: 200 NCr/day ×
+    # WORK_DAYS (26) = 5,200/month flat, with no Sunday
+    # exclusion. The v1 rule charged the rental only on days
+    # ≤ 26 excluding Sundays (23 days = 4,600 in the
+    # trajectory, while the headline net already subtracted
+    # the full 5,200) — so the row's trajectory ended 600
+    # above its own net. The decision follows the settlement
+    # (engine._settle_month charges rental_day × WORK_DAYS);
+    # the v1 23-day rule is not kept, because no source gives
+    # the rental a day-of-week rule and the 23-day trajectory
+    # was internally inconsistent.
+    def test_single_earner_renting_cab_row_follows_settlement(self):
+        from tools import economy_sim as econ
+        prices = econ.load("prices.json")
+        w = next(w for w in prices["wages_monthly"]
+                 if w["profession_id"] == "taxi_driver")
+        # The settlement's charge, read from the source data:
+        # 200/day × 26 worked days, flat.
+        self.assertEqual(
+            prices["taxi_fares"]["cab_rental_ncr_per_day"]
+            * econ.WORK_DAYS, 5200)
+        row = econ.simulate(
+            prices, w, "entry",
+            extra_daily_cost=prices["taxi_fares"]
+            ["cab_rental_ncr_per_day"],
+            label_suffix=" (renting cab)")
+        self.assertEqual(row["extra"], 5200)
+        self.assertEqual(row["net"], 1300)
+        self.assertEqual(row["min_balance"], 0)
+        # The trajectory now charges the full monthly rental
+        # (26 days × 200) and ends exactly at net — under the
+        # v1 rule it ended at 1,900, 600 above net.
+        self.assertEqual(row["end_balance"], row["net"])
+        self.assertEqual(row["end_balance"], 1300)
+        # The base table's renting row and its bridge line do
+        # not move under the decision: the headline figures
+        # were already right (the net always subtracted the
+        # full 5,200); only the trajectory was 600 short.
+        self.assertEqual(row["rate"], 9.3)
+        self.assertIn("TIGHT", row["flags"])
 
     # Queue 26 Unit IC — the second earner at another tier: a
     # mid-tier taxi driver (23,000, per-fare) or an entry civil
