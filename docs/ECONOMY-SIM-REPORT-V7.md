@@ -359,6 +359,7 @@ first-month bridge check (entry rows: starting balance + zero-start dip = worst 
   construction_worker + construction-worker start  10000 + same-tier dip   -1231 =    8769  OK  (worst same-tier storm position)
   construction_worker + taxi-driver (mid) start  10000 + other-tier dip       0 =   10000  OK  (worst other-tier storm position)
   construction_worker + civil-engineer (entry) start  30000 + other-tier dip   -3210 =   26790  OK  (worst other-tier storm position)
+  construction_worker + taxi-driver (mid, renting) start  10000 + renting dip     -56 =    9944  OK  (worst renting storm position)
 ```
 
 The worst dip is the early position (−500 entry; mid −595,
@@ -411,6 +412,19 @@ bridge figure is report-only now. Full default-run md5:
 these three bridge lines; the §7 two-earner section, the mixed
 sections, the renting-cab section, the base table and all other
 rows are unchanged.)
+
+(Unit KA · Queue 28 · 2026-11-24: the renting mid-tier
+taxi-second bridge line is now wired too — the combined
+canonical start (5,000 + 5,000 = 10,000) plus the worst
+renting minbal (the minimum across the first earner's tiers
+and the four storm positions: −56, senior early): 10,000 − 56
+= 9,944. A failing line would join `BRIDGE FAIL` too. Full
+default-run md5: `5f50931cbaad263812473ce1c7830e59` (JA:
+`b70b18972aeb5c3b2d0273b986060058` — kept in
+`test_no_regression.py` as history). The only diffs vs JA are
+this bridge line and the §14 renting mid-tier section; the
+§9/§11/§12 sections, the other bridge lines, the base table
+and all other rows are unchanged.)
 
 **No tuning call.**
 
@@ -744,9 +758,12 @@ base table and all other rows are unchanged.
 (Unit IC DONE 2026-11-24 — see §12: mid-tier taxi driver and
 entry civil engineer as second earner, at the tiers the source
 data gives); the renting variant is modelled for the taxi second
-earner only (no other second earner rents anything); only the two
-measured pairings are modelled (any other profession is refused
-by the tool).
+earner only (no other second earner rents anything) — and now
+combines with a named tier (Unit KA DONE 2026-11-24 — see §14:
+measured at mid-tier, nets 10,950 / 14,194 / 17,651, bridge
+10,000 − 56 = 9,944; a renting civil engineer is refused as
+meaningless); only the two measured pairings are modelled (any
+other profession is refused by the tool).
 
 ## 12. Addendum — Second earner at other tiers (Unit IC, Queue 26)
 
@@ -852,9 +869,11 @@ unchanged.
 senior civil engineer (65,000) as second earner are not
 modelled — the wages exist in `prices.json`, but no measured
 household pairs the construction worker with either, so they
-stay unmodelled rather than assumed; the renting variant stays
-the measured-tier (entry) one; only the two measured pairings
-are modelled (any other profession is refused by the tool).
+stay unmodelled rather than assumed; the renting variant now
+combines with a named tier (Unit KA DONE 2026-11-24 — see §14:
+measured at mid-tier; the senior renting tier stays
+unmeasured); only the two measured pairings are modelled (any
+other profession is refused by the tool).
 
 
 ## 13. Addendum — Reconcile the single-earner renting-cab row (Unit JB, Queue 27)
@@ -935,3 +954,148 @@ unchanged; the new JB test pins the row's `end_balance` ==
 net instead, so the fixed inconsistency stays fixed.
 
 **No tuning call.** Nothing in the data moves.
+
+## 14. Addendum — Renting-cab second earner at another tier (Unit KA, Queue 28)
+
+**Date:** 2026-11-24. **Method:** `simulate(...,
+second_earner="taxi_driver", second_earner_tier="mid",
+second_earner_renting_cab=True)` — the same mid-tier taxi
+driver (23,000, per-fare) as §12's owning driver, but renting
+the licensed cab. The combination was refused before this unit
+(the tool raised on `second_earner_renting_cab=True` with a
+named `second_earner_tier`); it is now modelled. The rental is
+the settlement's rule, read from the source —
+`engine._settle_month` charges `cab_rental_ncr_per_day` (200,
+`data/prices.json`) × `WORK_DAYS` (26) = 5,200/month flat per
+taxi driver in the household — and it is the same 5,200
+whatever the tier: the tier moves the pay, not the rental. The
+rental is a monthly cost line of 5,200, accruing evenly in the
+daily model like rent (the settlement charges the same 5,200
+once at month-end; HE's daily model stands). The first earner
+(construction worker) still varies over entry/mid/senior.
+Storm days do not change the second earner's pay or rental —
+the per-fare rule has no storm days — so the storm-position
+effect still comes from the first earner alone. No tier's pay
+is invented: 23,000 is `prices.json` `wages_monthly`.
+
+Measured month-1 minimum balance by storm position,
+renting-cab mid-tier taxi-driver second earner beside the
+owning mid-tier figures from §12:
+
+| Tier | Early (1–2) | Mid (15–16) | Late (29–30) | Measured (4, 23) | Even (v6) | Net/mo | Owning early | Owning measured | Owning net |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| entry | 0 | 0 | 0 | 0 | 0 | 10,950 | 0 | 0 | 16,150 |
+| mid | 0 | 0 | 0 | 0 | 0 | 14,194 | 0 | 0 | 19,394 |
+| senior | −56 | 0 | 0 | 0 | 0 | 17,651 | 0 | 0 | 22,851 |
+
+Costs (storm month, measured position): owning 14,850 / 16,273
+/ 18,233 → renting 20,050 / 21,473 / 23,433 — the rental adds
+exactly 5,200 at every tier, so the net drops by exactly 5,200
+too (gross and tax untouched). Against the combined canonical
+starting balance (2 × 5,000 = 10,000) the worst renting dip
+leaves 10,000 − 56 = 9,944 — no bridge failure in any position,
+and no TIGHT or SURVIVAL FAIL anywhere in the section. The
+renting mid-tier bridge line is now wired into the tool's
+printed bridge check (see §8) — 10,000 − 56 = 9,944 — so the
+renting variant's bridge figure is not report-only either.
+
+Verbatim output (new default-run section):
+
+```
+renting-cab taxi-driver second earner at another tier storm-position month (Unit KA — same 28 worked days of 30; taxi-driver second earner (mid 23,000, per-fare) renting the cab at 200/day x 26 = 5,200/mo; month-1 minbal by storm position):
+profession                   tier      early     mid    late measured    even  (net/mo)  owning-early  owning-measured
+construction_worker          entry         0       0       0        0       0  (net 10950)             0               0
+construction_worker          mid           0       0       0        0       0  (net 14194)             0               0
+construction_worker          senior      -56       0       0        0       0  (net 17651)             0               0
+```
+
+**Finding: the rental re-opens the early dip only at senior.**
+The owning mid-tier driver covers the cost-only days 1–2
+everywhere (753/day of taxi pay against 495–611/day of
+household cost). The rental adds 173/day to the cost
+(668/day entry, 716/day mid, 781/day senior) while the taxi
+pay stays 753/day — so entry and mid still cover the two
+days (+85/day and +38/day), but senior burns 28/day for the
+first two days: −56. The measured position still dips nothing
+(pay lands on days 1–3 before the day-4 storm), and the dip is
+a timing fact — the same rental, charged at month-end in the
+settlement, would not dip at all within the month; it is the
+tool's daily accrual that puts it on days 1–2. The renting
+mid-tier household still nets 10,950 / 14,194 / 17,651 a month
+— the rent-before-you-buy on-ramp survives at the higher tier
+too, clearly worse than owning but survivable, exactly as Unit
+U designed it for the single-earner row.
+
+**A renting civil engineer is meaningless — stated, not
+modelled.** Civil engineers hold no cab, so there is no rental
+to charge: the tool refuses `second_earner_renting_cab=True`
+with `second_earner="civil_engineer"` (with or without a named
+tier), and no renting-CE figure is recorded anywhere. Only the
+taxi driver rents.
+
+Full default-run md5: `5f50931cbaad263812473ce1c7830e59` (JA:
+`b70b18972aeb5c3b2d0273b986060058` — kept in
+`test_no_regression.py` as history). The only diffs vs JA are
+this section and the renting bridge line; the §9/§11/§12
+sections, the other bridge lines, the base table and all other
+rows are unchanged.
+
+**No tuning call.** Nothing in the data moves.
+
+**Open, recorded:** the renting variant at the senior tier is
+allowed by the tool (like IC's senior tier) but is not
+measured in the default run — no measured household pairs the
+construction worker with a senior taxi driver, so the senior
+renting household stays unmodelled rather than assumed (same
+standing rule as §12's senior second earners); the senior taxi
+driver (36,000) and senior civil engineer (65,000) as second
+earner stay unmodelled for the same reason.
+
+## 15. Addendum — Sunday-exclusion audit (Unit KB, Queue 28)
+
+**Date:** 2026-11-24. **Method:** read every day-of-week use
+in `tools/economy_sim.py` and in the settlement path it
+mirrors (`engine._settle_month` and everything it calls for
+pay and costs: `labour.worked_days` / `day_wage_due` /
+`wage_due_for`, `_living_costs`, `_pay_business_wages`,
+`_pay_government_wages`, the taxi rental line), plus a
+repo-wide grep for `day % 7`, `weekday` and `Sunday` across
+`tools/` to catch uses outside the two files. Each use is
+reported below with what it does and whether it matches its
+source.
+
+**Finding: no other day-of-week exclusion exists in any cost
+or pay line — no fix is needed.** (Unit KB DONE 2026-11-24.)
+The audit is recorded here
+and pinned by tests (`tools/sim/tests/test_no_regression.py`,
+Queue 28 Unit KB) so a later unit cannot reintroduce a weekday
+exclusion unnoticed.
+
+| # | Where | What it does | Source match? |
+|---|---|---|---|
+| 1 | `economy_sim.py`, `WORK_DAYS = 26` (3 uses) | The rental (`cab_rental_ncr_per_day × WORK_DAYS` = 5,200), `extra_monthly = extra_daily_cost × WORK_DAYS`, and the trajectory (`if extra_daily_cost and day <= WORK_DAYS`) — all flat, no day skipped | Matches the settlement (`engine._settle_month`: `rental_day × econ.WORK_DAYS`) |
+| 2 | `economy_sim.py`, `extra_daily_cost` | The single-earner renting-cab row charges the rental on days 1–26 (JB) | Matches the settlement; the v1 23-day rule is retired (§13) |
+| 3 | `economy_sim.py`, "Sunday" (15 mentions) | All 15 are in the module docstring or `#` comments, describing the retired v5 daily branch and v1 renting rule — no live code excludes a day; no `day % 7` or `weekday` anywhere in the file | History, not code — pinned by test |
+| 4 | `scheduler.py`, Friday/Saturday variants (`weekday = day_index % 7`; Friday = 4, Saturday = 5) | Schedule shaping, transcribed from the `weekend_variant` notes in `data/npc-schedules.json` — all 11 professions handled in `_apply_friday` (pilot: roster decides, no work blocks); Saturday handles teacher + chef, the only two whose notes name Saturday. Measured: a construction worker keeps a work block on all 30 days of a month including all four Fridays (morning shift ends 12:30), so a Friday is a worked day and the day-wage rule pays it in full. The monthly-paid professions that lose their Friday work blocks (civil engineer, teacher, doctor on the 1-in-3 on-call rotation, software developer) pay monthly in full — `wage_due_for` returns the wage, the dock is 0 | Matches the data notes; no cost or pay line excludes the day |
+| 5 | `engine.py:388`, `if day % 7 == 6:` | Weekly cadence tick: runs `weekly_drift`, `_weekly_social`, `infrastructure.weekly_update` on the seventh day | A cadence trigger, not an exclusion — it adds weekly work, it removes nothing from any pay or cost line. Sourced: Session 02 weekly drift, Session 03 weekly infrastructure update |
+| 6 | `engine.py`, `taxi_factor = 1 + 0.25 × rain_days / 30 + 0.5 × storm_days / 30` | Scales taxi gross by the month's weather (rain/storm counts) | Weather, not weekday — not an exclusion. Gap recorded, not a KB fix: the tool does not model this weather surge on its taxi rows at all (Queue 29 Unit KC) |
+| 7 | `engine.py:1068`, `taxi_rental_total += rental_day × econ.WORK_DAYS` | Flat 5,200 per taxi driver in the household | Matches the tool (items 1–2); no exclusion (JB) |
+| 8 | `labour.py`, `worked_days` / `day_wage_due` | Counts days with ≥ 1 unbent work block from the stored schedules; no weekday filter anywhere in the module. Storm-bent, rest and broken-tool days pay 0 | The ES day-wage rule — a worked-day rule, not a weekday rule. Matches GDD-03 §2 ("paid per worked day; no work, no pay") |
+| 9 | `culture.py`, `festivals_on(day % 365)`; `(day + 1) % 30 == 0` | Calendar-day festival trigger and the monthly settlement trigger | Not weekday logic; festivals are events, not cost or pay lines |
+
+The repo-wide grep found no other uses: the only `day % 7` /
+`weekday` / `Sunday` hits in `tools/` outside tests and verify
+scripts are the ones above. The Friday half-day is consistent
+on both sides — the tool's day-wage model pays worked/30 with
+worked = 30 in a normal month, and the settlement counts a
+Friday as worked (morning shift kept) — so there is no gap
+there to queue.
+
+**No fix.** Nothing in the code changes. The pinned md5 does
+not move (the KA baseline stands).
+
+**No tuning call.** Nothing in the data moves.
+
+**Open, recorded:** the taxi weather surge (item 6) — the
+settlement scales taxi gross by rain/storm days and the tool
+models taxi pay flat; Queue 29 Unit KC.
