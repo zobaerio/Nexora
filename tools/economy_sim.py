@@ -1,10 +1,36 @@
 #!/usr/bin/env python3
-"""NEXORA — Economy Balance Simulator v5 (Unit AX, Queue 9).
+"""NEXORA — Economy Balance Simulator v7 (Unit FB, Queue 23).
 
 Simulates 30 game-days of household cashflow for every profession in
 data/prices.json (wages_monthly) at entry / mid / senior tiers.
 Deterministic — no randomness; the same input always produces the
 same report.
+
+What v7 changes vs v6 (Queue 23, Unit FB — the storm-position
+follow-up):
+- `simulate()` takes an optional `storm_days` (distinct 1-based
+  days of the 30-day month): worked days are 30 minus the storm
+  days, gross is band x worked/30 as in v6, and the pay lands
+  only on worked days — (gross-tax)/worked per worked day, 0 on
+  a storm day — so the month-1 minimum balance depends on where
+  the storms fall. The total is still exactly gross-tax, so the
+  trajectory still ends at net for every position (pinned by a
+  test). A storm_days that disagrees with day_wage_worked_days,
+  names a day outside 1..30, or repeats a day is refused; it is
+  refused for any non-day-wage profession too. Without
+  storm_days the v6 even accrual is unchanged.
+- The default run gains a day-wage storm-position section: the
+  same measured 28 worked days, with the two storm days early
+  (1-2), mid (15-16), late (29-30), and at the measured position
+  (3 and 22 — where the live month's storms actually fell), plus
+  the v6 even-spread baseline for comparison. The net is the same
+  for every position; only the month-1 minbal moves, and that is
+  now a measured figure per position. The v6 section is unchanged
+  (its minbal stays the even-spread figure). The pinned md5 moves
+  to the v7 baseline (the v6 md5 is kept in test_no_regression.py
+  as history). No tuning call: the storm month is weather, not a
+  balance problem.
+- Run: python3 tools/economy_sim.py [--shibnagar] [--v3|--v4]
 
 What v6 changes vs v5 (Queue 22, Unit EY — the ES day-wage
 follow-up):
@@ -186,6 +212,17 @@ DAYS = 30
 # extra (a taxi works 26 days — the rental is charged on work days
 # only, the v1 rule, untouched by this unit).
 DAY_WAGE_WORKED_DAYS = 30
+# Queue 23 / v7 (Unit FB): the storm-position scenario — the two
+# storm days of the measured 28-worked-day month, at three
+# scenario positions plus the measured one. The count (28 worked
+# days) is measured (the seeded live month, Unit EY); the
+# positions are scenarios, not claims about the measured month —
+# except STORM_MEASURED_DAYS (days 3 and 22), which is where the
+# live month's storms actually fell.
+STORM_EARLY_DAYS = (1, 2)
+STORM_MID_DAYS = (15, 16)
+STORM_LATE_DAYS = (29, 30)
+STORM_MEASURED_DAYS = (3, 22)
 
 
 def load(name):
@@ -264,7 +301,7 @@ def load_shibnagar_rents(prices):
 def simulate(prices, wage_row, tier, extra_daily_cost=0, label_suffix="",
              tutoring_income=0, tutoring_expense=0, part_time_income=0,
              medicine_expense=0, rent_override=None,
-             day_wage_worked_days=None):
+             day_wage_worked_days=None, storm_days=None):
     pid = wage_row["profession_id"]
     band = band_for(wage_row["entry"])
     lc = prices["living_costs_monthly"]
@@ -316,11 +353,45 @@ def simulate(prices, wage_row, tier, extra_daily_cost=0, label_suffix="",
     # worked/30 and tax is recomputed on that gross, so a storm
     # month's lower gross is taxed as a lower gross, exactly as the
     # settlement taxes the day-wage pay it actually made.
+    # Queue 23 / v7 (Unit FB): the storm-position scenario — the
+    # caller names the storm days instead (storm_days: distinct
+    # 1-based days of the 30-day month); worked days are 30 minus
+    # the storm days, and the trajectory pays only on worked days
+    # (see below). The count is the measured live month (28 worked
+    # days); the positions are scenario positions (early / mid /
+    # late) plus the measured position (days 3 and 22 — the live
+    # month's actual storm days). A storm_days that disagrees with
+    # day_wage_worked_days, or names a day outside 1..30, or
+    # repeats a day, is refused — the scenario must stay one
+    # month, not a miscounted one. storm_days is meaningless for
+    # any other pay schedule and is refused there too.
+    storm_set = None
     if sched == "daily":
-        worked = (DAY_WAGE_WORKED_DAYS if day_wage_worked_days is None
-                  else day_wage_worked_days)
+        if storm_days is not None:
+            storm_set = set(storm_days)
+            if len(storm_set) != len(list(storm_days)) \
+                    or any(not isinstance(d, int) or d < 1
+                           or d > DAYS for d in storm_set):
+                raise ValueError(
+                    "storm_days must be distinct day numbers in"
+                    f" 1..{DAYS}, got {storm_days!r}")
+            worked = DAYS - len(storm_set)
+            if day_wage_worked_days is not None \
+                    and day_wage_worked_days != worked:
+                raise ValueError(
+                    "storm_days imply "
+                    f"{worked} worked days, not "
+                    f"{day_wage_worked_days}")
+        else:
+            worked = (DAY_WAGE_WORKED_DAYS
+                      if day_wage_worked_days is None
+                      else day_wage_worked_days)
         gross = round(wage_row[tier] * worked / DAYS)
         tax = monthly_tax(gross, prices["tax"]["income_monthly_brackets"])
+    elif storm_days is not None:
+        raise ValueError(
+            "storm_days is a day-wage scenario (construction_worker"
+            f" only); {pid} pays {sched}")
 
     # Lifestyle uplift (Unit V): a fixed percent of the raise above
     # the entry-tier income is consumed by lifestyle.
@@ -370,15 +441,23 @@ def simulate(prices, wage_row, tier, extra_daily_cost=0, label_suffix="",
         elif sched == "daily":
             # Queue 22 / v6 (Unit EY): the ES day wage accrues evenly
             # — wage/30 per worked day, 30 worked days in a normal
-            # month, so the month pays exactly the band. (The tool
-            # does not model which days storms fall on: a storm
-            # scenario accrues its reduced gross the same even way,
-            # and the report records the measured storm days instead
-            # of hardcoding them here.) The v5 branch paid
-            # (gross-tax)/26 on days 1-26 excluding Sundays — 23 pay
-            # days, 23/26 of the band — while the headline net showed
-            # the full band; the trajectory now ends exactly at net.
-            balance += (base_gross - base_tax) / DAYS
+            # month, so the month pays exactly the band. The v5
+            # branch paid (gross-tax)/26 on days 1-26 excluding
+            # Sundays — 23 pay days, 23/26 of the band — while the
+            # headline net showed the full band; the trajectory now
+            # ends exactly at net.
+            # Queue 23 / v7 (Unit FB): with storm_days, the pay
+            # lands only on worked days — (gross-tax)/worked per
+            # worked day, 0 on a storm day — so the month-1 dip
+            # depends on where the storms fall; the total is still
+            # exactly gross-tax, so the trajectory still ends at
+            # net. Without storm_days the even accrual (v6) is
+            # unchanged, and the v6 storm section's figure stays
+            # the even-spread one.
+            if storm_set is None:
+                balance += (base_gross - base_tax) / DAYS
+            elif day not in storm_set:
+                balance += (base_gross - base_tax) / worked
         else:  # per_fare / daily_takings: even accrual
             balance += (base_gross - base_tax) / DAYS
         if extra_income_net:
@@ -674,9 +753,10 @@ def main():
     # outdoor work suspended, so the settlement pays 28/30 of the
     # band. Same costs as the base table (uplift recomputed from
     # the reduced gross); tax recomputed on the reduced gross; the
-    # reduced pay accrues evenly (the tool does not model which
-    # days storms fall on). No tuning call: the storm month is
-    # weather, not a balance problem.
+    # reduced pay accrues evenly here — this section keeps the v6
+    # even-spread figure; the storm-position section below (Unit FB
+    # · Queue 23) models which days the storms fall on. No tuning
+    # call: the storm month is weather, not a balance problem.
     print()
     print("day-wage storm month (Unit EY — measured 28 worked days of "
           "30, 2 storm days suspending outdoor work):")
@@ -691,6 +771,41 @@ def main():
               f"{r['net']:>8} {r['rate']:>6} {r['min_balance']:>8}  "
               f"{', '.join(r['flags']) or '-'}"
               f"  (base net {base['net']}, save {base['rate']}%)")
+
+    # Queue 23 / v7 (Unit FB): the storm-position scenario — the
+    # same 28 worked days, but the two storm days fall early (days
+    # 1-2), mid (15-16), or late (29-30), plus the measured
+    # position (days 3 and 22, where the live month's storms
+    # actually fell) and the v6 even-spread baseline for
+    # comparison. The net is the same for every position (the
+    # month pays the same 28/30 of the band whatever the days) —
+    # only the month-1 minimum balance moves, and that is the
+    # measured figure: pay lands only on worked days, so a storm
+    # on day 1 dips deeper than a storm on day 29. The v6 minbal
+    # (0 for every tier) is the even-spread figure, not a measured
+    # one. No tuning call: the storm month is weather, not a
+    # balance problem — the worst dip is measured, not fixed.
+    print()
+    print("day-wage storm-position month (Unit FB — same 28 worked "
+          "days of 30; month-1 minbal by storm position):")
+    print(f"{'profession':28} {'tier':7} {'early':>7} {'mid':>7} "
+          f"{'late':>7} {'measured':>8} {'even':>7}  (net/mo)")
+    for tier in ("entry", "mid", "senior"):
+        w = bands["construction_worker"]
+        early = simulate(prices, w, tier,
+                         storm_days=STORM_EARLY_DAYS)
+        mid = simulate(prices, w, tier,
+                       storm_days=STORM_MID_DAYS)
+        late = simulate(prices, w, tier,
+                        storm_days=STORM_LATE_DAYS)
+        measured = simulate(prices, w, tier,
+                            storm_days=STORM_MEASURED_DAYS)
+        even = simulate(prices, w, tier,
+                        day_wage_worked_days=28)
+        print(f"{early['profession']:28} {early['tier']:7} "
+              f"{early['min_balance']:>7} {mid['min_balance']:>7} "
+              f"{late['min_balance']:>7} {measured['min_balance']:>8} "
+              f"{even['min_balance']:>7}  (net {early['net']})")
 
     if "--shibnagar" in sys.argv:
         print()

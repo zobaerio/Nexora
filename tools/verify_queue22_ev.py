@@ -74,11 +74,14 @@ def main():
         else ""
     check("outcome = 'success'" in pred,
           "market.py: the predicate reads successful rows only")
-    check("retail_allocation" in market_src
-          and "record_haggle(" not in market_src.split(
-              "def retail_allocation(")[1].split(
-              "# -- Queue 22 Unit EV")[0],
-          "market.py: the shopping pass does not haggle (no live call)")
+    # (Update, Unit FA · Queue 23: the shopping pass IS the live
+    # call site now — retail_allocation records the haggle. The
+    # EV-era assertion that it does not haggle is struck here, not
+    # silently left failing.)
+    check("record_haggle(" in market_src.split(
+        "def retail_allocation(")[1].split(
+        "# -- Queue 22 Unit EV")[0],
+        "market.py: the shopping pass haggles (FA live call site)")
 
     # 3. The verifier requires BOTH objectives.
     ver = missions_src.split("def verify_mission_2_3(")[1].split("def ")[0]
@@ -101,9 +104,9 @@ def main():
         "The objective (2) | \"Haggle once, successfully\" is verified",
         ""),
           "GDD-04 §3.6: no 'NOT verifiable' remains for 2.3's haggle")
-    check("Live call site — still open" in gdd04
+    check("Live call site — wired (Unit FA" in gdd04
           and "Phase 6 dialogue/mission runtime" in gdd04,
-          "GDD-04 §3.6: the missing live call site is recorded open")
+          "GDD-04 §3.6: the live call site is recorded wired (FA)")
     check("Update, Unit EV" in gdd04,
           "GDD-04 §3.6: the EV implementation note is present")
 
