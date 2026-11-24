@@ -1799,7 +1799,9 @@ class TestFurnitureCondition(unittest.TestCase):
                          "F2")
         self.assertEqual(
             li.furniture_restore_multiplier(store, d, head), 1.15)
-        # Break every F0 piece: no tier stands, no rate invented.
+        # Break every F0 piece: no tier stands, but the household
+        # still holds furniture rows — the Unit EZ floor: the F0
+        # rate (0.7), so breaking the last piece changes nothing.
         for iid in [r["item_instance_id"] for r in store.rows(
                 "SELECT item_instance_id FROM inventory_items"
                 " WHERE owner_character_id = ? AND item_ref IN"
@@ -1807,8 +1809,8 @@ class TestFurnitureCondition(unittest.TestCase):
                 (head,))]:
             self._set_condition(store, iid, 0)
         self.assertIsNone(li.effective_furniture_tier(store, d, head))
-        self.assertIsNone(
-            li.furniture_restore_multiplier(store, d, head))
+        self.assertEqual(
+            li.furniture_restore_multiplier(store, d, head), 0.7)
 
 
 class TestToolWeatherWear(unittest.TestCase):
@@ -2274,8 +2276,10 @@ class TestLostPieceVsTier(unittest.TestCase):
                              "d1_midtown")
         self.assertIsNotNone(lid)
         self.assertIsNone(li.effective_furniture_tier(store, d, head))
-        self.assertIsNone(
-            li.furniture_restore_multiplier(store, d, head))
+        # The lost piece is still a held row: the Unit EZ floor
+        # (F0's 0.7) applies, not the unscaled rate.
+        self.assertEqual(
+            li.furniture_restore_multiplier(store, d, head), 0.7)
 
     def test_a_second_row_of_the_piece_keeps_the_tier(self):
         # A replacement bought beside the lost original: one usable
@@ -2608,6 +2612,144 @@ class TestMonthlyRepairHook(unittest.TestCase):
         after = self.store.row(
             "SELECT state FROM inventory_items"
             " WHERE item_instance_id = ?", (made[0],))
+        self.assertEqual(json.loads(after["state"])["condition"], 90)
+
+
+class TestMonthlyFurnitureService(unittest.TestCase):
+    """Queue 22 Unit EX — the monthly furniture service (GDD-04
+    §3.3): the predicate mirrors tool_needs_service (DQ 60), the
+    sweep mirrors monthly_repair_sweep (restore to 90, no ledger
+    charge, no life event)."""
+
+    def _home_with_furniture(self, store):
+        head = make_person(store, age=35, first="Head")
+        hid, pid = make_household(store, [head])
+        made = li.seed_furniture_at_move_in(store, data(), hid, pid,
+                                            GM)
+        return head, hid, made
+
+    def _condition(self, store, iid):
+        row = store.row("SELECT state FROM inventory_items"
+                        " WHERE item_instance_id = ?", (iid,))
+        return json.loads(row["state"])["condition"]
+
+    def _set_condition(self, store, iid, value):
+        row = store.row("SELECT state FROM inventory_items"
+                        " WHERE item_instance_id = ?", (iid,))
+        state = json.loads(row["state"])
+        state["condition"] = value
+        store.execute("UPDATE inventory_items SET state = ?"
+                      " WHERE item_instance_id = ?",
+                      (json.dumps(state), iid))
+
+    def test_repairs_furniture_at_or_below_sixty(self):
+        store = make_store()
+        _h, hid, made = self._home_with_furniture(store)
+        self._set_condition(store, made[0], 60)
+        self._set_condition(store, made[1], 61)
+        self._set_condition(store, made[2], 30)
+        self._set_condition(store, made[3], 100)
+        out = li.monthly_furniture_service_sweep(store, data(), GM)
+        self.assertEqual(set(out["repaired"]), {made[0], made[2]})
+        self.assertEqual(out["broken"], [])
+        self.assertEqual(self._condition(store, made[0]), 90)
+        self.assertEqual(self._condition(store, made[1]), 61)
+        self.assertEqual(self._condition(store, made[2]), 90)
+        self.assertEqual(self._condition(store, made[3]), 100)
+
+    def test_repairs_a_broken_piece_and_lists_it_broken(self):
+        store = make_store()
+        _h, hid, made = self._home_with_furniture(store)
+        self._set_condition(store, made[0], 0)
+        out = li.monthly_furniture_service_sweep(store, data(), GM)
+        self.assertEqual(out["broken"], [made[0]])
+        self.assertEqual(self._condition(store, made[0]), 90)
+
+    def test_predicate_reports_due_pieces_only(self):
+        store = make_store()
+        _h, hid, made = self._home_with_furniture(store)
+        self._set_condition(store, made[0], 60)
+        self._set_condition(store, made[1], 61)
+        self._set_condition(store, made[2], 0)
+        due = li.furniture_needs_service(store, data(), hid)
+        self.assertEqual({r["item_instance_id"] for r in due},
+                         {made[0], made[2]})
+
+    def test_no_ledger_charge_and_no_life_event(self):
+        store = make_store()
+        _h, hid, made = self._home_with_furniture(store)
+        self._set_condition(store, made[0], 0)
+        li.monthly_furniture_service_sweep(store, data(), GM)
+        self.assertEqual(store.rows("SELECT * FROM economy_ledger"),
+                         [])
+        self.assertEqual(store.rows(
+            "SELECT * FROM life_events WHERE event_type LIKE"
+            " '%furniture%'"), [])
+
+    def test_sound_home_is_not_serviced(self):
+        store = make_store()
+        _h, hid, made = self._home_with_furniture(store)
+        out = li.monthly_furniture_service_sweep(store, data(), GM)
+        self.assertEqual(out, {"repaired": [], "broken": []})
+        self.assertTrue(all(self._condition(store, iid) == 100
+                            for iid in made))
+
+    def test_headless_household_is_skipped(self):
+        store = make_store()
+        hid = store.next_id("HH", "households", "household_id")
+        store.insert("households", household_id=hid,
+                     district_id="d1_midtown",
+                     created_at_game_minutes=GM)
+        out = li.monthly_furniture_service_sweep(store, data(), GM)
+        self.assertEqual(out, {"repaired": [], "broken": []})
+
+
+class TestMonthlyFurnitureServiceHook(unittest.TestCase):
+    """The engine's monthly social pass calls the furniture
+    service sweep: a worn piece in a live world is repaired at
+    month end."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.path = _tmp_path()
+        cls.sim = Simulation(cls.path, seed="q22-ex")
+        cls.sim.generate_population(60)
+        cls.store = cls.sim.store
+        cls.data = cls.sim.data
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.sim.close()
+        os.remove(cls.path)
+
+    def test_monthly_social_services_worn_furniture(self):
+        head = self.store.row(
+            "SELECT c.character_id FROM characters c JOIN"
+            " household_members hm ON hm.character_id ="
+            " c.character_id AND hm.role = 'head' JOIN households h"
+            " ON h.household_id = hm.household_id JOIN"
+            " inventory_items i ON i.owner_character_id ="
+            " c.character_id AND i.item_type = 'furniture' WHERE"
+            " c.is_system = 0 AND c.died_at_game_minutes IS NULL"
+            " AND h.home_property_id IS NOT NULL LIMIT 1")
+        if head is None:
+            self.skipTest("no headed household holding furniture")
+        cid = head["character_id"]
+        row = self.store.row(
+            "SELECT item_instance_id, state FROM inventory_items"
+            " WHERE owner_character_id = ? AND item_type ="
+            " 'furniture' LIMIT 1", (cid,))
+        iid = row["item_instance_id"]
+        state = json.loads(row["state"])
+        state["condition"] = 30
+        self.store.execute(
+            "UPDATE inventory_items SET state = ?"
+            " WHERE item_instance_id = ?",
+            (json.dumps(state), iid))
+        self.sim._monthly_social(29)
+        after = self.store.row(
+            "SELECT state FROM inventory_items"
+            " WHERE item_instance_id = ?", (iid,))
         self.assertEqual(json.loads(after["state"])["condition"], 90)
 
 

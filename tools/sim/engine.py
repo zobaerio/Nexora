@@ -79,6 +79,7 @@ from . import identity as identity_mod
 from . import interaction as interaction_mod
 from . import lifecycle
 from . import lost_items as lost_items_mod
+from . import households as households_mod
 from . import memory as memory_mod
 from . import needs as needs_mod
 from . import population as population_mod
@@ -464,6 +465,26 @@ class Simulation:
         # a gated layer, and the sweep no-ops when nobody holds a
         # due tool. A repaired tool stops bending work the next day.
         lost_items_mod.monthly_repair_sweep(store, data, game_minutes)
+        # Queue 22 Unit EX: the monthly furniture service — every
+        # due piece (condition 60 or below, broken included) is
+        # repaired to 90 with no ledger charge (DQ). Lives here
+        # beside the tool service: furniture belongs to the home,
+        # and the sweep no-ops when nothing is due. A serviced
+        # piece stands again, so the tier it dropped is restored
+        # the next time it is read.
+        lost_items_mod.monthly_furniture_service_sweep(
+            store, data, game_minutes)
+        # Queue 22 Unit EW: the monthly home-loop furniture
+        # purchase — one cheapest missing piece of the next tier
+        # per household, when the pool covers price + one month's
+        # rent (GDD-10 §5). Runs AFTER both repair sweeps, so the
+        # tier is read post-repair and a just-restored piece is
+        # not re-bought. F2/F3 become reachable in a live world
+        # through this call. (month_index is the other monthly
+        # passes' own formula: the month ending on last_day.)
+        month_index = (last_day + 1) // 30
+        households_mod.monthly_furniture_purchase_sweep(
+            store, data, month_index, game_minutes)
 
     # -- Session 03 city cadence ------------------------------------
     # Monthly, after the economy settlement and the society passes

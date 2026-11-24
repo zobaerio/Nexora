@@ -22,6 +22,7 @@ import unittest
 from pathlib import Path
 
 from tools.sim import environment as env
+from tools.sim import market as market_mod
 from tools.sim import missions as ms
 from tools.sim import photographs as ph
 from tools.sim import relationships as rel
@@ -242,6 +243,12 @@ class TestWriterCompletesConditionedMissions(unittest.TestCase):
             "INSERT INTO household_consumption (household_id,"
             " month_index, good_id, units, spend_ncr, unmet_units)"
             " VALUES (?, 0, 'food_basket', 12.5, 1000, 0)", (hid,))
+        # Food bought, but no haggle won yet (Unit EV): still no
+        # verification — both objectives must hold.
+        self.assertFalse(ms.verify_mission_2_3(store, d, cid, GM + 200))
+        self.assertFalse(ms.complete_mission(store, cid, "2.3", GM + 200))
+        market_mod.record_haggle(store, cid, "food_basket",
+                                 "d1_market", 500, 450, GM)
         self.assertTrue(ms.verify_mission_2_3(store, d, cid, GM + 300))
         self.assertTrue(ms.complete_mission(store, cid, "2.3", GM + 300))
         self.assertEqual(ms.get_status(store, cid, "2.3"), "completed")
@@ -259,7 +266,10 @@ class TestWriterCompletesConditionedMissions(unittest.TestCase):
             " VALUES (?, 0, 'food_basket', 12.5, 1000, 0)", (hid,))
         _active(store, cid, "2.3")
         # Food bought, but from Shibnagar's shelves — not Boro
-        # Bazar.
+        # Bazar. Even with a successful Boro Bazar haggle on
+        # record, the food is the wrong city's, so no verification.
+        market_mod.record_haggle(store, cid, "food_basket",
+                                 "d1_market", 500, 450, GM)
         self.assertFalse(ms.verify_mission_2_3(store, d, cid, GM + 200))
         self.assertFalse(ms.complete_mission(store, cid, "2.3", GM + 200))
 
@@ -378,6 +388,9 @@ class TestGateStaysClosedOtherwise(unittest.TestCase):
             "INSERT INTO household_consumption (household_id,"
             " month_index, good_id, units, spend_ncr, unmet_units)"
             " VALUES (?, 0, 'food_basket', 12.5, 1000, 0)", (hid,))
+        # Unit EV: 2.3 needs the successful Boro Bazar haggle too.
+        market_mod.record_haggle(store, cid, "food_basket",
+                                 "d1_market", 500, 450, GM)
         _active(store, cid, "2.3")
         ms.verify_mission_2_3(store, d, cid, GM + 200)
         ms.complete_mission(store, cid, "2.3", GM + 300)

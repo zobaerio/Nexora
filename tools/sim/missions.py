@@ -106,34 +106,28 @@ favour missions" unlock is a Phase 6 system. After this unit
 every shipped mission tree has a §3.6 condition and a verifier.
 
 Mission 2.3 "The Market Run" (GDD-04 §2, Unit EO Queue 21) is the
-sixth: ``verify_mission_2_3()`` checks the first objective — "Buy
-a week's food at Boro Bazar" — against the household consumption
-record: a ``household_consumption`` row stands for the character's
-household (``household_members``, ``left_at_game_minutes IS NULL``)
-with a food good (``food_basket`` or ``fish``) and units > 0, the
-monthly shopping pass's own record (``tools/sim/market.py``
-``retail_allocation``), and the household's city is Rupsha City
-(``cities.RUPSHA``) — Boro Bazar is District 1's market, so a
-Shibnagar household's food comes from Shibnagar's shelves, not
-Boro Bazar, and does not verify. The second objective — "Haggle
-once, successfully" — has NO world-state record in any merged
-system (no haggle event exists, no haggle outcome is written
-anywhere), so the writer verifies the food purchase only and
-completes the mission on it; the haggle is recorded in GDD-04
-§3.6 as unverified, not faked, and a haggle record is a later
-unit's job. The "week" is the mission's fiction, not a measured
-quantity: the sim records food shopping monthly (per
-``month_index``) and no source gives a weekly food quantity, so
-the verifier reads "bought food" from the monthly record. The
-food purchase may predate the mission's acceptance (a bought
-week's food is a fact about the world, verified like 2.1's
-pre-existing skill level). Completing 2.3 pays nothing here: its
-500 NCr and +5 market reputation are the Phase 6 reward step,
+sixth: ``verify_mission_2_3()`` checks both objectives — "Buy
+a week's food at Boro Bazar" (a ``household_consumption`` food row
+for the character's own Rupsha household) AND "Haggle once,
+successfully" (a successful ``haggle_events`` row for the
+character in Boro Bazar's zone, ``d1_market`` — Unit EV, Queue
+22, which built the haggle record EO recorded as missing: the
+stall's asked price and the price paid are both recorded facts,
+and success is paid < asked, derived, never a rate). The food
+purchase may predate the mission's acceptance (a bought week's
+food is a fact about the world, verified like 2.1's pre-existing
+skill level), and so may the haggle (a won haggle is a fact
+about the world the same way). Completing 2.3 pays nothing here:
+its 500 NCr and +5 market reputation are the Phase 6 reward step,
 and the "Haggling" and "Market regular status" unlocks are Phase
 6 systems. After this unit every Level 1–2 mission has a §3.6
 condition and a verifier (1.1/1.2 have neither a tree nor a
 condition — they are not shipped mission trees, so the DS
-suite's tree assertion does not cover them).
+suite's tree assertion does not cover them). Still open: no
+live call site writes a haggle row yet — the haggler is the
+player at a stall, and the writer is the Phase 6 dialogue/
+mission runtime; the monthly shopping pass buys at shelf prices
+and never haggles (recorded in GDD-04 §3.6, Queue 23).
 
 Favour instances are rows too (DG §3.6): the generator asks this
 module to create the row (``side:<type>:<giver>:<minute>``), and the
@@ -195,6 +189,10 @@ MISSION_2_3_FOOD_GOODS = ("food_basket", "fish")
 # the Boro Bazar market hall sits in zone d1_market), so the city
 # that contains it is Rupsha City (tools/sim/cities.py RUPSHA).
 BORO_BAZAR_CITY = "rupsha_city"
+# Boro Bazar's zone (data/missions.json, id "2.3" zone_ref): the
+# haggle for mission 2.3 must happen here — a haggle won at
+# another stall is a different market's haggle, not this mission's.
+BORO_BAZAR_ZONE = "d1_market"
 
 
 # GDD-04 §3.6: the missions with a specified completion condition —
@@ -508,30 +506,36 @@ def household_bought_food(store, household_id):
 
 
 def verify_mission_2_3(store, data, character_id, game_minutes):
-    """Verify mission 2.3's first objective against world state
-    (GDD-04 §3.6, Unit EO): "Buy a week's food at Boro Bazar"
-    holds iff the character's household has a
+    """Verify mission 2.3's objectives against world state
+    (GDD-04 §3.6, Unit EO + Unit EV): (1) "Buy a week's food at
+    Boro Bazar" holds iff the character's household has a
     ``household_consumption`` row with a food good and units > 0
     (``household_bought_food()``) AND the household's city is
     Rupsha City (``cities.city_of_zone()`` on the household's
     ``district_id`` — Boro Bazar is District 1's market, so a
     Shibnagar household's food comes from Shibnagar's shelves,
-    not Boro Bazar, and does not verify). On success sets
-    ``objectives_complete`` while the row is still `active` and
-    returns True. Returns False when the row is not `active`, the
-    character has no household, the household is not in Rupsha
-    City, or no food row stands for it — including a food row for
-    a DIFFERENT household, which is not this character's shopping.
-    The second objective — "Haggle once, successfully" — has no
-    world-state record in any merged system, so it is NOT verified
-    here: the writer completes the mission on the food purchase
-    and records the haggle as unverified in GDD-04 §3.6, rather
-    than faking a check. The food purchase may predate the
-    mission's acceptance (a bought week's food is a fact about
-    the world, verified like 2.1's pre-existing skill level). The
-    500 NCr and +5 market reputation are not paid here (the Phase
-    6 reward step, per the DL boundary)."""
+    not Boro Bazar, and does not verify); (2) "Haggle once,
+    successfully" holds iff the character has a successful haggle
+    on record in Boro Bazar's zone (``market.has_successful_
+    haggle()`` on ``d1_market`` — the mission's zone_ref; a
+    successful haggle is a ``haggle_events`` row with outcome
+    'success', paid less than asked). Both must hold, in either
+    order. On success sets ``objectives_complete`` while the row
+    is still `active` and returns True. Returns False when the row
+    is not `active`, the character has no household, the household
+    is not in Rupsha City, or no food row stands for it — including
+    a food row for a DIFFERENT household, which is not this
+    character's shopping — or when no successful haggle stands for
+    the character in Boro Bazar — including a successful haggle in
+    another zone, a failed haggle (paid the asked price), or a
+    successful haggle by another character. The food purchase and
+    the haggle may predate the mission's acceptance (a bought
+    week's food and a won haggle are facts about the world,
+    verified like 2.1's pre-existing skill level). The 500 NCr
+    and +5 market reputation are not paid here (the Phase 6
+    reward step, per the DL boundary)."""
     from . import cities as cities_mod
+    from . import market as market_mod
     row = get_row(store, character_id, "2.3")
     if row is None or row["status"] != "active":
         return False
@@ -547,6 +551,9 @@ def verify_mission_2_3(store, data, character_id, game_minutes):
             != BORO_BAZAR_CITY:
         return False
     if not household_bought_food(store, household_id):
+        return False
+    if not market_mod.has_successful_haggle(store, character_id,
+                                            BORO_BAZAR_ZONE):
         return False
     return set_objectives_complete(store, character_id, "2.3",
                                    game_minutes)

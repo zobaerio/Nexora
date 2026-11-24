@@ -12,6 +12,7 @@ import unittest
 
 from tools.sim import environment as env
 from tools.sim import lost_items as li
+from tools.sim import market as market_mod
 from tools.sim import missions as ms
 from tools.sim import photographs as ph
 from tools.sim import relationships as rel
@@ -706,16 +707,24 @@ class TestMission22(unittest.TestCase):
 
 
 class TestMission23(unittest.TestCase):
-    # Queue 21 Unit EO — mission 2.3 "The Market Run" (GDD-04
-    # §3.6): buy a week's food at Boro Bazar — a
-    # household_consumption food row for the character's own
-    # household, in Rupsha City. The haggle objective has no
-    # world-state record, so the writer verifies the food
-    # purchase only (EO §3.6).
+    # Queue 21 Unit EO + Queue 22 Unit EV — mission 2.3 "The Market
+    # Run" (GDD-04 §3.6): BOTH objectives — buy a week's food at
+    # Boro Bazar (a household_consumption food row for the
+    # character's own household, in Rupsha City) AND haggle once,
+    # successfully (a `haggle_events` row with outcome 'success'
+    # for the character in d1_market — paid less than asked). EO
+    # verified the food purchase only (no haggle record existed);
+    # EV wires the haggle objective to the record, so food alone
+    # no longer completes 2.3.
 
     def _active_23(self, store, cid):
         ms.make_available(store, cid, "2.3", GM)
         ms.accept_mission(store, cid, "2.3", GM + 100)
+
+    def _haggle(self, store, cid, asked=500, paid=450,
+                zone="d1_market"):
+        return market_mod.record_haggle(store, cid, "food_basket",
+                                        zone, asked, paid, GM)
 
     def _household_with_food(self, store, cid, good="food_basket",
                              units=12.5, district=None):
@@ -730,11 +739,12 @@ class TestMission23(unittest.TestCase):
             (hid, good, units))
         return hid
 
-    def test_food_purchase_completes_2_3(self):
+    def test_food_plus_successful_haggle_completes_2_3(self):
         store = make_store()
         d = data()
         cid = make_person(store, age=25, first="Player")
         self._household_with_food(store, cid)
+        self._haggle(store, cid)
         self._active_23(store, cid)
         self.assertTrue(ms.verify_mission_2_3(store, d, cid, GM + 200))
         before = store.balance(cid)
@@ -745,13 +755,61 @@ class TestMission23(unittest.TestCase):
         # §3.6).
         self.assertEqual(store.balance(cid), before)
 
+    def test_food_without_haggle_does_not_verify(self):
+        store = make_store()
+        d = data()
+        cid = make_person(store, age=25, first="Player")
+        # Food bought, no haggle won: the second objective is
+        # unmet, so the mission does not verify (Unit EV — EO
+        # completed on food alone only because no haggle record
+        # existed then).
+        self._household_with_food(store, cid)
+        self._active_23(store, cid)
+        self.assertFalse(ms.verify_mission_2_3(store, d, cid, GM + 200))
+        self.assertFalse(ms.complete_mission(store, cid, "2.3", GM + 200))
+
     def test_fish_purchase_also_verifies(self):
         store = make_store()
         d = data()
         cid = make_person(store, age=25, first="Player")
         self._household_with_food(store, cid, good="fish", units=3.0)
+        self._haggle(store, cid)
         self._active_23(store, cid)
         self.assertTrue(ms.verify_mission_2_3(store, d, cid, GM + 200))
+
+    def test_failed_haggle_does_not_verify(self):
+        store = make_store()
+        d = data()
+        cid = make_person(store, age=25, first="Player")
+        self._household_with_food(store, cid)
+        # Paid exactly the asked price: a haggle was attempted but
+        # nothing was won — not "successfully".
+        self._haggle(store, cid, asked=500, paid=500)
+        self._active_23(store, cid)
+        self.assertFalse(ms.verify_mission_2_3(store, d, cid, GM + 200))
+
+    def test_haggle_in_another_zone_does_not_verify(self):
+        store = make_store()
+        d = data()
+        cid = make_person(store, age=25, first="Player")
+        self._household_with_food(store, cid)
+        # A haggle won at the riverfront stall is not a Boro Bazar
+        # haggle — the mission's zone_ref is d1_market.
+        self._haggle(store, cid, zone="d1_riverfront")
+        self._active_23(store, cid)
+        self.assertFalse(ms.verify_mission_2_3(store, d, cid, GM + 200))
+
+    def test_another_characters_haggle_does_not_verify(self):
+        store = make_store()
+        d = data()
+        cid = make_person(store, age=25, first="Player")
+        other = make_person(store, age=40, first="Other")
+        self._household_with_food(store, cid)
+        # The other character haggled successfully at Boro Bazar —
+        # not the player's haggle.
+        self._haggle(store, other)
+        self._active_23(store, cid)
+        self.assertFalse(ms.verify_mission_2_3(store, d, cid, GM + 200))
 
     def test_no_food_row_does_not_verify(self):
         store = make_store()
@@ -824,12 +882,59 @@ class TestMission23(unittest.TestCase):
         d = data()
         cid = make_person(store, age=25, first="Player")
         self._household_with_food(store, cid)
+        self._haggle(store, cid)
         self._active_23(store, cid)
         self.assertFalse(ph.photo_mode_unlocked(store, cid))
         ms.verify_mission_2_3(store, d, cid, GM + 200)
         ms.complete_mission(store, cid, "2.3", GM + 300)
         # The gate reads the 1.4 row only (EO §3.6).
         self.assertFalse(ph.photo_mode_unlocked(store, cid))
+
+
+class TestHaggleRecord(unittest.TestCase):
+    # Queue 22 Unit EV — the haggle record itself
+    # (tools/sim/market.py record_haggle / has_successful_haggle,
+    # GDD-04 §3.6 mission 2.3 objective (2)).
+
+    def test_successful_haggle_is_paid_less_than_asked(self):
+        store = make_store()
+        cid = make_person(store, age=25, first="Player")
+        hid = market_mod.record_haggle(store, cid, "food_basket",
+                                       "d1_market", 500, 450, GM)
+        self.assertIsNotNone(hid)
+        row = store.row("SELECT * FROM haggle_events"
+                        " WHERE haggle_id = ?", (hid,))
+        self.assertEqual(row["outcome"], "success")
+        self.assertEqual(row["asked_price_ncr"], 500)
+        self.assertEqual(row["paid_price_ncr"], 450)
+        self.assertTrue(market_mod.has_successful_haggle(store, cid))
+        self.assertTrue(market_mod.has_successful_haggle(
+            store, cid, "d1_market"))
+        self.assertFalse(market_mod.has_successful_haggle(
+            store, cid, "d1_riverfront"))
+
+    def test_paying_the_asked_price_is_a_failed_haggle(self):
+        store = make_store()
+        cid = make_person(store, age=25, first="Player")
+        hid = market_mod.record_haggle(store, cid, "fish",
+                                       "d1_market", 300, 300, GM)
+        self.assertIsNotNone(hid)
+        row = store.row("SELECT * FROM haggle_events"
+                        " WHERE haggle_id = ?", (hid,))
+        self.assertEqual(row["outcome"], "failed")
+        self.assertFalse(market_mod.has_successful_haggle(store, cid))
+
+    def test_paying_over_the_asked_price_is_refused(self):
+        store = make_store()
+        cid = make_person(store, age=25, first="Player")
+        self.assertIsNone(market_mod.record_haggle(
+            store, cid, "food_basket", "d1_market", 500, 501, GM))
+        self.assertIsNone(market_mod.record_haggle(
+            store, cid, "food_basket", "d1_market", 0, 0, GM))
+        self.assertIsNone(market_mod.record_haggle(
+            store, cid, "food_basket", "d1_market", 500, -1, GM))
+        self.assertEqual(store.rows("SELECT * FROM haggle_events"),
+                         [])
 
 
 class TestMission24(unittest.TestCase):

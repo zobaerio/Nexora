@@ -887,6 +887,24 @@ CREATE TABLE IF NOT EXISTS household_consumption (
     unmet_units REAL NOT NULL DEFAULT 0,
     PRIMARY KEY (household_id, month_index, good_id)
 );
+-- haggle_events: Queue 22 Unit EV — one row per haggled purchase
+-- (GDD-04 §3.6, mission 2.3 objective (2)). The stall's asked
+-- price and the price actually paid are both recorded facts; the
+-- outcome is derived from them (paid < asked = success), never
+-- from a discount rate — no source gives one, so none is
+-- invented. The mission 2.3 verifier reads this table.
+CREATE TABLE IF NOT EXISTS haggle_events (
+    haggle_id TEXT PRIMARY KEY,
+    character_id TEXT NOT NULL,
+    good_id TEXT NOT NULL,
+    zone TEXT NOT NULL,
+    outcome TEXT NOT NULL CHECK (outcome IN ('success', 'failed')),
+    asked_price_ncr INTEGER NOT NULL,
+    paid_price_ncr INTEGER NOT NULL,
+    game_minutes INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_haggle_events_character
+    ON haggle_events(character_id, outcome);
 -- SESSION 05 tables (additive only; see SESSION-05-REPORT.md) ------------
 -- The government/politics layer. schema.sql has no government
 -- structures; every table here is a recorded gap. All authority in

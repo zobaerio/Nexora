@@ -328,3 +328,137 @@ def purchase_furniture(store, data, household_id, item_id,
         store, data, head, [item_id], item["tier"],
         home["property_id"], game_minutes, allow_duplicate=True)
     return made[0] if made else None
+
+
+# -- Queue 22 Unit EW: the home-loop purchase decision (GDD-10 §5,
+# ET follow-up) ----------------------------------------------------------
+# DECIDED (recorded in GDD-10 §5): which household buys when.
+# Once a month, per household, in the engine's monthly social pass
+# (AFTER the repair sweep, so the tier is read post-repair — a
+# broken piece the sweep just restored to 90 is standing again
+# and is not re-bought): the household buys the cheapest missing
+# piece of the next tier above its effective tier (None -> F0,
+# F0 -> F1, F1 -> F2, F2 -> F3; F3 buys nothing — the home is
+# full). "Missing" is the standing rule (condition > 0 and not
+# lost/found — `lost_items.furniture_pieces_standing()`), so a
+# broken piece the repair sweep did not restore, a lost piece
+# awaiting hand-back, and a never-held piece are all missing the
+# same way, and a replacement is bought beside the original (the
+# ET second-row rule). "Cheapest" is the catalogue price
+# (prices.json `furniture` via the piece's price_ref); ties
+# resolve in catalogue order (the tiers file order — min() is
+# stable, the first cheapest wins), so the decision is
+# deterministic. Affordability is the household pool as the event
+# charges it: the payer is the event's payer — the head when the
+# head covers the price alone, else the richest member — and that
+# payer's balance must cover the price PLUS one month's current
+# rent (the rent reserve — the household never spends its rent
+# money on furniture; the reserve is the settlement's own rent,
+# `current_rent()`, or 0 when the household pays none). The payer
+# rule is mirrored from the event, not re-decided: charging the
+# head on a richest-member affordability read would spend the
+# head's rent money. A 0-price piece (F0, scavenged) needs no
+# reserve and no affordability check — nothing is spent, so
+# nothing can endanger the rent. One piece per household per
+# month: the purchase itself is `purchase_furniture()` (same
+# payer, same ledger `purchase` row to SYS-MARKET, same seeding);
+# the sweep only decides. Idempotency is the ledger: a household
+# whose members already hold a furniture `purchase` row with
+# event_ref `month:<month_index>` (the event's own tag) has
+# bought this month and is skipped — the engine calls the sweep
+# once per month, and the tag is the backstop, not a new table.
+# A free F0 piece writes no ledger row, so its backstop is the
+# standing rule itself: once bought, the piece stands and is no
+# longer missing. Returns {"purchased": [(household_id, item_id,
+# price_ncr), ...]} — the return is for the caller and the tests.
+
+NEXT_FURNITURE_TIER = {"F0": "F1", "F1": "F2", "F2": "F3"}
+
+
+def _furniture_price(data, item_id):
+    """The catalogue price of one furniture piece (prices.json
+    `furniture` via the piece's price_ref — the same lookup
+    `purchase_furniture()` charges). Raises ValueError on an
+    unknown catalogue id or an unpriced price_ref (the CX rule)."""
+    from . import lost_items as lost_items_mod
+    item = lost_items_mod.furniture_item(data, item_id)
+    if item is None:
+        raise ValueError(
+            f"unknown furniture item {item_id!r}: no catalogue row")
+    prices = {p["id"]: p["price_ncr"]
+              for p in data.prices["furniture"]["items"]}
+    if item["price_ref"] not in prices:
+        raise ValueError(
+            f"furniture item {item_id!r}: price_ref"
+            f" {item['price_ref']!r} has no prices.json furniture"
+            " price")
+    return prices[item["price_ref"]]
+
+
+def monthly_furniture_purchase_sweep(store, data, month_index,
+                                     game_minutes):
+    """The monthly home-loop furniture purchase (Unit EW): one
+    cheapest missing piece of the next tier per household, when
+    the pool covers price + one month's rent. Households with no
+    head, no home, a full (F3) tier, or no missing piece buy
+    nothing; a household that already bought furniture this
+    month (a ledger `purchase` row tagged month:<month_index>
+    from any member) is skipped. Returns {"purchased":
+    [(household_id, item_id, price_ncr), ...]}."""
+    from . import lost_items as lost_items_mod
+    purchased = []
+    for h in store.rows(
+            "SELECT household_id FROM households"
+            " WHERE dissolved_at_game_minutes IS NULL"
+            " ORDER BY household_id"):
+        hid = h["household_id"]
+        head = lost_items_mod.household_head(store, hid)
+        if head is None:
+            continue
+        if home_property(store, hid) is None:
+            continue
+        tier = lost_items_mod.effective_furniture_tier(store, data,
+                                                       head)
+        target = NEXT_FURNITURE_TIER.get(tier) \
+            if tier is not None else "F0"
+        if target is None:
+            continue
+        standing = lost_items_mod.furniture_pieces_standing(store,
+                                                             head)
+        own = data.furniture_file.get("tiers", {}).get(target, [])
+        missing = [p for p in own if p not in standing]
+        if not missing:
+            continue
+        cheapest = min(missing,
+                       key=lambda p: _furniture_price(data, p))
+        price = _furniture_price(data, cheapest)
+        if price > 0:
+            member_ids = [m["character_id"]
+                          for m in members(store, hid)]
+            bought_this_month = store.row(
+                "SELECT 1 FROM economy_ledger WHERE reason_code ="
+                " 'purchase' AND event_ref = ? AND"
+                " from_character_id IN (%s)"
+                % ",".join("?" * len(member_ids)),
+                tuple([f"month:{month_index}"] + member_ids)) \
+                if member_ids else None
+            if bought_this_month is not None:
+                continue
+            # The payer is the event's payer — the head when the
+            # head covers the price alone, else the richest member
+            # (purchase_furniture's own rule, mirrored here so the
+            # reserve protects whoever actually pays: charging the
+            # head on a richest-member affordability read would
+            # spend the head's rent money).
+            payer = head
+            if store.balance(head) < price:
+                payer = max(member_ids,
+                            key=lambda c: store.balance(c))
+            rent = current_rent(store, data, hid) or 0
+            if store.balance(payer) < price + rent:
+                continue
+        made = purchase_furniture(store, data, hid, cheapest,
+                                  month_index, game_minutes)
+        if made is not None:
+            purchased.append((hid, cheapest, price))
+    return {"purchased": purchased}

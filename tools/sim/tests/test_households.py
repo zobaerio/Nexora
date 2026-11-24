@@ -1,11 +1,22 @@
 """Session 02 Unit 02 — Household Management: composition, living
 conditions, leaving home and relocation through life events only."""
+import json
+import os
+import tempfile
 import unittest
 
 from tools.sim.tests.common import (data, employ, make_household,
                                     make_person, make_store)
 from tools.sim import households as hh
+from tools.sim import lost_items as li
 from tools.sim import relationships as rel
+
+
+def _tmp_path():
+    fd, path = tempfile.mkstemp(suffix=".db")
+    os.close(fd)
+    os.remove(path)
+    return path
 
 
 def _stocked_store():
@@ -129,6 +140,191 @@ class TestHouseholds(unittest.TestCase):
         # Moving into an occupied/unpriceable unit is refused.
         self.assertIsNone(hh.move_household(store, d, hid,
                                             ids["cheap"], 3000))
+
+
+class TestMonthlyFurniturePurchase(unittest.TestCase):
+    """Queue 22 Unit EW — the home-loop purchase decision (GDD-10
+    §5): one cheapest missing piece of the next tier per household
+    per month, when the pool covers price + one month's rent."""
+
+    GM = 480
+
+    def _home(self, head_funds=100000, member_funds=0, seed=True):
+        store = make_store()
+        head = make_person(store, age=35, first="Head")
+        member = make_person(store, age=30, first="Member")
+        hid, pid = make_household(store, [head, member])
+        store.transfer(None, head, head_funds, "seed", self.GM)
+        if member_funds:
+            store.transfer(None, member, member_funds, "seed", self.GM)
+        if seed:
+            li.seed_furniture_at_move_in(store, data(), hid, pid,
+                                         self.GM)
+        return store, head, member, hid, pid
+
+    def _set_condition(self, store, iid, value):
+        row = store.row("SELECT state FROM inventory_items"
+                        " WHERE item_instance_id = ?", (iid,))
+        state = json.loads(row["state"])
+        state["condition"] = value
+        store.execute("UPDATE inventory_items SET state = ?"
+                      " WHERE item_instance_id = ?",
+                      (json.dumps(state), iid))
+
+    def test_rich_f1_household_buys_cheapest_f2_piece(self):
+        store, head, _m, hid, _p = self._home()
+        # Rent 4000 (the fixture tenancy); cheapest missing F2
+        # piece is the curtains at 1,000.
+        out = hh.monthly_furniture_purchase_sweep(store, data(), 5,
+                                                  self.GM)
+        self.assertEqual(out["purchased"], [(hid, "curtains", 1000)])
+        self.assertEqual(store.balance(head), 99000)
+        row = store.row(
+            "SELECT * FROM inventory_items WHERE"
+            " owner_character_id = ? AND item_ref = 'curtains'",
+            (head,))
+        self.assertIsNotNone(row)
+        # One F2 piece alone does not raise the tier (GDD-10 §5).
+        self.assertEqual(
+            li.effective_furniture_tier(store, data(), head), "F1")
+
+    def test_poor_household_buys_nothing(self):
+        # 4,500 covers the 1,000 curtains but not the curtains plus
+        # one month's rent (4,000): the rent reserve holds.
+        store, head, _m, hid, _p = self._home(head_funds=4500)
+        out = hh.monthly_furniture_purchase_sweep(store, data(), 5,
+                                                  self.GM)
+        self.assertEqual(out["purchased"], [])
+        self.assertEqual(store.balance(head), 4500)
+        self.assertEqual(store.rows(
+            "SELECT * FROM economy_ledger WHERE reason_code ="
+            " 'purchase'"), [])
+
+    def test_head_payer_is_protected_by_the_reserve(self):
+        # The head covers the price (1,500 > 1,000) but not price
+        # + rent (5,000) — and the head is the event's payer, so
+        # the sweep must NOT buy on the member's balance. Buying
+        # here would spend the head's rent money.
+        store, head, member, hid, _p = self._home(
+            head_funds=1500, member_funds=100000)
+        out = hh.monthly_furniture_purchase_sweep(store, data(), 5,
+                                                  self.GM)
+        self.assertEqual(out["purchased"], [])
+        self.assertEqual(store.balance(head), 1500)
+        self.assertEqual(store.balance(member), 100000)
+
+    def test_exactly_enough_buys(self):
+        # 5,000 is exactly price (1,000) + rent (4,000).
+        store, head, _m, hid, _p = self._home(head_funds=5000)
+        out = hh.monthly_furniture_purchase_sweep(store, data(), 5,
+                                                  self.GM)
+        self.assertEqual(out["purchased"], [(hid, "curtains", 1000)])
+        self.assertEqual(store.balance(head), 4000)
+
+    def test_richest_member_pays(self):
+        # The head cannot cover the price (500 < 1,000), so the
+        # event falls back to the richest member — the sweep
+        # decides on the same payer, and the member pays.
+        store, head, member, hid, _p = self._home(
+            head_funds=500, member_funds=100000)
+        out = hh.monthly_furniture_purchase_sweep(store, data(), 5,
+                                                  self.GM)
+        self.assertEqual(out["purchased"], [(hid, "curtains", 1000)])
+        self.assertEqual(store.balance(head), 500)
+        self.assertEqual(store.balance(member), 99000)
+
+    def test_f3_household_buys_nothing(self):
+        store, head, _m, hid, pid = self._home()
+        li.seed_furniture_rows(store, data(), head,
+                               li.furniture_tier_items(data(), "F3"),
+                               "F3", pid, self.GM)
+        self.assertEqual(
+            li.effective_furniture_tier(store, data(), head), "F3")
+        out = hh.monthly_furniture_purchase_sweep(store, data(), 5,
+                                                  self.GM)
+        self.assertEqual(out["purchased"], [])
+        self.assertEqual(store.balance(head), 100000)
+
+    def test_broken_f0_piece_is_replaced_free(self):
+        store, head, _m, hid, pid = self._home()
+        mattress = store.row(
+            "SELECT item_instance_id FROM inventory_items WHERE"
+            " owner_character_id = ? AND item_ref = 'floor_mattress'",
+            (head,))["item_instance_id"]
+        self._set_condition(store, mattress, 0)
+        self.assertIsNone(
+            li.effective_furniture_tier(store, data(), head))
+        out = hh.monthly_furniture_purchase_sweep(store, data(), 5,
+                                                  self.GM)
+        self.assertEqual(out["purchased"],
+                         [(hid, "floor_mattress", 0)])
+        # An F0 piece costs 0: no money moves, no ledger row.
+        self.assertEqual(store.balance(head), 100000)
+        self.assertEqual(store.rows(
+            "SELECT * FROM economy_ledger WHERE reason_code ="
+            " 'purchase'"), [])
+        # The replacement stands beside the broken original, so
+        # the F0 set stands again — and with every F1 piece
+        # standing, the tier is F1, not F0 (any standing row
+        # counts).
+        self.assertEqual(
+            li.effective_furniture_tier(store, data(), head), "F1")
+
+    def test_one_piece_per_month(self):
+        store, head, _m, hid, _p = self._home()
+        out = hh.monthly_furniture_purchase_sweep(store, data(), 5,
+                                                  self.GM)
+        self.assertEqual(out["purchased"], [(hid, "curtains", 1000)])
+        # A second call in the same month buys nothing (the ledger
+        # tag is the idempotency backstop).
+        out = hh.monthly_furniture_purchase_sweep(store, data(), 5,
+                                                  self.GM)
+        self.assertEqual(out["purchased"], [])
+        # Next month buys the next cheapest F2 piece (bookshelf,
+        # 2,000 — the first 2,000 in catalogue order).
+        out = hh.monthly_furniture_purchase_sweep(store, data(), 6,
+                                                  self.GM + 1440)
+        self.assertEqual(out["purchased"], [(hid, "bookshelf", 2000)])
+        self.assertEqual(store.balance(head), 97000)
+
+
+class TestMonthlyFurniturePurchaseHook(unittest.TestCase):
+    """The engine's monthly social pass calls the purchase sweep:
+    a rich F1 household in a live world holds a bought F2 piece
+    after month end."""
+
+    @classmethod
+    def setUpClass(cls):
+        from tools.sim.engine import Simulation
+        cls.path = _tmp_path()
+        cls.sim = Simulation(cls.path, seed="q22-ew")
+        cls.sim.generate_population(60)
+        cls.store = cls.sim.store
+        cls.data = cls.sim.data
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.sim.close()
+        os.remove(cls.path)
+
+    def test_monthly_social_buys_an_f2_piece(self):
+        head = self.store.row(
+            "SELECT c.character_id FROM characters c JOIN"
+            " household_members hm ON hm.character_id ="
+            " c.character_id AND hm.role = 'head' JOIN households h"
+            " ON h.household_id = hm.household_id WHERE"
+            " c.is_system = 0 AND c.died_at_game_minutes IS NULL"
+            " AND h.home_property_id IS NOT NULL LIMIT 1")
+        if head is None:
+            self.skipTest("no headed household with a home")
+        cid = head["character_id"]
+        self.store.transfer(None, cid, 100000, "seed", 500)
+        self.sim._monthly_social(29)
+        row = self.store.row(
+            "SELECT * FROM inventory_items WHERE"
+            " owner_character_id = ? AND item_ref = 'curtains'",
+            (cid,))
+        self.assertIsNotNone(row)
 
 
 if __name__ == "__main__":

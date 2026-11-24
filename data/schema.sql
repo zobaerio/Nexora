@@ -355,6 +355,29 @@ CREATE TABLE photographs (
 );
 COMMENT ON TABLE photographs IS 'GDD-04 §3.5: one photograph per account per landmark, ever; a photograph writes this row and the discovery_progress row together.';
 
+-- haggle_events (Unit EV · Queue 22 · 2026-11-24 — GDD-04 §3.6,
+-- mission 2.3 objective (2)). The sim table's server-side home,
+-- mirroring tools/sim/persistence.py field-for-field with the same
+-- primary key (the sim uses TEXT sequence ids HG + sequence while
+-- the server keeps UUIDs, the DH id-scheme note). One row per
+-- haggled purchase; outcome is derived from the two recorded
+-- prices (paid < asked = success), never a rate. The Phase 9
+-- forward-only migration creates this table — no migration file is
+-- written by this unit.
+CREATE TABLE haggle_events (
+    haggle_id       UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    character_id    UUID NOT NULL REFERENCES characters(character_id),
+    good_id         TEXT NOT NULL,
+    zone            TEXT NOT NULL,
+    outcome         TEXT NOT NULL CHECK (outcome IN
+                    ('success','failed')),
+    asked_price_ncr BIGINT NOT NULL,
+    paid_price_ncr  BIGINT NOT NULL,
+    game_minutes    BIGINT NOT NULL
+);
+CREATE INDEX idx_haggle_events_character ON haggle_events(character_id, outcome);
+COMMENT ON TABLE haggle_events IS 'GDD-04 §3.6: one row per haggled purchase; outcome derived from asked vs paid price (paid < asked = success); mission 2.3 reads the successful row in d1_market.';
+
 -- Account-level friendships between players (Phase 9 social list).
 -- In-world character relationships live in `relationships`; this table is
 -- the platform-level friend graph between accounts.

@@ -6,6 +6,42 @@ data/prices.json (wages_monthly) at entry / mid / senior tiers.
 Deterministic — no randomness; the same input always produces the
 same report.
 
+What v6 changes vs v5 (Queue 22, Unit EY — the ES day-wage
+follow-up):
+- The construction worker is now modelled on the settlement's
+  day-wage rule (tools/sim/labour.py: paid worked days x
+  (wage_per_month / 30)) instead of the v5 "daily" schedule, which
+  paid (gross-tax)/26 on days 1-26 excluding Sundays — 23 pay days,
+  23/26 of the band in trajectory terms, while the headline net
+  still showed the full band (the trajectory and the headline
+  disagreed by 3/26 of the band). The sim's scheduler gives a
+  construction worker a work block on all 30 days of a normal
+  month (measured: instantiate() over days 0-29 finds work every
+  day — Friday keeps the morning shift, Saturday and Sunday are
+  unmodified), so a normal month pays exactly the band and the
+  headline net/rate for the profession are UNCHANGED by this
+  correction — the fix is the trajectory's internal consistency
+  (it now ends exactly at net, proven by the new end_balance
+  return) and the correct per-day rate. The default run's base
+  table is therefore byte-identical to v5 except for the new
+  day-wage section below — the pinned md5 moves to the v6
+  baseline (the v5 md5 is kept in test_no_regression.py as
+  history).
+- The default run gains a day-wage storm-month section: the
+  measured live month (seeded 30-day engine run, 4 construction
+  workers) had 28 worked days of 30 — days 3 and 22 were storm
+  days, and the scheduler's strong-cover-seeking rule bent both
+  work blocks home (outdoor_work_suspended), so the settlement
+  paid 28/30 of the band (entry 8,400 of 9,000). The section
+  re-runs the three construction tiers at 28 worked days
+  (simulate(..., day_wage_worked_days=28)): gross = band x 28/30,
+  tax recomputed on the reduced gross, the reduced pay accruing
+  evenly (the tool does not model which days storms fall on — the
+  measured run's storm days are recorded in the report, not
+  hardcoded here). No tuning call: the storm month is weather,
+  not a balance problem — the entry row stays above TIGHT.
+- Run: python3 tools/economy_sim.py [--shibnagar] [--v3|--v4]
+
 What v5 adds vs v4 (Queue 9, Unit AX — the Shibnagar variant):
 - A `--shibnagar` flag runs the same 30-day simulation over Shibnagar
   Town's priced residential stock (data/city2-shibnagar.json) instead
@@ -141,6 +177,15 @@ CAR_PROFESSIONS = {"doctor", "business_owner", "pilot"}
 BUSINESS_PROFESSIONS = {"shop_owner", "business_owner"}
 WORK_DAYS = 26
 DAYS = 30
+# Queue 22 / v6 (Unit EY): the ES day wage is wage_per_month / 30 per
+# worked day (tools/sim/labour.py day_wage_due), and the scheduler
+# gives a construction worker a work block on all 30 days of a
+# normal month (measured: instantiate() over days 0-29 finds a work
+# block every day). A normal month therefore has 30 worked days and
+# pays exactly the band. WORK_DAYS stays 26 for the cab-rental
+# extra (a taxi works 26 days — the rental is charged on work days
+# only, the v1 rule, untouched by this unit).
+DAY_WAGE_WORKED_DAYS = 30
 
 
 def load(name):
@@ -218,7 +263,8 @@ def load_shibnagar_rents(prices):
 
 def simulate(prices, wage_row, tier, extra_daily_cost=0, label_suffix="",
              tutoring_income=0, tutoring_expense=0, part_time_income=0,
-             medicine_expense=0, rent_override=None):
+             medicine_expense=0, rent_override=None,
+             day_wage_worked_days=None):
     pid = wage_row["profession_id"]
     band = band_for(wage_row["entry"])
     lc = prices["living_costs_monthly"]
@@ -258,6 +304,23 @@ def simulate(prices, wage_row, tier, extra_daily_cost=0, label_suffix="",
         gross = wage_row[tier]
         tax = monthly_tax(gross, prices["tax"]["income_monthly_brackets"])
         sched = wage_row["pay_schedule"]
+
+    # Queue 22 / v6 (Unit EY): the day-wage profession
+    # (construction_worker — the only "daily" pay_schedule) is paid
+    # per worked day at wage/30 (the ES rule in tools/sim/labour.py
+    # day_wage_due), not the monthly band spread over 26 Sundays-off
+    # days. Worked days default to the scheduler-measured normal
+    # month (DAY_WAGE_WORKED_DAYS = 30 — a work block every day);
+    # a caller modelling a storm month passes the measured count
+    # (the report's storm scenario uses 28). Gross is band x
+    # worked/30 and tax is recomputed on that gross, so a storm
+    # month's lower gross is taxed as a lower gross, exactly as the
+    # settlement taxes the day-wage pay it actually made.
+    if sched == "daily":
+        worked = (DAY_WAGE_WORKED_DAYS if day_wage_worked_days is None
+                  else day_wage_worked_days)
+        gross = round(wage_row[tier] * worked / DAYS)
+        tax = monthly_tax(gross, prices["tax"]["income_monthly_brackets"])
 
     # Lifestyle uplift (Unit V): a fixed percent of the raise above
     # the entry-tier income is consumed by lifestyle.
@@ -305,8 +368,17 @@ def simulate(prices, wage_row, tier, extra_daily_cost=0, label_suffix="",
             if day == DAYS:
                 balance += base_gross - base_tax
         elif sched == "daily":
-            if day <= WORK_DAYS and day % 7 != 0:
-                balance += (base_gross - base_tax) / WORK_DAYS
+            # Queue 22 / v6 (Unit EY): the ES day wage accrues evenly
+            # — wage/30 per worked day, 30 worked days in a normal
+            # month, so the month pays exactly the band. (The tool
+            # does not model which days storms fall on: a storm
+            # scenario accrues its reduced gross the same even way,
+            # and the report records the measured storm days instead
+            # of hardcoding them here.) The v5 branch paid
+            # (gross-tax)/26 on days 1-26 excluding Sundays — 23 pay
+            # days, 23/26 of the band — while the headline net showed
+            # the full band; the trajectory now ends exactly at net.
+            balance += (base_gross - base_tax) / DAYS
         else:  # per_fare / daily_takings: even accrual
             balance += (base_gross - base_tax) / DAYS
         if extra_income_net:
@@ -332,6 +404,12 @@ def simulate(prices, wage_row, tier, extra_daily_cost=0, label_suffix="",
         "net": round(net), "rate": round(rate, 1),
         "min_balance": round(min_balance), "flags": flags, "pnl": pnl,
         "extra_income": extra_income, "extra_expense": extra_expense,
+        # Queue 22 / v6 (Unit EY): the trajectory's final balance —
+        # it must equal net (the trajectory models the same month
+        # the headline figures describe); the v5 daily branch ended
+        # 3/26 of the band short of it, and the no-regression test
+        # pins the equality for every row.
+        "end_balance": round(balance),
     }
 
 
@@ -589,6 +667,30 @@ def main():
     print(f"pacing: civil_engineer/entry saves {ce['net']} NCr/mo -> "
           f"car_small ({car}) in {round(car / ce['net'], 1)} months; "
           f"tier-3 deposit ({deposit}) in {round(deposit / ce['net'], 1)} months")
+
+    # Queue 22 / v6 (Unit EY): the day-wage storm month — the
+    # measured live month (seeded 30-day engine run, 4 construction
+    # workers): 28 worked days of 30, days 3 and 22 storm days with
+    # outdoor work suspended, so the settlement pays 28/30 of the
+    # band. Same costs as the base table (uplift recomputed from
+    # the reduced gross); tax recomputed on the reduced gross; the
+    # reduced pay accrues evenly (the tool does not model which
+    # days storms fall on). No tuning call: the storm month is
+    # weather, not a balance problem.
+    print()
+    print("day-wage storm month (Unit EY — measured 28 worked days of "
+          "30, 2 storm days suspending outdoor work):")
+    print(f"{'profession':28} {'tier':7} {'gross':>7} {'tax':>6} {'rent':>6} "
+          f"{'costs':>6} {'net/mo':>8} {'save%':>6} {'minbal':>8}  flags")
+    for tier in ("entry", "mid", "senior"):
+        r = simulate(prices, bands["construction_worker"], tier,
+                     day_wage_worked_days=28)
+        base = simulate(prices, bands["construction_worker"], tier)
+        print(f"{r['profession']:28} {r['tier']:7} {r['gross']:>7} "
+              f"{r['tax']:>6} {r['rent']:>6} {r['costs_total']:>6} "
+              f"{r['net']:>8} {r['rate']:>6} {r['min_balance']:>8}  "
+              f"{', '.join(r['flags']) or '-'}"
+              f"  (base net {base['net']}, save {base['rate']}%)")
 
     if "--shibnagar" in sys.argv:
         print()
