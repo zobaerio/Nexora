@@ -144,11 +144,34 @@ second earner):
   tier. Refused with any other second earner. The pinned md5
   moves again (the IA md5 is kept in test_no_regression.py as
   history). Honest limit recorded in the report: the tool's
-  single-earner renting-cab row still charges the rental via
+  single-earner renting-cab row charged the rental via
   extra_daily_cost on days ≤ 26 excluding Sundays (23 days =
-  4,600), while the settlement charges 26 days flat (5,200) —
-  the two renting rows disagree by 600/month, and reconciling
-  the single-earner row is a later unit, not this one.
+  4,600 in the trajectory, while the headline net already
+  subtracted the full 5,200) — the two renting rows disagreed
+  by 600/month, and reconciling the single-earner row is
+  Queue 27 Unit JB, which follows the settlement's 26-day
+  charge (see below).
+
+What v7 adds vs v6, Queue 27 Unit JB (the single-earner
+renting-cab row):
+- DECIDED: the single-earner renting-cab row follows the
+  settlement's 26-day charge. The settlement charges
+  `cab_rental_ncr_per_day` × WORK_DAYS (200 × 26 = 5,200/month)
+  flat — no Sunday exclusion, no storm dependence — and the
+  tool's headline net already subtracted that 5,200; only the
+  trajectory charged the v1 23-day rule (4,600), so the row's
+  trajectory ended 600 above its own net. The v1 rule's Sunday
+  exclusion was a leftover of the v5 daily schedule (which paid
+  on 23 days); v6 already moved construction pay off that
+  schedule, and no source gives the rental a day-of-week rule.
+  The trajectory now charges `extra_daily_cost` on days 1–26
+  (the sourced WORK_DAYS count) — the row charges exactly
+  5,200 in the trajectory and ends exactly at net (1,300). The
+  base table's renting row and its bridge line do NOT move:
+  minbal stays 0 and net stays 1,300, so the default-run output
+  is byte-identical and the pinned md5 does not move (the JA
+  baseline stands). Only the row's `end_balance` moves (1,900
+  → 1,300), from inconsistent to exact.
 
 What v7 adds vs v6, Queue 26 Unit IA (the two-earner bridge
 line):
@@ -167,6 +190,24 @@ line):
   20,000 — corrected here against professions.json. A failing
   mixed line joins BRIDGE FAIL. The pinned md5 moves again
   (the HD md5 is kept in test_no_regression.py as history).
+
+What v7 adds vs v6, Queue 27 Unit JA (the remaining
+two-earner bridge lines):
+- The bridge check prints the three two-earner lines IA left
+  prose-only: the GD same-tier household (a second construction
+  worker at the same tier) and the IC other-tier pairings (a
+  mid-tier taxi driver, an entry civil engineer as second
+  earner). Each line is the combined canonical start (each
+  earner brings their own genesis balance — population.py seeds
+  starting_balance_ncr per profession: construction worker
+  5,000, taxi driver 5,000, civil engineer 25,000) plus the
+  worst minbal (the minimum across the first earner's tiers and
+  the four storm positions): same-tier 10,000 − 1,231 = 8,769;
+  mid-tier taxi-second 10,000 − 0 = 10,000; entry
+  civil-engineer-second 30,000 − 3,210 = 26,790. A failing line
+  joins BRIDGE FAIL. No two-earner bridge figure is report-only
+  now. The pinned md5 moves again (the IC md5 is kept in
+  test_no_regression.py as history).
 
 What v7 adds vs v6, Queue 24 Unit GE (the storm-position bridge
 line):
@@ -358,8 +399,10 @@ DAYS = 30
 # normal month (measured: instantiate() over days 0-29 finds a work
 # block every day). A normal month therefore has 30 worked days and
 # pays exactly the band. WORK_DAYS stays 26 for the cab-rental
-# extra (a taxi works 26 days — the rental is charged on work days
-# only, the v1 rule, untouched by this unit).
+# extra (a taxi works 26 days — the rental is charged on days
+# 1–26, the settlement's flat 200 × 26; Queue 27 Unit JB drops
+# the v1 Sunday exclusion, which charged only 23 days in the
+# trajectory).
 DAY_WAGE_WORKED_DAYS = 30
 # Queue 23 / v7 (Unit FB): the storm-position scenario — the two
 # storm days of the measured 28-worked-day month, at three
@@ -763,7 +806,23 @@ def simulate(prices, wage_row, tier, extra_daily_cost=0, label_suffix="",
     balance, min_balance = 0.0, 0.0
     for day in range(1, DAYS + 1):
         balance -= daily_cost
-        if extra_daily_cost and day <= WORK_DAYS and day % 7 != 0:
+        # Queue 27 / Unit JB: the single-earner renting-cab row
+        # follows the settlement's rental charge — 200 NCr/day ×
+        # WORK_DAYS (26) = 5,200/month flat (engine._settle_month
+        # charges rental_day × WORK_DAYS, with no Sunday
+        # exclusion and no storm dependence). The v1 rule charged
+        # the rental only on days ≤ 26 excluding Sundays (23
+        # days = 4,600 in the trajectory, while the headline net
+        # already subtracted the full 5,200 — so the trajectory
+        # ended 600 above net, the same class of inconsistency
+        # Unit EY fixed for the v5 daily branch). The Sunday
+        # exclusion was a leftover of the v5 daily schedule,
+        # which paid on 23 days; v6 already moved construction
+        # pay off that schedule. Charging on days 1–26 (the
+        # sourced WORK_DAYS count, the tool's existing
+        # convention for the row) makes the trajectory charge
+        # exactly extra_monthly, so it ends exactly at net.
+        if extra_daily_cost and day <= WORK_DAYS:
             balance -= extra_daily_cost
         if sched == "monthly":
             if day == DAYS:
@@ -1145,6 +1204,65 @@ def main():
                       f" start {mixed_start:>6} + mixed dip "
                       f"{worst_mixed:>7} = {mixed_worst:>7}  "
                       f"{mixed_status}  (worst mixed storm position)")
+            # Queue 27 / Unit JA: the remaining two-earner
+            # bridge lines — the GD same-tier worst dip and the
+            # IC other-tier worst dips, wired the same way as
+            # IA's mixed lines: the combined canonical start
+            # (each earner brings their own genesis balance)
+            # plus the worst minbal (the minimum across the
+            # first earner's tiers and the four storm positions).
+            # Same-tier: senior early −1,231 against 2 × 5,000
+            # = 10,000. Mid-tier taxi-second: 0 against 10,000.
+            # Entry civil-engineer-second: −3,210 against
+            # 5,000 + 25,000 = 30,000. A failing line joins
+            # BRIDGE FAIL — with these three lines, no
+            # two-earner bridge figure is report-only.
+            worst_same = min(
+                simulate(prices, bands["construction_worker"],
+                         tier, storm_days=pos,
+                         second_earner=True)["min_balance"]
+                for tier in ("entry", "mid", "senior")
+                for pos in (STORM_EARLY_DAYS, STORM_MID_DAYS,
+                            STORM_LATE_DAYS, STORM_MEASURED_DAYS))
+            same_start = 2 * start_balances["construction_worker"]
+            same_worst = same_start + worst_same
+            same_status = ("OK" if same_worst >= 0
+                           else "BRIDGE FAIL")
+            if same_worst < 0:
+                bridge_fail.append(
+                    "construction_worker + construction_worker")
+            print(f"  {'construction_worker + construction-worker':36}"
+                  f" start {same_start:>6} + same-tier dip "
+                  f"{worst_same:>7} = {same_worst:>7}  "
+                  f"{same_status}  (worst same-tier storm position)")
+            for second_pid, second_tier, second_label in (
+                    ("taxi_driver", "mid", "taxi-driver (mid)"),
+                    ("civil_engineer", "entry",
+                     "civil-engineer (entry)")):
+                worst_other = min(
+                    simulate(prices, bands["construction_worker"],
+                             tier, storm_days=pos,
+                             second_earner=second_pid,
+                             second_earner_tier=second_tier)
+                    ["min_balance"]
+                    for tier in ("entry", "mid", "senior")
+                    for pos in (STORM_EARLY_DAYS, STORM_MID_DAYS,
+                                STORM_LATE_DAYS,
+                                STORM_MEASURED_DAYS))
+                other_start = (start_balances["construction_worker"]
+                               + start_balances[second_pid])
+                other_worst = other_start + worst_other
+                other_status = ("OK" if other_worst >= 0
+                                else "BRIDGE FAIL")
+                if other_worst < 0:
+                    bridge_fail.append(
+                        f"construction_worker + {second_pid}"
+                        f" ({second_tier})")
+                print(f"  {'construction_worker + ' + second_label:36}"
+                      f" start {other_start:>6} + other-tier dip "
+                      f"{worst_other:>7} = {other_worst:>7}  "
+                      f"{other_status}  (worst other-tier storm"
+                      " position)")
     # The renting-cab variant shares the taxi driver's starting balance.
     rent_row = next(r for r in rows if "renting" in r["profession"])
     start = start_balances.get("taxi_driver", 0)
