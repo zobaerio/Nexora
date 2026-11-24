@@ -1099,3 +1099,208 @@ not move (the KA baseline stands).
 **Open, recorded:** the taxi weather surge (item 6) — the
 settlement scales taxi gross by rain/storm days and the tool
 models taxi pay flat; Queue 29 Unit KC.
+
+## 16. Addendum — Taxi weather surge (Unit KC, Queue 29)
+
+**Date:** 2026-11-24. **Method:** re-run the EY live month
+exactly (`Simulation`, seed `ey-measure`,
+`generate_population(60)`, 32 days) and read the month-1
+weather presets from `daily_weather` and every taxi driver's
+settled month-1 wage from `economy_ledger` (the `wage` row at
+`game_minutes` 43,200) against the band in `employments`.
+The tool change is `simulate(..., taxi_rain_days=...,
+taxi_storm_days=...)` — the caller names the month's weather
+counts and the tool applies the settlement's own formula.
+
+**Measured: the EY month's weather is 2 rain days, 2 storm
+days — taxi_factor 1.05.** Rain falls on day_index 2 and 28,
+storm on day_index 3 and 22 (the same storm days GC measured);
+`1 + 0.25 × 2/30 + 0.5 × 2/30 = 1.05` exactly. All six taxi
+drivers in the world settled at exactly band × 1.05 — entry
+14,000 → 14,700, mid 23,000 → 24,150, senior 36,000 → 37,800
+— every one paid by SYS-EMPLOYERS (no business employer, no
+treasury employer in the world), so the settled grosses are
+14,700 / 24,150 / 37,800. The Priya-household taxi earner
+(Rasel Begum, `NEX000041`, head of `HH000022` — the household
+GC §6 records as the taxi-driver second earner at 14,000)
+settled 14,700: the surge applies to a second earner exactly
+as to a single earner, because the settlement scales every
+taxi earner's gross in the same household loop.
+
+**DECIDED: model it — the tool now scales taxi gross by the
+settlement's formula.** The alternative (record the
+difference and leave the tool flat) was rejected: the formula
+is source-given (`engine._settle_month`), its inputs are
+measured counts from a seeded run, the effect is material
+(+455 to +1,080 net a month on the single-earner rows), and
+the tool already models weather-dependent pay parametrically
+(`storm_days` for the construction worker) — a weather input
+with no model would leave the same class of gap FB closed.
+The model follows the settlement exactly: the gross is scaled
+first and the tax and the lifestyle uplift are recomputed on
+the surged gross (the settlement taxes what it paid and
+computes the uplift on it), the rental stays the flat 5,200
+(the settlement charges it unsurged), and weather counts
+outside a taxi row are refused. The base table stays flat —
+the canonical bands — and the KC section below is the weather
+scenario, at the measured month's weather.
+
+Single-earner taxi rows, flat vs surged at the EY month's
+weather (gross, tax, uplift, net):
+
+| Tier | Flat gross | Surged gross | Flat net | Surged net | Delta |
+|---|---:|---:|---:|---:|---:|
+| entry | 14,000 | 14,700 | 6,500 | 6,955 | +455 |
+| mid | 23,000 | 24,150 | 11,950 | 12,641 | +691 |
+| senior | 36,000 | 37,800 | 19,750 | 20,830 | +1,080 |
+| entry (renting cab) | 14,000 | 14,700 | 1,300 | 1,755 | +455 |
+
+The entry driver's uplift appears only under the surge (245:
+35% of the 700 above the entry band) — the flat entry row has
+none, because its gross equals its entry wage. The mid
+driver's surged tax is 457, not 458: the 5% band starts at
+15,001 in `prices.json`, so 5% falls on 24,150 − 15,001 =
+9,149. The renting row's net rises by the same +455 as the
+owning entry row — the rental does not scale.
+
+Taxi-driver second earner, early-position minbal and net,
+flat vs surged:
+
+| Second earner | First-earner tier | Early flat | Early surged | Net flat | Net surged |
+|---|---|---:|---:|---:|---:|
+| entry, owning | entry | 0 | 0 | 10,700 | 11,155 |
+| entry, owning | mid | 0 | 0 | 13,944 | 14,399 |
+| entry, owning | senior | −72 | −42 | 17,401 | 17,856 |
+| mid, owning | entry | 0 | 0 | 16,150 | 16,841 |
+| mid, owning | mid | 0 | 0 | 19,394 | 20,085 |
+| mid, owning | senior | 0 | 0 | 22,851 | 23,542 |
+| mid, renting | entry | 0 | 0 | 10,950 | 11,641 |
+| mid, renting | mid | 0 | 0 | 14,194 | 14,885 |
+| mid, renting | senior | −56 | −9 | 17,651 | 18,342 |
+
+**Finding: the surge shrinks both early dips but closes
+neither.** The HD senior dip −72 → −42 and the KA renting
+senior dip −56 → −9 — the surged taxi pay (791/day against
+781/day of household cost at senior) almost covers the two
+storm-less days, but not quite. The measured position dips 0 flat and surged for
+every pairing and tier. The surge can only raise a taxi gross
+(the factor is ≥ 1 for any weather), so the flat bridge lines
+are the conservative case and they stand unchanged — no
+bridge line is re-wired, and the KA line (10,000 − 56 =
+9,944) is still the worst renting case the tool prints.
+
+Verbatim output (new default-run section):
+
+```
+taxi weather-surge month (Unit KC — the EY month's weather: 2 rain days, 2 storm days, taxi_factor 1.05; taxi gross x 1.05, tax and uplift recomputed on the surged gross):
+profession                   tier    flat gross  surged flat net surged net delta net
+taxi_driver                  entry        14000   14700     6500       6955      +455
+taxi_driver                  mid          23000   24150    11950      12641      +691
+taxi_driver                  senior       36000   37800    19750      20830     +1080
+taxi_driver (renting cab)    entry        14000   14700     1300       1755      +455
+
+taxi-driver second earner weather-surge month (Unit KC — same EY weather; early-position minbal flat vs surged, net flat vs surged; the measured position dips 0 flat and surged for every pairing and tier):
+second earner                tier    early flat early surged net flat net surged
+taxi-driver (entry, owning)  entry            0            0    10700      11155
+taxi-driver (entry, owning)  mid              0            0    13944      14399
+taxi-driver (entry, owning)  senior         -72          -42    17401      17856
+taxi-driver (mid, owning)    entry            0            0    16150      16841
+taxi-driver (mid, owning)    mid              0            0    19394      20085
+taxi-driver (mid, owning)    senior           0            0    22851      23542
+taxi-driver (mid, renting)   entry            0            0    10950      11641
+taxi-driver (mid, renting)   mid              0            0    14194      14885
+taxi-driver (mid, renting)   senior         -56           -9    17651      18342
+```
+
+**Honest limit, recorded:** the surge is applied in exactly
+one settlement place — the SYS-EMPLOYERS branch of
+`engine._settle_month`. A taxi driver employed by a business
+is paid by `_pay_business_wages`, which consults
+`labour.wage_due_for` (the plain monthly wage, no factor),
+so a business-employed taxi driver settles unsurged. The EY
+world holds no business-employed taxi driver (all six are
+SYS-EMPLOYERS-paid), so that path is a code read, not a
+measurement — the tool's rows are the SYS-EMPLOYERS case,
+which is the case the world actually produces. Whether
+business-employed taxi drivers should surge is a settlement
+question, not a tool one, and is recorded open — not queued
+as tool work.
+
+Full default-run md5: `f6cec5a23109c4e7f9aeff3f7361e89d` (KA:
+`5f50931cbaad263812473ce1c7830e59` — kept in
+`test_no_regression.py` as history). The only diff vs KA is
+this section; the §9/§11/§12/§14 sections, the bridge lines,
+the base table and all other rows are unchanged.
+
+**No tuning call.** Nothing in the data moves.
+
+**Open, recorded:** the business-employed taxi driver's
+unsurged pay (above) — a settlement question, not a tool
+gap; the Shibnagar variant's bridge check still prints
+single-earner lines only — Queue 29 Unit KD.
+
+## 17. Addendum — Two-earner lines in the Shibnagar variant (Unit KD, Queue 29)
+
+**Date:** 2026-11-24. **Method:** re-run the two-earner
+households on Shibnagar rents — `simulate(..., rent_override
+= rents[SHIBNAGAR_RENT_TIER["construction_worker"]])` — for
+every pairing (same-tier, taxi-driver entry, taxi-driver mid,
+taxi-driver mid renting, civil-engineer mid, civil-engineer
+entry), every first-earner tier and every storm position, and
+compare minbal, net and end balance against the District 1
+run; then wire the six bridge lines into
+`print_shibnagar_variant`'s bridge check, computed on the
+variant's own rents rather than quoted from District 1.
+
+**Verified: the figures are identical — 90 two-earner rows,
+0 differences.** Shibnagar's tier-1 rent is the prices.json
+tier-1 rent (2,500 — asserted by `load_shibnagar_rents`, not
+assumed), and the two-earner first earner is always the
+construction worker (tier 1), so the identity holds by
+construction — and it is verified, not asserted: all 90 rows
+(6 pairings × 3 tiers × 4 storm positions, plus the
+even-spread rows) agree on minbal, net and end balance, and
+the worst dip per pairing agrees too:
+
+| Second earner | Worst dip | Combined start | Bridge line |
+|---|---:|---:|---|
+| taxi-driver (entry, owning) | −72 | 10,000 | 10,000 − 72 = 9,928 |
+| civil-engineer (mid, owning) | −8,623 | 30,000 | 30,000 − 8,623 = 21,377 |
+| construction-worker (same tier) | −1,231 | 10,000 | 10,000 − 1,231 = 8,769 |
+| taxi-driver (mid, owning) | 0 | 10,000 | 10,000 − 0 = 10,000 |
+| civil-engineer (entry, owning) | −3,210 | 30,000 | 30,000 − 3,210 = 26,790 |
+| taxi-driver (mid, renting) | −56 | 10,000 | 10,000 − 56 = 9,944 |
+
+The variant's bridge check now prints all six lines, with the
+same combined starts and the same worst-dip rule as District
+1 — a failing line would join `shibnagar BRIDGE FAIL` (none
+fails). No two-earner bridge figure is variant-only any more:
+the single-earner lines were already printed by the variant,
+and the storm-position line for the single construction
+worker is still District 1 only — that line is about the
+first earner's own storm dip, not a two-earner household, and
+it stays out of this unit's scope.
+
+Verbatim output (the Shibnagar bridge check now):
+
+```
+shibnagar first-month bridge check (same starting balances):
+  construction_worker    start   5000 + dip       0 =    5000  OK
+  construction_worker + taxi-driver    start  10000 + mixed dip     -72 =    9928  OK  (worst mixed storm position)
+  construction_worker + civil-engineer start  30000 + mixed dip   -8623 =   21377  OK  (worst mixed storm position)
+  construction_worker + construction-worker start  10000 + same-tier dip   -1231 =    8769  OK  (worst same-tier storm position)
+  construction_worker + taxi-driver (mid) start  10000 + other-tier dip       0 =   10000  OK  (worst other-tier storm position)
+  construction_worker + civil-engineer (entry) start  30000 + other-tier dip   -3210 =   26790  OK  (worst other-tier storm position)
+  construction_worker + taxi-driver (mid, renting) start  10000 + renting dip     -56 =    9944  OK  (worst renting storm position)
+```
+
+The KC baseline stands: the pinned md5 does not move — the
+KD wiring touches only the `--shibnagar` output, and the
+default run is byte-identical.
+
+**No tuning call.** Nothing in the data moves.
+
+**Open, recorded:** the single-earner storm-position line is
+still District 1 only (above) — a small asymmetry, not a
+gap in any household figure; the business-employed taxi
+driver's unsurged pay (§16) stays a settlement question.

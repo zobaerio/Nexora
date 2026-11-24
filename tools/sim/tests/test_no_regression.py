@@ -12,10 +12,12 @@ import unittest
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__),
                                     "..", "..", ".."))
 # Pinned default-run md5 of tools/economy_sim.py.
-# v7 + Queue 28 baseline (Unit KA, 2026-11-24): the
-# renting-cab second earner at another tier (KA).
-# See docs/ECONOMY-SIM-REPORT-V7.md §14.
-# Previous baseline (v7 + Queue 27, Unit JA):
+# v7 + Queue 29 baseline (Unit KC, 2026-11-24): the
+# taxi weather surge (KC).
+# See docs/ECONOMY-SIM-REPORT-V7.md §16.
+# Previous baseline (v7 + Queue 28, Unit KA):
+# 5f50931cbaad263812473ce1c7830e59. Previous baseline (v7 +
+# Queue 27, Unit JA):
 # b70b18972aeb5c3b2d0273b986060058. Previous baseline (v7 +
 # Queue 26, Unit IC):
 # d198a2fe0970e11aaa105bcc4bfb19f9. Previous baseline (v7 +
@@ -34,7 +36,7 @@ ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__),
 # 2026-11-24 through Queue 22): 9ac10779c231b7aa6120a6ff457982de.
 # v5 baseline: 318c6114c143a81a579e70b39ccca8f8. v2 baseline (pinned
 # 2026-11-21 through v3): 16740182867525bd659735deeb05150a.
-ECONOMY_SIM_BASELINE_MD5 = "5f50931cbaad263812473ce1c7830e59"
+ECONOMY_SIM_BASELINE_MD5 = "f6cec5a23109c4e7f9aeff3f7361e89d"
 
 
 class TestDayWageModelling(unittest.TestCase):
@@ -1232,6 +1234,374 @@ class TestSundayExclusionAudit(unittest.TestCase):
                       if ln.strip().startswith("taxi_factor"))
         self.assertIn("rain_days", factor)
         self.assertIn("storm_days", factor)
+
+
+class TestTaxiWeatherSurge(unittest.TestCase):
+    def test_taxi_weather_factor_is_measured(self):
+        from tools import economy_sim as econ
+        # The EY month's weather (seed ey-measure: rain on
+        # day_index 2 and 28, storm on 3 and 22) is 2 rain days
+        # + 2 storm days; the settlement's formula gives
+        # exactly 1.05 — and all six taxi drivers in that
+        # world settled at exactly band × 1.05.
+        self.assertEqual(
+            econ.TAXI_WEATHER_MEASURED_RAIN_DAYS, 2)
+        self.assertEqual(
+            econ.TAXI_WEATHER_MEASURED_STORM_DAYS, 2)
+        self.assertEqual(
+            econ.taxi_weather_factor(2, 2), 1.05)
+        self.assertEqual(
+            econ.taxi_weather_factor(
+                econ.TAXI_WEATHER_MEASURED_RAIN_DAYS,
+                econ.TAXI_WEATHER_MEASURED_STORM_DAYS), 1.05)
+        # No weather, no surge — and the factor can never
+        # fall below 1, so a flat taxi row is the
+        # conservative case.
+        self.assertEqual(econ.taxi_weather_factor(0, 0), 1.0)
+        self.assertGreater(econ.taxi_weather_factor(30, 0), 1.0)
+        self.assertGreater(econ.taxi_weather_factor(0, 30), 1.0)
+
+    def test_single_earner_taxi_surge_is_measured(self):
+        from tools import economy_sim as econ
+        prices = econ.load("prices.json")
+        wages = {w["profession_id"]: w
+                 for w in prices["wages_monthly"]}
+        # Flat vs surged at the EY month's weather: the gross
+        # is band × 1.05, the tax and the uplift are recomputed
+        # on the surged gross (the settlement taxes what it
+        # paid), and the trajectory still ends at net.
+        for tier, gross, tax, uplift, net in (
+                ("entry", 14700, 0, 245, 6955),
+                ("mid", 24150, 457, 3552, 12641),
+                ("senior", 37800, 1140, 8330, 20830)):
+            flat = econ.simulate(prices, wages["taxi_driver"],
+                                 tier)
+            surged = econ.simulate(
+                prices, wages["taxi_driver"], tier,
+                taxi_rain_days=econ
+                .TAXI_WEATHER_MEASURED_RAIN_DAYS,
+                taxi_storm_days=econ
+                .TAXI_WEATHER_MEASURED_STORM_DAYS)
+            self.assertEqual(surged["gross"], gross, tier)
+            self.assertEqual(surged["tax"], tax, tier)
+            self.assertEqual(surged["uplift"], uplift, tier)
+            self.assertEqual(surged["net"], net, tier)
+            self.assertEqual(surged["taxi_factor"], 1.05, tier)
+            self.assertEqual(flat["taxi_factor"], 1.0, tier)
+            self.assertEqual(surged["end_balance"], surged["net"],
+                             tier)
+            self.assertEqual(surged["min_balance"], 0, tier)
+        # The surge is the only change: the flat row is the
+        # canonical band, untouched.
+        flat = econ.simulate(prices, wages["taxi_driver"], "mid")
+        self.assertEqual((flat["gross"], flat["tax"], flat["net"]),
+                         (23000, 400, 11950))
+
+    def test_renting_cab_single_earner_surge(self):
+        from tools import economy_sim as econ
+        prices = econ.load("prices.json")
+        wages = {w["profession_id"]: w
+                 for w in prices["wages_monthly"]}
+        cab = prices["taxi_fares"]["cab_rental_ncr_per_day"]
+        # The surge lifts the gross; the rental stays the
+        # flat 5,200 — the settlement charges it unsurged —
+        # so the net rises by exactly the surged-gross gain
+        # less the uplift on it (455 at entry).
+        flat = econ.simulate(prices, wages["taxi_driver"], "entry",
+                             extra_daily_cost=cab,
+                             label_suffix=" (renting cab)")
+        surged = econ.simulate(
+            prices, wages["taxi_driver"], "entry",
+            extra_daily_cost=cab, label_suffix=" (renting cab)",
+            taxi_rain_days=econ.TAXI_WEATHER_MEASURED_RAIN_DAYS,
+            taxi_storm_days=econ.TAXI_WEATHER_MEASURED_STORM_DAYS)
+        self.assertEqual((flat["gross"], flat["net"]), (14000, 1300))
+        self.assertEqual((surged["gross"], surged["net"]),
+                         (14700, 1755))
+        self.assertEqual(surged["end_balance"], surged["net"])
+        self.assertEqual(surged["extra"], 5200)
+        owning = econ.simulate(
+            prices, wages["taxi_driver"], "entry",
+            taxi_rain_days=econ.TAXI_WEATHER_MEASURED_RAIN_DAYS,
+            taxi_storm_days=econ.TAXI_WEATHER_MEASURED_STORM_DAYS)
+        self.assertEqual(surged["costs_total"]
+                         - owning["costs_total"], 5200)
+
+    def test_taxi_second_earner_surge_is_measured(self):
+        from tools import economy_sim as econ
+        prices = econ.load("prices.json")
+        w = next(w for w in prices["wages_monthly"]
+                 if w["profession_id"] == "construction_worker")
+        # The surge shrinks both early dips — the HD senior
+        # dip and the KA renting senior dip — but closes
+        # neither; the measured position dips 0 flat and
+        # surged for every pairing and tier; the nets rise by
+        # the second earner's surged-gross gain (+455 entry,
+        # +691 mid).
+        cases = (
+            ({"second_earner": "taxi_driver"}, "senior", -72, -42,
+             17401, 17856),
+            ({"second_earner": "taxi_driver",
+              "second_earner_tier": "mid"}, "senior", 0, 0,
+             22851, 23542),
+            ({"second_earner": "taxi_driver",
+              "second_earner_tier": "mid",
+              "second_earner_renting_cab": True}, "senior", -56, -9,
+             17651, 18342),
+        )
+        for kw, tier, dip, surged_dip, net, surged_net in cases:
+            flat = econ.simulate(
+                prices, w, tier, storm_days=econ.STORM_EARLY_DAYS,
+                **kw)
+            surged = econ.simulate(
+                prices, w, tier, storm_days=econ.STORM_EARLY_DAYS,
+                taxi_rain_days=econ.TAXI_WEATHER_MEASURED_RAIN_DAYS,
+                taxi_storm_days=econ.TAXI_WEATHER_MEASURED_STORM_DAYS,
+                **kw)
+            self.assertEqual(flat["min_balance"], dip, tier)
+            self.assertEqual(surged["min_balance"], surged_dip,
+                             tier)
+            self.assertEqual(flat["net"], net, tier)
+            self.assertEqual(surged["net"], surged_net, tier)
+            self.assertEqual(surged["end_balance"], surged["net"],
+                             tier)
+        for kw in ({"second_earner": "taxi_driver"},
+                   {"second_earner": "taxi_driver",
+                    "second_earner_tier": "mid"},
+                   {"second_earner": "taxi_driver",
+                    "second_earner_tier": "mid",
+                    "second_earner_renting_cab": True}):
+            for tier in ("entry", "mid", "senior"):
+                for pos in (econ.STORM_EARLY_DAYS,
+                            econ.STORM_MID_DAYS, econ.STORM_LATE_DAYS,
+                            econ.STORM_MEASURED_DAYS):
+                    flat = econ.simulate(prices, w, tier,
+                                         storm_days=pos, **kw)
+                    surged = econ.simulate(
+                        prices, w, tier, storm_days=pos,
+                        taxi_rain_days=econ
+                        .TAXI_WEATHER_MEASURED_RAIN_DAYS,
+                        taxi_storm_days=econ
+                        .TAXI_WEATHER_MEASURED_STORM_DAYS, **kw)
+                    # The surge can only shrink a dip, never
+                    # deepen one — so the flat bridge lines are
+                    # the conservative case.
+                    self.assertGreaterEqual(
+                        surged["min_balance"], flat["min_balance"],
+                        f"{tier}/{pos}")
+                    self.assertEqual(surged["end_balance"],
+                                     surged["net"], f"{tier}/{pos}")
+        # The measured position dips nothing, flat or surged.
+        for kw in ({"second_earner": "taxi_driver"},
+                   {"second_earner": "taxi_driver",
+                    "second_earner_tier": "mid"},
+                   {"second_earner": "taxi_driver",
+                    "second_earner_tier": "mid",
+                    "second_earner_renting_cab": True}):
+            for tier in ("entry", "mid", "senior"):
+                flat = econ.simulate(
+                    prices, w, tier,
+                    storm_days=econ.STORM_MEASURED_DAYS, **kw)
+                surged = econ.simulate(
+                    prices, w, tier,
+                    storm_days=econ.STORM_MEASURED_DAYS,
+                    taxi_rain_days=econ
+                    .TAXI_WEATHER_MEASURED_RAIN_DAYS,
+                    taxi_storm_days=econ
+                    .TAXI_WEATHER_MEASURED_STORM_DAYS, **kw)
+                self.assertEqual(flat["min_balance"], 0,
+                                 f"{tier}")
+                self.assertEqual(surged["min_balance"], 0,
+                                 f"{tier}")
+
+    def test_taxi_weather_refusals(self):
+        from tools import economy_sim as econ
+        prices = econ.load("prices.json")
+        wages = {w["profession_id"]: w
+                 for w in prices["wages_monthly"]}
+        w = wages["construction_worker"]
+        # No taxi gross to scale: a monthly row, a day-wage
+        # row with no taxi earner, and a civil-engineer
+        # second earner all refuse.
+        with self.assertRaises(ValueError):
+            econ.simulate(prices, wages["teacher"], "entry",
+                          taxi_rain_days=2, taxi_storm_days=2)
+        with self.assertRaises(ValueError):
+            econ.simulate(prices, w, "entry", taxi_rain_days=2)
+        with self.assertRaises(ValueError):
+            econ.simulate(prices, w, "entry",
+                          second_earner="civil_engineer",
+                          taxi_rain_days=2)
+        # The counts are day counts in one 30-day month.
+        with self.assertRaises(ValueError):
+            econ.simulate(prices, wages["taxi_driver"], "entry",
+                          taxi_rain_days=31)
+        with self.assertRaises(ValueError):
+            econ.simulate(prices, wages["taxi_driver"], "entry",
+                          taxi_storm_days=-1)
+        with self.assertRaises(ValueError):
+            econ.simulate(prices, wages["taxi_driver"], "entry",
+                          taxi_rain_days=20, taxi_storm_days=11)
+        with self.assertRaises(ValueError):
+            econ.simulate(prices, wages["taxi_driver"], "entry",
+                          taxi_rain_days=2.5)
+        # A business P&L is not a wage: no taxi weather there.
+        with self.assertRaises(ValueError):
+            econ.simulate(prices, wages["shop_owner"], "entry",
+                          taxi_rain_days=2)
+
+    def test_taxi_surge_section_is_printed(self):
+        import subprocess
+        out = subprocess.run(
+            [sys.executable, os.path.join(ROOT, "tools",
+                                          "economy_sim.py")],
+            capture_output=True, cwd=ROOT)
+        self.assertEqual(out.returncode, 0)
+        text = out.stdout.decode()
+        self.assertIn(
+            "taxi weather-surge month (Unit KC — the EY month's "
+            "weather: 2 rain days, 2 storm days, taxi_factor"
+            " 1.05", text)
+        self.assertIn(
+            "taxi_driver                  entry        14000"
+            "   14700     6500       6955      +455", text)
+        self.assertIn(
+            "taxi_driver (renting cab)    entry        14000"
+            "   14700     1300       1755      +455", text)
+        self.assertIn(
+            "taxi-driver second earner weather-surge month"
+            " (Unit KC", text)
+        self.assertIn(
+            "taxi-driver (mid, renting)   senior         -56"
+            "           -9    17651      18342", text)
+        # The bridge lines stay flat — the KC section is the
+        # only diff vs the KA baseline.
+        self.assertIn(
+            "construction_worker + taxi-driver (mid, renting)"
+            " start  10000 + renting dip     -56 =    9944  OK"
+            "  (worst renting storm position)", text)
+        self.assertIn("BRIDGE FAIL rows: []", text)
+
+
+class TestShibnagarTwoEarnerBridge(unittest.TestCase):
+    def test_two_earner_rows_are_identical_on_shibnagar_rents(
+            self):
+        from tools import economy_sim as econ
+        prices = econ.load("prices.json")
+        rents, _stock = econ.load_shibnagar_rents(prices)
+        # Shibnagar's tier-1 rent is the prices.json tier-1
+        # rent (2,500) — asserted by load_shibnagar_rents,
+        # not assumed — and the two-earner first earner is
+        # always the construction worker (tier 1), so the
+        # figures must be identical by construction.
+        tier1 = next(r["rent_ncr"]
+                     for r in prices["rent_monthly_by_tier"]
+                     if r["tier"] == 1)
+        self.assertEqual(rents[1], tier1)
+        self.assertEqual(
+            rents[econ.SHIBNAGAR_RENT_TIER["construction_worker"]],
+            tier1)
+        w = next(w for w in prices["wages_monthly"]
+                 if w["profession_id"] == "construction_worker")
+        override = rents[1]
+        pairings = (
+            {"second_earner": True},
+            {"second_earner": "taxi_driver"},
+            {"second_earner": "taxi_driver",
+             "second_earner_tier": "mid"},
+            {"second_earner": "taxi_driver",
+             "second_earner_tier": "mid",
+             "second_earner_renting_cab": True},
+            {"second_earner": "civil_engineer"},
+            {"second_earner": "civil_engineer",
+             "second_earner_tier": "entry"},
+        )
+        positions = (econ.STORM_EARLY_DAYS, econ.STORM_MID_DAYS,
+                     econ.STORM_LATE_DAYS, econ.STORM_MEASURED_DAYS)
+        checked = 0
+        for kw in pairings:
+            for tier in ("entry", "mid", "senior"):
+                for pos in positions:
+                    d1 = econ.simulate(prices, w, tier,
+                                       storm_days=pos, **kw)
+                    sh = econ.simulate(prices, w, tier,
+                                       storm_days=pos,
+                                       rent_override=override,
+                                       **kw)
+                    self.assertEqual(sh["min_balance"],
+                                     d1["min_balance"],
+                                     f"{kw}/{tier}/{pos}")
+                    self.assertEqual(sh["net"], d1["net"],
+                                     f"{kw}/{tier}/{pos}")
+                    self.assertEqual(sh["end_balance"],
+                                     d1["end_balance"],
+                                     f"{kw}/{tier}/{pos}")
+                    checked += 1
+        self.assertEqual(checked, 72)
+
+    def test_shibnagar_bridge_check_prints_two_earner_lines(
+            self):
+        import subprocess
+        out = subprocess.run(
+            [sys.executable, os.path.join(ROOT, "tools",
+                                          "economy_sim.py"),
+             "--shibnagar"],
+            capture_output=True, cwd=ROOT)
+        self.assertEqual(out.returncode, 0)
+        text = out.stdout.decode()
+        # All six two-earner lines, with the District 1
+        # figures — the variant's check now stands on its own
+        # rents instead of leaving the lines to the D1 run.
+        for line in (
+                "construction_worker + taxi-driver    start"
+                "  10000 + mixed dip     -72 =    9928  OK"
+                "  (worst mixed storm position)",
+                "construction_worker + civil-engineer start"
+                "  30000 + mixed dip   -8623 =   21377  OK"
+                "  (worst mixed storm position)",
+                "construction_worker + construction-worker"
+                " start  10000 + same-tier dip   -1231 ="
+                "    8769  OK  (worst same-tier storm position)",
+                "construction_worker + taxi-driver (mid) start"
+                "  10000 + other-tier dip       0 =   10000  OK"
+                "  (worst other-tier storm position)",
+                "construction_worker + civil-engineer (entry)"
+                " start  30000 + other-tier dip   -3210 ="
+                "   26790  OK  (worst other-tier storm position)",
+                "construction_worker + taxi-driver (mid, renting)"
+                " start  10000 + renting dip     -56 =    9944"
+                "  OK  (worst renting storm position)"):
+            self.assertIn(line, text)
+        self.assertIn("shibnagar BRIDGE FAIL rows: []", text)
+
+    def test_shibnagar_two_earner_lines_match_district1(self):
+        import subprocess
+        d1 = subprocess.run(
+            [sys.executable, os.path.join(ROOT, "tools",
+                                          "economy_sim.py")],
+            capture_output=True, cwd=ROOT)
+        sh = subprocess.run(
+            [sys.executable, os.path.join(ROOT, "tools",
+                                          "economy_sim.py"),
+             "--shibnagar"],
+            capture_output=True, cwd=ROOT)
+        self.assertEqual(d1.returncode, 0)
+        self.assertEqual(sh.returncode, 0)
+        d1_text, sh_text = d1.stdout.decode(), sh.stdout.decode()
+        # Every two-earner bridge line the D1 run prints, the
+        # variant prints with the same figures.
+        for label in ("construction_worker + taxi-driver ",
+                      "construction_worker + civil-engineer ",
+                      "construction_worker + construction-worker",
+                      "construction_worker + taxi-driver (mid)",
+                      "construction_worker + civil-engineer (entry)",
+                      "construction_worker + taxi-driver (mid,"
+                      " renting)"):
+            d1_line = next(ln for ln in d1_text.splitlines()
+                           if ln.strip().startswith(label))
+            sh_line = next(ln for ln in sh_text.splitlines()
+                           if ln.strip().startswith(label))
+            self.assertEqual(sh_line, d1_line, label)
 
 
 class TestNoRegression(unittest.TestCase):

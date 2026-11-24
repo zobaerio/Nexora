@@ -436,6 +436,16 @@ STORM_EARLY_DAYS = (1, 2)
 STORM_MID_DAYS = (15, 16)
 STORM_LATE_DAYS = (29, 30)
 STORM_MEASURED_DAYS = (4, 23)
+# Queue 29 / v7 (Unit KC): the taxi weather surge — the EY
+# month's weather (seed ey-measure, 60 population, 32 days:
+# rain on day_index 2 and 28, storm on day_index 3 and 22)
+# is 2 rain days + 2 storm days, so the settlement's
+# taxi_factor is exactly 1.05. Only the counts are the
+# scenario inputs (the settlement's formula uses counts, not
+# positions); the day indices are recorded in
+# docs/ECONOMY-SIM-REPORT-V7.md §16.
+TAXI_WEATHER_MEASURED_RAIN_DAYS = 2
+TAXI_WEATHER_MEASURED_STORM_DAYS = 2
 # Queue 25 / v7 (Unit HD): the mixed-profession second earner —
 # the settlement's measured pairings (V7 report §6: Priya's
 # household has a taxi-driver second earner at 14,000, Mariam's
@@ -469,6 +479,17 @@ def monthly_tax(income, brackets):
         if top > lo:
             tax += (top - lo) * rate / 100.0
     return round(tax)
+
+
+def taxi_weather_factor(rain_days, storm_days):
+    """Queue 29 / v7 (Unit KC): the settlement's taxi surge —
+    engine._settle_month scales a taxi driver's gross by
+    1 + 0.25 × rain_days/30 + 0.5 × storm_days/30, where the
+    counts are the month's weather presets (rain_days + storm
+    days ≤ 30 — one preset per day). The factor is ≥ 1 for any
+    weather, so a flat taxi row is the conservative case: the
+    surge can only raise a taxi gross, never lower it."""
+    return 1 + 0.25 * rain_days / 30 + 0.5 * storm_days / 30
 
 
 def business_pnl(prices, pid, tier):
@@ -530,7 +551,8 @@ def simulate(prices, wage_row, tier, extra_daily_cost=0, label_suffix="",
              medicine_expense=0, rent_override=None,
              day_wage_worked_days=None, storm_days=None,
              second_earner=False, second_earner_renting_cab=False,
-             second_earner_tier=None):
+             second_earner_tier=None,
+             taxi_rain_days=None, taxi_storm_days=None):
     pid = wage_row["profession_id"]
     band = band_for(wage_row["entry"])
     lc = prices["living_costs_monthly"]
@@ -621,6 +643,54 @@ def simulate(prices, wage_row, tier, extra_daily_cost=0, label_suffix="",
         raise ValueError(
             "storm_days is a day-wage scenario (construction_worker"
             f" only); {pid} pays {sched}")
+
+    # Queue 29 / v7 (Unit KC): the taxi weather surge — the
+    # settlement scales a taxi driver's gross by
+    # taxi_weather_factor(rain_days, storm_days)
+    # (engine._settle_month), while the tool modelled taxi pay
+    # flat. The caller names the month's weather counts; each
+    # must be an integer day count in 0..30 and the two together
+    # at most 30 (one preset per day — a day cannot be both rain
+    # and storm). The surge is meaningful only on a taxi row —
+    # the single-earner taxi driver, or a household with a taxi
+    # second earner — and is refused anywhere else (a monthly
+    # or day-wage row has no taxi gross to scale; a business
+    # P&L is not a wage). The factor defaults to 1.0, so a call
+    # without weather is byte-identical to the flat model.
+    taxi_weather_given = (taxi_rain_days is not None
+                          or taxi_storm_days is not None)
+    rain_days = 0 if taxi_rain_days is None else taxi_rain_days
+    storm_days_taxi = (0 if taxi_storm_days is None
+                       else taxi_storm_days)
+    if taxi_weather_given:
+        for name, count in (("taxi_rain_days", rain_days),
+                            ("taxi_storm_days", storm_days_taxi)):
+            if not isinstance(count, int) or isinstance(count, bool) \
+                    or count < 0 or count > DAYS:
+                raise ValueError(
+                    f"{name} must be a day count in 0..{DAYS};"
+                    f" got {count!r}")
+        if rain_days + storm_days_taxi > DAYS:
+            raise ValueError(
+                "taxi rain days + storm days cannot exceed the"
+                f" {DAYS}-day month; got {rain_days} +"
+                f" {storm_days_taxi}")
+        if pid != "taxi_driver" and second_earner != "taxi_driver":
+            raise ValueError(
+                "taxi weather days scale a taxi gross — the"
+                " single-earner taxi driver or a taxi second"
+                f" earner; {pid} has no taxi gross to scale")
+    taxi_factor = taxi_weather_factor(rain_days, storm_days_taxi)
+    if pid == "taxi_driver":
+        # The surge lands on the gross before tax and uplift —
+        # the settlement taxes the surged gross and computes
+        # the uplift on it (engine._settle_month), so both are
+        # recomputed here; the uplift below reads the surged
+        # gross. The rental (extra_daily_cost) is untouched:
+        # the settlement charges it flat, unsurged.
+        gross = round(gross * taxi_factor)
+        tax = monthly_tax(gross, prices["tax"]
+                          ["income_monthly_brackets"])
 
     # Lifestyle uplift (Unit V): a fixed percent of the raise above
     # the entry-tier income is consumed by lifestyle.
@@ -735,6 +805,15 @@ def simulate(prices, wage_row, tier, extra_daily_cost=0, label_suffix="",
             w2 = next(w for w in prices["wages_monthly"]
                       if w["profession_id"] == second_pid)
             second_gross = w2[second_tier]
+            if second_pid == "taxi_driver":
+                # Queue 29 / v7 (Unit KC): the surge lands on
+                # the second earner's gross too — the settlement
+                # scales every taxi earner's gross in the
+                # household loop, head or second earner alike —
+                # and the tax and uplift below are computed on
+                # the surged gross, as the settlement does. The
+                # rental (second_rental, below) stays flat.
+                second_gross = round(second_gross * taxi_factor)
             second_tax = monthly_tax(
                 second_gross, prices["tax"]["income_monthly_brackets"])
             second_uplift = round(max(0, second_gross - w2["entry"])
@@ -927,6 +1006,10 @@ def simulate(prices, wage_row, tier, extra_daily_cost=0, label_suffix="",
         # 26 worked days = 5,200/month.
         "second_earner_renting_cab": second_earner_renting_cab,
         "second_earner_rental": second_rental,
+        # Queue 29 / v7 (Unit KC): the taxi weather-surge
+        # factor applied to a taxi gross in this row (1.0 when
+        # no weather is named — the flat model).
+        "taxi_factor": taxi_factor,
         # Queue 22 / v6 (Unit EY): the trajectory's final balance —
         # it must equal net (the trajectory models the same month
         # the headline figures describe); the v5 daily branch ended
@@ -1064,6 +1147,19 @@ def print_shibnagar_variant(prices, d1_rows, start_balances):
     print()
     print("shibnagar first-month bridge check (same starting balances):")
     bridge_fail = []
+    bands = {w["profession_id"]: w for w in prices["wages_monthly"]}
+    # Queue 29 / v7 (Unit KD): the two-earner bridge lines —
+    # the same IA/JA/KA lines the District 1 check prints,
+    # re-run on Shibnagar rents. The first earner is the
+    # construction worker (tier 1) in every pairing, and
+    # Shibnagar's tier-1 rent is the prices.json tier-1 rent
+    # (2,500 — asserted by load_shibnagar_rents, not assumed),
+    # so the figures are identical by construction — verified
+    # live by the KD tests (all 90 two-earner rows equal). The
+    # lines are wired here rather than quoted from the District
+    # 1 run, so the variant's check stands on its own rents; a
+    # failing line joins BRIDGE FAIL, as in District 1.
+    shib_rent = rents[SHIBNAGAR_RENT_TIER["construction_worker"]]
     for r in rows:
         if r["tier"] != "entry" or r["pid"] == "taxi_driver" and "renting" in r["profession"]:
             continue
@@ -1073,6 +1169,110 @@ def print_shibnagar_variant(prices, d1_rows, start_balances):
         if worst < 0:
             bridge_fail.append(r["pid"])
         print(f"  {r['pid']:22} start {start:>6} + dip {r['min_balance']:>7} = {worst:>7}  {status}")
+        if r["pid"] == "construction_worker":
+            # Unit IA (Queue 26): the mixed two-earner bridge
+            # lines — the worst mixed minbal per second-earner
+            # profession, against the combined canonical start.
+            for second_pid, second_label in (
+                    ("taxi_driver", "taxi-driver"),
+                    ("civil_engineer", "civil-engineer")):
+                worst_mixed = min(
+                    simulate(prices, bands["construction_worker"],
+                             tier, storm_days=pos,
+                             rent_override=shib_rent,
+                             second_earner=second_pid)["min_balance"]
+                    for tier in ("entry", "mid", "senior")
+                    for pos in (STORM_EARLY_DAYS, STORM_MID_DAYS,
+                                STORM_LATE_DAYS, STORM_MEASURED_DAYS))
+                mixed_start = (start_balances["construction_worker"]
+                               + start_balances[second_pid])
+                mixed_worst = mixed_start + worst_mixed
+                mixed_status = ("OK" if mixed_worst >= 0
+                                else "BRIDGE FAIL")
+                if mixed_worst < 0:
+                    bridge_fail.append(
+                        f"construction_worker + {second_pid}")
+                print(f"  {'construction_worker + ' + second_label:36}"
+                      f" start {mixed_start:>6} + mixed dip "
+                      f"{worst_mixed:>7} = {mixed_worst:>7}  "
+                      f"{mixed_status}  (worst mixed storm position)")
+            # Unit JA (Queue 27): the GD same-tier line and the
+            # IC other-tier lines, wired the same way.
+            worst_same = min(
+                simulate(prices, bands["construction_worker"],
+                         tier, storm_days=pos,
+                         rent_override=shib_rent,
+                         second_earner=True)["min_balance"]
+                for tier in ("entry", "mid", "senior")
+                for pos in (STORM_EARLY_DAYS, STORM_MID_DAYS,
+                            STORM_LATE_DAYS, STORM_MEASURED_DAYS))
+            same_start = 2 * start_balances["construction_worker"]
+            same_worst = same_start + worst_same
+            same_status = ("OK" if same_worst >= 0
+                           else "BRIDGE FAIL")
+            if same_worst < 0:
+                bridge_fail.append(
+                    "construction_worker + construction_worker")
+            print(f"  {'construction_worker + construction-worker':36}"
+                  f" start {same_start:>6} + same-tier dip "
+                  f"{worst_same:>7} = {same_worst:>7}  "
+                  f"{same_status}  (worst same-tier storm position)")
+            for second_pid, second_tier, second_label in (
+                    ("taxi_driver", "mid", "taxi-driver (mid)"),
+                    ("civil_engineer", "entry",
+                     "civil-engineer (entry)")):
+                worst_other = min(
+                    simulate(prices, bands["construction_worker"],
+                             tier, storm_days=pos,
+                             rent_override=shib_rent,
+                             second_earner=second_pid,
+                             second_earner_tier=second_tier)
+                    ["min_balance"]
+                    for tier in ("entry", "mid", "senior")
+                    for pos in (STORM_EARLY_DAYS, STORM_MID_DAYS,
+                                STORM_LATE_DAYS,
+                                STORM_MEASURED_DAYS))
+                other_start = (start_balances["construction_worker"]
+                               + start_balances[second_pid])
+                other_worst = other_start + worst_other
+                other_status = ("OK" if other_worst >= 0
+                                else "BRIDGE FAIL")
+                if other_worst < 0:
+                    bridge_fail.append(
+                        f"construction_worker + {second_pid}"
+                        f" ({second_tier})")
+                print(f"  {'construction_worker + ' + second_label:36}"
+                      f" start {other_start:>6} + other-tier dip "
+                      f"{worst_other:>7} = {other_worst:>7}  "
+                      f"{other_status}  (worst other-tier storm"
+                      " position)")
+            # Unit KA (Queue 28): the renting mid-tier
+            # taxi-second bridge line, wired the same way.
+            worst_rent_mid = min(
+                simulate(prices, bands["construction_worker"],
+                         tier, storm_days=pos,
+                         rent_override=shib_rent,
+                         second_earner="taxi_driver",
+                         second_earner_tier="mid",
+                         second_earner_renting_cab=True)
+                ["min_balance"]
+                for tier in ("entry", "mid", "senior")
+                for pos in (STORM_EARLY_DAYS, STORM_MID_DAYS,
+                            STORM_LATE_DAYS, STORM_MEASURED_DAYS))
+            rent_mid_start = (start_balances["construction_worker"]
+                              + start_balances["taxi_driver"])
+            rent_mid_worst = rent_mid_start + worst_rent_mid
+            rent_mid_status = ("OK" if rent_mid_worst >= 0
+                               else "BRIDGE FAIL")
+            if rent_mid_worst < 0:
+                bridge_fail.append(
+                    "construction_worker + taxi_driver"
+                    " (mid, renting)")
+            print(f"  {'construction_worker + taxi-driver (mid, renting)'}"
+                  f" start {rent_mid_start:>6} + renting dip "
+                  f"{worst_rent_mid:>7} = {rent_mid_worst:>7}  "
+                  f"{rent_mid_status}  (worst renting storm"
+                  " position)")
     rent_row = next(r for r in rows if "renting" in r["profession"])
     start = start_balances.get("taxi_driver", 0)
     worst = start + rent_row["min_balance"]
@@ -1682,6 +1882,96 @@ def main():
               f"{even['min_balance']:>7}  (net {early['net']})"
               f"  {owning_early['min_balance']:>12} "
               f"{owning_measured['min_balance']:>15}")
+
+    # Queue 29 / v7 (Unit KC): the taxi weather surge — the
+    # settlement scales a taxi driver's gross by taxi_factor =
+    # 1 + 0.25 × rain_days/30 + 0.5 × storm_days/30
+    # (engine._settle_month), while the tool modelled taxi pay
+    # flat. The EY month's weather (seed ey-measure: rain on
+    # day_index 2 and 28, storm on 3 and 22) is 2 rain days +
+    # 2 storm days, factor exactly 1.05 — measured, not
+    # assumed: all six taxi drivers in that world settled at
+    # exactly band × 1.05. simulate(..., taxi_rain_days=...,
+    # taxi_storm_days=...) scales the taxi gross by the
+    # settlement's formula, with tax and uplift recomputed on
+    # the surged gross as the settlement does; the rental stays
+    # the flat 5,200. The base table stays flat — the canonical
+    # bands — and this section is the weather scenario. The
+    # bridge check stays flat too: the factor is ≥ 1 for any
+    # weather, so the flat lines are the conservative case —
+    # the surge only ever shrinks a dip, as the early figures
+    # below show. No tuning call.
+    print()
+    print("taxi weather-surge month (Unit KC — the EY month's "
+          "weather: 2 rain days, 2 storm days, taxi_factor 1.05;"
+          " taxi gross x 1.05, tax and uplift recomputed on the"
+          " surged gross):")
+    print(f"{'profession':28} {'tier':7} {'flat gross':>10} "
+          f"{'surged':>7} {'flat net':>8} {'surged net':>10} "
+          f"{'delta net':>9}")
+    for tier in ("entry", "mid", "senior"):
+        flat = simulate(prices, bands["taxi_driver"], tier)
+        surged = simulate(
+            prices, bands["taxi_driver"], tier,
+            taxi_rain_days=TAXI_WEATHER_MEASURED_RAIN_DAYS,
+            taxi_storm_days=TAXI_WEATHER_MEASURED_STORM_DAYS)
+        print(f"{flat['profession']:28} {flat['tier']:7} "
+              f"{flat['gross']:>10} {surged['gross']:>7} "
+              f"{flat['net']:>8} {surged['net']:>10} "
+              f"{surged['net'] - flat['net']:+9d}")
+    cab_rent = prices["taxi_fares"]["cab_rental_ncr_per_day"]
+    flat = simulate(prices, bands["taxi_driver"], "entry",
+                    extra_daily_cost=cab_rent,
+                    label_suffix=" (renting cab)")
+    surged = simulate(
+        prices, bands["taxi_driver"], "entry",
+        extra_daily_cost=cab_rent,
+        label_suffix=" (renting cab)",
+        taxi_rain_days=TAXI_WEATHER_MEASURED_RAIN_DAYS,
+        taxi_storm_days=TAXI_WEATHER_MEASURED_STORM_DAYS)
+    print(f"{flat['profession']:28} {flat['tier']:7} "
+          f"{flat['gross']:>10} {surged['gross']:>7} "
+          f"{flat['net']:>8} {surged['net']:>10} "
+          f"{surged['net'] - flat['net']:+9d}")
+    # The same surge on the taxi second earner: the early
+    # position is where the dips live (the measured position
+    # dips 0 flat and surged for every pairing and tier), so
+    # the table prints the early minbal flat vs surged beside
+    # the net flat vs surged. The surge shrinks both early
+    # dips — the HD senior dip and the KA renting senior dip —
+    # but closes neither.
+    print()
+    print("taxi-driver second earner weather-surge month (Unit KC"
+          " — same EY weather; early-position minbal flat vs"
+          " surged, net flat vs surged; the measured position"
+          " dips 0 flat and surged for every pairing and tier):")
+    print(f"{'second earner':28} {'tier':7} {'early flat':>10} "
+          f"{'early surged':>12} {'net flat':>8} {'net surged':>10}")
+    for second_label, second_kw in (
+            ("taxi-driver (entry, owning)",
+             {"second_earner": "taxi_driver"}),
+            ("taxi-driver (mid, owning)",
+             {"second_earner": "taxi_driver",
+              "second_earner_tier": "mid"}),
+            ("taxi-driver (mid, renting)",
+             {"second_earner": "taxi_driver",
+              "second_earner_tier": "mid",
+              "second_earner_renting_cab": True})):
+        for tier in ("entry", "mid", "senior"):
+            w = bands["construction_worker"]
+            early = simulate(prices, w, tier,
+                             storm_days=STORM_EARLY_DAYS,
+                             **second_kw)
+            early_surged = simulate(
+                prices, w, tier, storm_days=STORM_EARLY_DAYS,
+                taxi_rain_days=TAXI_WEATHER_MEASURED_RAIN_DAYS,
+                taxi_storm_days=TAXI_WEATHER_MEASURED_STORM_DAYS,
+                **second_kw)
+            print(f"{second_label:28} {tier:7} "
+                  f"{early['min_balance']:>10} "
+                  f"{early_surged['min_balance']:>12} "
+                  f"{early['net']:>8} "
+                  f"{early_surged['net']:>10}")
 
     if "--shibnagar" in sys.argv:
         print()
