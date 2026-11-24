@@ -54,12 +54,19 @@ OWNER_CAPITAL_BY_TIER = {1: 30000, 2: 80000, 3: 150000, 4: 150000,
 
 # Opening inventory by category (units). SIM MODEL seed stock —
 # recorded as genesis_stock movements, never sold into existence.
+# Queue 25 Unit HB: retail also seeds household_supplies (2,
+# like clothing_set) — the monthly shopping pass buys one
+# household-month unit per household (market.retail_allocation),
+# and before HB no household ever wanted supplies, so no shelf
+# ever held it and the want would buy nothing. The seed is the
+# same SIM MODEL stock as the other retail goods, not a price.
 GENESIS_STOCK = {
     "agriculture": {"agricultural_produce": 30},
     "fishing": {"fish": 10},
     "food_processing": {"agricultural_produce": 30},
     "manufacturing": {"manufactured_goods": 10},
-    "retail": {"food_basket": 6, "fish": 4, "clothing_set": 2},
+    "retail": {"food_basket": 6, "fish": 4, "clothing_set": 2,
+               "household_supplies": 2},
     "food_service": {"food_basket": 6},
 }
 OWNER_CATEGORY = {"shop_owner": "retail",

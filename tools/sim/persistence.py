@@ -905,6 +905,49 @@ CREATE TABLE IF NOT EXISTS haggle_events (
 );
 CREATE INDEX IF NOT EXISTS idx_haggle_events_character
     ON haggle_events(character_id, outcome);
+-- purchase_audit + takings_audit: Queue 25 Unit HC — the
+-- per-good purchase audit (GDD-03 §2, GB follow-up). DECIDED:
+-- the combined settlement `purchase` row stays (one row per
+-- earner over all living-cost lines — the settlement contract is
+-- unchanged); the per-good split is recorded BESIDE it, by the
+-- pass that knows the facts. purchase_audit is one row per
+-- (household, month, good): the intended spend (the want at the
+-- paid price — the household's goods-side claim on the settled
+-- payment), the spend (what the shelves actually gave — the same
+-- figure as household_consumption), and the residual (the
+-- unmet-want shortfall value, derived as intended − spend, so
+-- intended = spend + residual holds exactly). takings_audit is
+-- one row per (city, month, good): the spend (Σ household
+-- spend), the system takings (the retail_takings ledger
+-- transfers the draw wrote), and the owner share (spend −
+-- takings — the value of the goods drawn from owner-run shelves
+-- at the paid price, which has no ledger row of its own because
+-- their P&L is the settlement's; derived, so spend = takings +
+-- owner holds exactly; the per-seller draw behind it is in
+-- inventory_movements). Together: the month's per-good purchase
+-- in reconciles to the takings out + the residual, per good.
+-- No ledger row is added by either table: the audit is a record,
+-- not a payment.
+CREATE TABLE IF NOT EXISTS purchase_audit (
+    household_id TEXT NOT NULL,
+    month_index INTEGER NOT NULL,
+    good_id TEXT NOT NULL,
+    intended_spend_ncr INTEGER NOT NULL DEFAULT 0,
+    spend_ncr INTEGER NOT NULL DEFAULT 0,
+    residual_ncr INTEGER NOT NULL DEFAULT 0,
+    game_minutes INTEGER NOT NULL,
+    PRIMARY KEY (household_id, month_index, good_id)
+);
+CREATE TABLE IF NOT EXISTS takings_audit (
+    city_id TEXT NOT NULL,
+    month_index INTEGER NOT NULL,
+    good_id TEXT NOT NULL,
+    spend_ncr INTEGER NOT NULL DEFAULT 0,
+    system_takings_ncr INTEGER NOT NULL DEFAULT 0,
+    owner_share_ncr INTEGER NOT NULL DEFAULT 0,
+    game_minutes INTEGER NOT NULL,
+    PRIMARY KEY (city_id, month_index, good_id)
+);
 -- SESSION 05 tables (additive only; see SESSION-05-REPORT.md) ------------
 -- The government/politics layer. schema.sql has no government
 -- structures; every table here is a recorded gap. All authority in

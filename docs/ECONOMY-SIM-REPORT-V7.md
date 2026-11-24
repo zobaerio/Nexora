@@ -10,7 +10,9 @@ not a measured one" (GDD-03 §2).
 ## 1. What was open
 
 The v6 storm month pays 28/30 of the construction band (the
-measured live month: 28 worked days, storm days 3 and 22) and
+measured live month: 28 worked days, storm days 4 and 23 — the
+1-based days; Queue 25 Unit HA corrects FB's "(3, 22)", which
+were the 0-based day indices, see §6) and
 accrues that reduced pay evenly — (gross − tax)/30 every day.
 The month-1 minimum balance it prints (0 for every tier) is the
 even-spread figure: the household is never below zero because a
@@ -31,8 +33,10 @@ storm day. The total is still exactly gross − tax, so the
 trajectory still ends at net for every position (pinned by a
 test). The count is the measured live month (28 worked days);
 the positions are scenarios — early (days 1–2), mid (15–16),
-late (29–30) — plus the measured position (days 3 and 22,
-where the live month's storms actually fell). A `storm_days`
+late (29–30) — plus the measured position (days 4 and 23,
+where the live month's storms actually fell — corrected by
+Unit HA, Queue 25, from FB's (3, 22), the 0-based day indices).
+A `storm_days`
 that disagrees with `day_wage_worked_days`, names a day outside
 1..30, or repeats a day is refused, as is `storm_days` for any
 non-day-wage profession.
@@ -41,9 +45,9 @@ Measured month-1 minimum balance, by storm position (net is the
 same for every position — the month pays the same 28/30 of the
 band whatever the days):
 
-| Tier | Early (1–2) | Mid (15–16) | Late (29–30) | Measured (3, 22) | Even (v6) | Net/mo |
+| Tier | Early (1–2) | Mid (15–16) | Late (29–30) | Measured (4, 23) | Even (v6) | Net/mo |
 |---|---:|---:|---:|---:|---:|---:|
-| entry | −500 | 0 | 0 | −150 | 0 | 900 |
+| entry | −500 | 0 | 0 | −100 | 0 | 900 |
 | mid | −595 | 0 | 0 | 0 | 0 | 4,144 |
 | senior | −726 | 0 | 0 | 0 | 0 | 7,601 |
 
@@ -55,10 +59,11 @@ storm days at the start are −500 before any pay lands. Mid costs
 banked 14 days of surplus (entry: 14 × 50 = 700), so two
 cost-only days (500) never take it below zero; by day 29 it has
 banked 28 days (1,400) and the month ends at net. Why the
-measured position dips only the entry row: on day 3 the entry
-household has banked two days (+100) and then pays a cost-only
-day (−250), reaching −150; mid and senior have banked more by
-then (mid +339, senior +595) and stay above zero.
+measured position dips only the entry row: on day 4 the entry
+household has banked three days (+150) and then pays a
+cost-only day (−250), reaching −100; mid and senior have banked
+more by then (mid +508, senior +892) and stay above zero (+210 /
++529 after the storm day).
 
 ## 3. What v7 changes
 
@@ -96,12 +101,12 @@ construction_worker          mid       13067      0   2500   8923     4144   31.
 construction_worker          senior    18667    183   2500  10883     7601   40.7        0  -  (base net 8400, save 42.0%)
 ```
 
-New day-wage storm-position section (v7 — measured minbal per position):
+New day-wage storm-position section (v7 — measured minbal per position; corrected by Unit HA, Queue 25 — v7 as printed showed −150 in the measured column; the tool now prints −100, see §6):
 
 ```
 day-wage storm-position month (Unit FB — same 28 worked days of 30; month-1 minbal by storm position):
 profession                   tier      early     mid    late measured    even  (net/mo)
-construction_worker          entry      -500       0       0     -150       0  (net 900)
+construction_worker          entry      -500       0       0     -100       0  (net 900)
 construction_worker          mid        -595       0       0        0       0  (net 4144)
 construction_worker          senior     -726       0       0        0       0  (net 7601)
 ```
@@ -117,7 +122,7 @@ and all other rows are unchanged.
 - **Storm timing is measured now, and the v6 figure understated
   the dip.** The even-spread minbal (0 for every tier) is the
   shallowest case, not the typical one: the measured position
-  (days 3 and 22) already dips the entry row to −150, and the
+  (days 4 and 23) already dips the entry row to −100, and the
   early position dips it to −500 (mid −595, senior −726). A storm
   month's minimum balance is a measured figure per position now,
   and the v6 figure is labelled for what it is — the
@@ -136,7 +141,7 @@ and all other rows are unchanged.
   the settlement measures it per world rather than the tool
   assuming it.
 - **Open, recorded:** the positions are scenarios, not a
-  forecast — only the measured position (days 3 and 22) is where
+  forecast — only the measured position (days 4 and 23) is where
   a real month's storms fell, and a real month's storm count
   comes from the settlement's weather, not from this tool. The
   tool still models a single-earner household on the base table's
@@ -253,13 +258,16 @@ construction worker is +89 / 0 in absolute NCr, with the
 household's second earner, arrears and other income doing the
 work the tool does not model.
 
-**Open, recorded (Queue 25 material):** correct
-`STORM_MEASURED_DAYS` to (4, 23) or relabel the (3, 22)
-position as 0-based day indices; the tool's daily trajectory
-has no settlement counterpart while pay and costs settle
-monthly; the taxi-fare drain vs the flat transport line is
-unmodelled; the bridge check's 5,000 start is canonical, not
-settled.
+**Open, recorded (Queue 25 material — Units HA + HE DONE
+2026-11-24):** `STORM_MEASURED_DAYS` is corrected to (4, 23)
+— the tool's own model at the true position dips entry to
+−100, not −150; the pinned md5 moved to
+`ede430d0bf391fac3f8599334f55b77b` at HA and to
+`5431558ffa3d023c436366c26535f932` at HD (the earlier md5s are
+kept in `test_no_regression.py` as history). The settlement-
+timing decision is Unit HE, DONE — see §10: the tool stays a
+stylised daily model, and the taxi-fare drain and the
+randomised start are recorded there as documented limits.
 
 ## 7. Addendum — Two-earner storm-position scenario (Unit GD, Queue 24)
 
@@ -281,9 +289,9 @@ every position; only the month-1 minimum balance moves.
 Measured month-1 minimum balance by storm position, two-earner
 household beside the single-earner figures from §2:
 
-| Tier | Early (1–2) | Mid (15–16) | Late (29–30) | Measured (3, 22) | Even (v6) | Net/mo | Single early | Single measured | Single net |
+| Tier | Early (1–2) | Mid (15–16) | Late (29–30) | Measured (4, 23) | Even (v6) | Net/mo | Single early | Single measured | Single net |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|---:|
-| entry | −780 | 0 | 0 | 0 | 0 | 5,100 | −500 | −150 | 900 |
+| entry | −780 | 0 | 0 | 0 | 0 | 5,100 | −500 | −100 | 900 |
 | mid | −970 | 0 | 0 | 0 | 0 | 11,588 | −595 | 0 | 4,144 |
 | senior | −1,231 | 0 | 0 | 0 | 0 | 18,502 | −726 | 0 | 7,601 |
 
@@ -298,8 +306,9 @@ per-person (senior storm month: 366 = 2 × 183).
 **Finding: a second earner does not help the early-position dip
 at all — it makes it deeper in NCr.** At the measured position
 the dip is gone (0 for every tier, against the single-earner's
-−150 entry): once pay starts landing on day 3, two pay packets
-cover the cost. But on days 1–2 no pay has arrived for anyone,
+−100 entry): once pay starts landing on day 1, two pay packets
+cover the cost (pay lands on days 1–3 before the day-4 storm).
+But on days 1–2 no pay has arrived for anyone,
 and two adults burn the daily cost (entry 390/day, mid ~485,
 senior ~616) — so the early dip is −780 / −970 / −1,231,
 deeper than the single-earner −500 / −595 / −726. Against the
@@ -325,12 +334,12 @@ entry workers live with a second earner), and it dips less
 where it matters (the measured position) — the early-position
 depth is a timing fact, not a balance problem.
 
-**Open, recorded:** the second earner is a construction worker
-at the same tier by definition of this scenario — a household
-whose second earner works another profession (the §6 cases: a
-taxi driver, a civil engineer) is not modelled; the two-earner
-bridge line is not wired into the tool's printed bridge check
-(Unit GE wires the single-earner worst dip only).
+**Open, recorded (Unit HD DONE 2026-11-24 — see §9):** the
+mixed-profession second earner is now modelled (taxi driver
+at entry, civil engineer at mid — the §6 cases). Still open:
+the two-earner bridge line is not wired into the tool's
+printed bridge check (Unit GE wires the single-earner worst
+dip only).
 
 ## 8. Addendum — Storm-position bridge line (Unit GE, Queue 24)
 
@@ -355,11 +364,223 @@ bridge check — the line covers the single-earner entry row only
 (§7 records the two-earner bridge figure, 10,000 − 1,231 =
 8,769, as prose).
 
-Full default-run md5: `d699ae7d37fe8ca077f873ba238dd86b` (v7:
-`e598e416c07b21bacee9fe98fdb27244` — kept in
-`test_no_regression.py` as history, with v6
-`9ac10779c231b7aa6120a6ff457982de`). The only diffs vs v7 are
-the §7 two-earner section and this bridge line; the base table,
-business P&L, pacing and all other rows are unchanged.
+Full default-run md5: `5431558ffa3d023c436366c26535f932` (HA:
+`ede430d0bf391fac3f8599334f55b77b` — kept in
+`test_no_regression.py` as history, with GE
+`d699ae7d37fe8ca077f873ba238dd86b`, v7
+`e598e416c07b21bacee9fe98fdb27244` and v6
+`9ac10779c231b7aa6120a6ff457982de`). The only diffs vs HA are
+the §9 mixed-profession section; the §7 two-earner section,
+this bridge line, the base table, business P&L, pacing and
+all other rows are unchanged.
 
 **No tuning call.**
+
+## 9. Addendum — Mixed-profession two-earner storm-position scenario (Unit HD, Queue 25)
+
+**Date:** 2026-11-24. **Method:** `simulate(...,
+second_earner="taxi_driver" | "civil_engineer")` — the
+settlement's measured pairings from §6 (Priya's household: a
+taxi-driver second earner at 14,000; Mariam's: a civil-engineer
+second earner at 38,000). The second earner's tier is FIXED at
+the measured one — taxi driver at entry (14,000), civil engineer
+at mid (38,000) — while the first earner (construction worker)
+varies over entry/mid/senior, so the table's entry row is the
+measured household in each case. Each earner is taxed on their
+own gross and carries their own lifestyle uplift; the household
+costs follow `engine._living_costs` for two adults (food and
+clothing ×2, transport and eating out ×2 per earner, utilities /
+services / medical and rent flat). The band stays the lower band
+(the first earner's entry wage), as in the single-earner model.
+Storm days do not change the second earner's pay — the per-fare
+rule has no storm days, and the monthly pay lands on day 30
+regardless — so the storm-position effect comes from the first
+earner alone, against the second earner's steady pay. The taxi
+second earner is the owning driver (no cab rental is charged).
+The net is the same for every position; only the month-1 minimum
+balance moves.
+
+Measured month-1 minimum balance by storm position,
+mixed-profession two-earner household beside the single-earner
+figures from §2:
+
+Taxi-driver second earner (entry 14,000, per-fare):
+
+| Tier | Early (1–2) | Mid (15–16) | Late (29–30) | Measured (4, 23) | Even (v6) | Net/mo | Single early | Single measured |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| entry | 0 | 0 | 0 | 0 | 0 | 10,700 | −500 | −100 |
+| mid | 0 | 0 | 0 | 0 | 0 | 13,944 | −595 | 0 |
+| senior | −72 | 0 | 0 | 0 | 0 | 17,401 | −726 | 0 |
+
+Civil-engineer second earner (mid 38,000, monthly):
+
+| Tier | Early (1–2) | Mid (15–16) | Late (29–30) | Measured (4, 23) | Even (v6) | Net/mo | Single early | Single measured |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| entry | −8,623 | −8,623 | −8,323 | −8,623 | −8,603 | 27,950 | −500 | −100 |
+| mid | −5,499 | −5,499 | −5,032 | −5,499 | −5,467 | 31,194 | −595 | 0 |
+| senior | −2,170 | −2,170 | −1,510 | −2,170 | −2,126 | 34,651 | −726 | 0 |
+
+Costs (storm month, measured position): single 7,500 / 8,923 /
+10,883 → taxi-second 11,700 / 13,123 / 15,083 (the second adult
+adds 4,200 at the lower band and no uplift — 14,000 is the taxi
+entry wage) and civil-engineer-second 17,300 / 18,723 / 20,683
+(the second adult adds 4,200 plus their own uplift of 5,600 —
+35% of 38,000 − 22,000). Tax is per-person (taxi-second: the
+single earner's tax alone, 0 / 0 / 183; civil-engineer-second:
+the single earner's tax plus 1,150 on the 38,000).
+
+Verbatim output (new default-run sections):
+
+```
+mixed-profession two-earner storm-position month (Unit HD — same 28 worked days of 30; taxi-driver second earner (entry 14,000, per-fare); month-1 minbal by storm position):
+profession                   tier      early     mid    late measured    even  (net/mo)  single-early  single-measured
+construction_worker          entry         0       0       0        0       0  (net 10700)          -500            -100
+construction_worker          mid           0       0       0        0       0  (net 13944)          -595               0
+construction_worker          senior      -72       0       0        0       0  (net 17401)          -726               0
+
+mixed-profession two-earner storm-position month (Unit HD — same 28 worked days of 30; civil-engineer second earner (mid 38,000, monthly); month-1 minbal by storm position):
+profession                   tier      early     mid    late measured    even  (net/mo)  single-early  single-measured
+construction_worker          entry     -8623   -8623   -8323    -8623   -8603  (net 27950)          -500            -100
+construction_worker          mid       -5499   -5499   -5032    -5499   -5467  (net 31194)          -595               0
+construction_worker          senior    -2170   -2170   -1510    -2170   -2126  (net 34651)          -726               0
+```
+
+**Finding: a per-fare second earner helps the early dip; a
+monthly second earner deepens it — and the depth is timing, not
+storms.** The taxi driver's pay arrives every day from day 1
+(14,000/30 a day), so it covers the cost-only days: the early
+dip is gone for entry and mid, and only −72 for senior (against
+the single-earner's −500 / −595 / −726 and the same-tier
+second earner's −780 / −970 / −1,231 — the day-wage second
+earner deepens the early dip because no pay arrives for anyone
+on days 1–2, while the per-fare earner is already paying). The
+civil engineer's pay lands once, on day 30, so the household
+burns the daily cost for 29 days first (entry 577/day): the dip
+is −8,623 and nearly position-independent — early, mid and
+measured share it exactly, and only the late position is
+shallower (−8,323, because the day-29 storm costs a day of
+construction pay that the day-30 lump then covers). The storm
+position barely matters for this household; the pay timing does.
+Against the combined canonical starting balance (2 × 5,000 =
+10,000) the worst dips leave 9,928 (taxi-second) and 1,377
+(civil-engineer-second) — no bridge failure in any position, and
+no TIGHT or SURVIVAL FAIL anywhere in the sections (savings rates
+47.8–53.3% taxi-second, 60.2–61.1% civil-engineer-second).
+
+**Honest limit, recorded not hidden:** the
+civil-engineer-second dip is the tool's daily-trajectory timing,
+not a measured settlement dip. The tool accrues the household's
+costs daily while the engineer's pay waits for day 30 — but the
+settlement also pays monthly, so a civil-engineer-second
+household in the settlement likewise waits until month-end, and
+its within-month path likewise falls until then (on taxi fares,
+§6 — not on the tool's smoothed daily cost). Whether the tool
+should model that monthly timing or stay a stylised daily model
+is Unit HE's decision; this unit measures the timing as the tool
+models it today and does not re-decide it. (Unit HE DONE
+2026-11-24 — see §10: the tool stays a stylised daily model.) The taxi-second
+household has no such question: per-fare pay arrives daily in
+both the tool and the settlement.
+
+**No tuning call.** Nothing in the data moves. The two measured
+households are now modelled as they stand (§6: Priya's and
+Mariam's), and the finding is a timing fact, not a balance
+problem.
+
+**Open, recorded:** the taxi second earner is the owning driver
+— the renting-cab variant (200/day × 26) is a further scenario,
+not taken here; the second earner's tier is fixed at the measured
+one (a mid-tier taxi driver or an entry civil engineer as second
+earner is not modelled); only the two measured pairings are
+modelled (any other profession is refused by the tool); the
+mixed two-earner bridge line is not wired into the tool's printed
+bridge check (GE wires the single-earner worst dip only — the
+figures here, 10,000 − 72 = 9,928 and 10,000 − 8,623 = 1,377,
+stand as prose).
+
+## 10. Addendum — Settlement-Timing Trajectory Decision (Unit HE, Queue 25)
+
+**Date:** 2026-11-24. **Decision: the tool STAYS a stylised
+daily model.** It does not model monthly settlement timing. The
+decision is recorded here and in GDD-03 §2; no sim change
+follows from it — the tool is byte-identical (default-run md5
+unchanged: `5431558ffa3d023c436366c26535f932`), because "stay"
+means the model does not move.
+
+**The question, as GC posed it (§6):** the settlement pays wages
+and charges living costs once, at month-end (`game_minutes`
+43,200), while the within-month path moves only on taxi fares —
+Priya Khan's balance falls from a seed of 5,385 to a month-1
+minimum of 89 on taxi fares alone (−5,296), Mariam Shah's from
+4,496 to exactly 0 (−4,496, the fares stopping when the balance
+hits 0) — and the storm days leave no trace in either path. The
+bridge check's 5,000 start is canonical while the settlement
+randomises each starting balance ±15% (5,385 / 4,496 measured).
+Should the tool model that monthly timing, or stay daily?
+
+**Why stay — four reasons:**
+
+1. **The storm-position signal is the tool's reason for
+   existing.** The tool measures how the timing of the storm
+   days changes the month-1 minimum balance
+   (early/mid/late/measured/even). Under monthly settlement
+   timing the trajectory collapses to a single month-end step:
+   the balance falls on fares until day 30, then the net lands
+   in one lump. GC proves the storm days leave no trace in that
+   path — early, mid, late and measured would be identical, and
+   the signal the tool exists to measure would be destroyed.
+2. **The settlement's actual within-month path is already
+   measured directly.** GC measured it: +89 / 0 in absolute NCr,
+   on fares alone. The tool does not need to reproduce a path
+   the settlement already gives us; the two models answer
+   different questions — the settlement says what the balance
+   actually does, the tool says what the timing costs if pay
+   lands as earned and costs accrue as incurred.
+3. **The daily model is the bridge check's model.** The bridge
+   check asks whether a household can bridge the month from a
+   canonical 5,000 start — a planning question, well-defined
+   and reproducible. Under monthly timing the bridge question
+   has no within-month answer at all: the balance is the seed
+   minus fares, and the "dip" is the fare drain, which the
+   settlement caps at 0 by stopping the fares.
+4. **Determinism.** A randomised start would make the tool's
+   output seed-dependent and break the pinned, reproducible
+   comparison the storm-position columns are (the md5 pin, the
+   verbatim tables). The canonical 5,000 keeps every run
+   comparable.
+
+**Documented limits (recorded, not hidden):**
+
+- **The tool's trajectory has no settlement counterpart.** The
+  settlement settles monthly; the tool's daily dip is a stylised
+  timing model, not the settlement's measured dip. The tool's dip
+  must never be quoted as the settlement's measured dip — the
+  settlement's measured month-1 minimum for an entry construction
+  worker is +89 / 0 in absolute NCr (§6 verdict stands).
+- **The taxi-fare drain.** The settlement's within-month
+  movement is taxi fares alone — lumpy (about −100 per fare,
+  several a day), front-loaded, and stopping at 0. The tool
+  charges transport as a flat monthly line inside its smoothed
+  daily cost (250/day entry) and lets the balance go negative.
+  The tool's minbal is therefore a worst-case-style timing
+  figure, not the settlement's fare-drain floor (which is 0 by
+  construction).
+- **The randomised start.** The bridge check's 5,000 start is
+  canonical; the settlement randomises each starting balance
+  ±15% (5,385 / 4,496 measured). A household whose seed rolls
+  low starts up to 750 below the canonical line. Every bridge
+  figure in this report is canonical, not settled — for the
+  civil-engineer-second household (§9: 10,000 − 8,623 = 1,377)
+  the lowest measured seed would leave 1,377 − 504 = 873 (504 =
+  5,000 − 4,496), still no failure, but the margin is the
+  seed's, not the model's.
+- **The monthly-settlement alternative stays open as a
+  documented alternative, not implemented:** a future unit
+  could add a monthly-timing view BESIDE the daily one (a second
+  trajectory that pays and charges at month-end), if a use for
+  it appears — but it must not replace the daily model, because
+  it would destroy the storm-position signal. No use for it is
+  recorded today.
+
+**No tuning call.** Nothing in the data moves. The decision is
+about what the tool models, not about any rate.

@@ -378,6 +378,42 @@ CREATE TABLE haggle_events (
 CREATE INDEX idx_haggle_events_character ON haggle_events(character_id, outcome);
 COMMENT ON TABLE haggle_events IS 'GDD-04 §3.6: one row per haggled purchase; outcome derived from asked vs paid price (paid < asked = success); mission 2.3 reads the successful row in d1_market.';
 
+-- purchase_audit + takings_audit (Queue 25 Unit HC · 2026-11-24
+-- — GDD-03 §2, GB follow-up). The sim tables' server-side home,
+-- mirroring tools/sim/persistence.py field-for-field with the same
+-- primary keys (the sim uses TEXT ids while the server keeps
+-- UUIDs, the DH id-scheme note). purchase_audit is the per-good
+-- split beside the settlement's combined `purchase` row: intended
+-- / spend / residual per household per good per month, with
+-- intended = spend + residual exact. takings_audit is the takings
+-- split per city per good per month: spend = system takings +
+-- owner share exact, the owner share being the value drawn from
+-- owner-run shelves, which has no ledger row of its own. The
+-- Phase 9 forward-only migration creates these tables — no
+-- migration file is written by this unit.
+CREATE TABLE purchase_audit (
+    household_id        UUID NOT NULL REFERENCES households(household_id),
+    month_index         INTEGER NOT NULL,
+    good_id             TEXT NOT NULL,
+    intended_spend_ncr  BIGINT NOT NULL DEFAULT 0,
+    spend_ncr           BIGINT NOT NULL DEFAULT 0,
+    residual_ncr        BIGINT NOT NULL DEFAULT 0,
+    game_minutes        BIGINT NOT NULL,
+    PRIMARY KEY (household_id, month_index, good_id)
+);
+COMMENT ON TABLE purchase_audit IS 'GDD-03 §2: one row per household per good per month; the per-good split beside the combined settlement purchase row — intended (want at paid price) = spend (what the shelves gave) + residual (unmet-want shortfall value).';
+CREATE TABLE takings_audit (
+    city_id             TEXT NOT NULL,
+    month_index         INTEGER NOT NULL,
+    good_id             TEXT NOT NULL,
+    spend_ncr           BIGINT NOT NULL DEFAULT 0,
+    system_takings_ncr  BIGINT NOT NULL DEFAULT 0,
+    owner_share_ncr     BIGINT NOT NULL DEFAULT 0,
+    game_minutes        BIGINT NOT NULL,
+    PRIMARY KEY (city_id, month_index, good_id)
+);
+COMMENT ON TABLE takings_audit IS 'GDD-03 §2: one row per city per good per month; the takings split — spend (households recorded spend) = system takings (retail_takings ledger rows) + owner share (value drawn from owner-run shelves, no ledger row of its own).';
+
 -- Account-level friendships between players (Phase 9 social list).
 -- In-world character relationships live in `relationships`; this table is
 -- the platform-level friend graph between accounts.

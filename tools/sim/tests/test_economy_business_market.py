@@ -544,5 +544,296 @@ class TestHaggleClothingAtTheMonthlyPass(unittest.TestCase):
             self.store, self.data, cid, 10 ** 8 + 200))
 
 
+class TestHaggleSuppliesAtTheMonthlyPass(unittest.TestCase):
+    # Queue 25 Unit HB — the same rule, extended to household
+    # supplies (GDD-04 §3.6, mission 2.3): the monthly shopping
+    # pass haggles supplies stalls too, and it buys one
+    # household-month unit per household (the good's own unit).
+    # Rupsha's household_supplies shelf is raised above the
+    # catalogue base price (750 vs base 500) before the month-1
+    # settlement, so every headed Rupsha household that buys
+    # supplies haggles the stall down to base — and the haggle
+    # records, moves the money at the paid price, and satisfies
+    # mission 2.3's "haggle once" objective, because the verifier
+    # reads character + zone + success, never the good. The food
+    # and clothing shelves stand at base in this run, so no food
+    # or clothing haggle fires — the supplies haggle alone must
+    # verify 2.3. (The retail shelf holds supplies at all because
+    # HB seeds it: GENESIS_STOCK carries household_supplies 2 per
+    # retailer, like clothing_set — before HB no household ever
+    # wanted supplies, so no shelf ever held it.)
+    @classmethod
+    def setUpClass(cls):
+        cls.path = _tmp_path()
+        cls.sim = Simulation(cls.path, seed="q25-hb-supplies")
+        cls.sim.generate_population(60)
+        cls.store = cls.sim.store
+        cls.data = cls.sim.data
+        cls.store.execute(
+            "UPDATE market_prices SET price_ncr = 750 WHERE"
+            " city_id = 'rupsha_city' AND good_id ="
+            " 'household_supplies'")
+        cls.sim.run_days(32)
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.sim.close()
+        os.remove(cls.path)
+
+    def _rupsha_households_with_supplies(self):
+        out = []
+        for r in self.store.rows(
+                "SELECT hc.household_id, hc.units, hc.spend_ncr,"
+                " h.district_id FROM household_consumption hc"
+                " JOIN households h ON h.household_id ="
+                " hc.household_id WHERE hc.month_index = 1 AND"
+                " hc.good_id = 'household_supplies' AND hc.units > 0"):
+            if cities_mod.city_of_zone(self.data,
+                                       r["district_id"]) != "rupsha_city":
+                continue
+            head = self.store.row(
+                "SELECT character_id FROM household_members WHERE"
+                " household_id = ? AND role = 'head' AND"
+                " left_at_game_minutes IS NULL",
+                (r["household_id"],))
+            out.append((r, head["character_id"] if head else None))
+        return out
+
+    def test_haggled_supplies_purchase_records_a_successful_haggle(self):
+        rows = self.store.rows(
+            "SELECT * FROM haggle_events WHERE good_id ="
+            " 'household_supplies'")
+        self.assertTrue(rows)
+        # Every supplies haggle is in Boro Bazar, won down to the
+        # catalogue base price (500) from a shelf above it — the
+        # asked price is read from the row, not assumed to be the
+        # raised 750, because the monthly price pass may step the
+        # shelf before the allocation reads it.
+        for r in rows:
+            self.assertEqual(r["zone"], "d1_market")
+            self.assertEqual(r["outcome"], "success")
+            self.assertEqual(r["paid_price_ncr"], 500)
+            self.assertGreater(r["asked_price_ncr"], 500)
+        # Exactly one supplies haggle per headed Rupsha household
+        # that bought supplies — one stall purchase, one record.
+        haggled = {r["character_id"] for r in rows}
+        for _row, head in self._rupsha_households_with_supplies():
+            if head is None:
+                continue
+            self.assertIn(head, haggled)
+            self.assertEqual(
+                sum(1 for r in rows
+                    if r["character_id"] == head), 1)
+
+    def test_haggled_supplies_households_spend_the_paid_price(self):
+        haggled = {r["character_id"]
+                   for r in self.store.rows(
+                       "SELECT character_id FROM haggle_events WHERE"
+                       " good_id = 'household_supplies'")}
+        checked = 0
+        for row, head in self._rupsha_households_with_supplies():
+            if head is None or head not in haggled:
+                continue
+            checked += 1
+            # The consumption row records the paid price (500), and
+            # the same spend bought more supplies than the shelf
+            # price would have bought. (Units are stored rounded to
+            # 3 decimals while spend is computed from the unrounded
+            # units, so the paid-price check allows ±2 NCr.)
+            self.assertLessEqual(
+                abs(row["spend_ncr"] - round(row["units"] * 500)),
+                2)
+            self.assertGreater(row["units"] * 750, row["spend_ncr"])
+        self.assertGreater(checked, 0)
+
+    def test_supplies_haggle_satisfies_mission_2_3(self):
+        # A supplies haggle in d1_market satisfies objective (2):
+        # the verifier is good-agnostic. The household also bought
+        # food this month (objective (1)), so the month verifies
+        # 2.3 with no food or clothing haggle anywhere in the world.
+        self.assertEqual(
+            self.store.rows("SELECT * FROM haggle_events WHERE"
+                            " good_id = 'food_basket'"), [])
+        self.assertEqual(
+            self.store.rows("SELECT * FROM haggle_events WHERE"
+                            " good_id = 'clothing_set'"), [])
+        cid = None
+        for row, head in self._rupsha_households_with_supplies():
+            if head is None:
+                continue
+            food = self.store.row(
+                "SELECT 1 FROM household_consumption WHERE"
+                " household_id = ? AND month_index = 1 AND"
+                " good_id = 'food_basket' AND units > 0",
+                (row["household_id"],))
+            if food is not None:
+                cid = head
+                break
+        self.assertIsNotNone(cid)
+        self.assertTrue(market_mod.has_successful_haggle(
+            self.store, cid, "d1_market"))
+        ms.make_available(self.store, cid, "2.3", 10 ** 8)
+        ms.accept_mission(self.store, cid, "2.3", 10 ** 8 + 100)
+        self.assertTrue(ms.verify_mission_2_3(
+            self.store, self.data, cid, 10 ** 8 + 200))
+
+
+class TestNoSuppliesHaggleAtBasePrices(unittest.TestCase):
+    # Queue 25 Unit HB — the at-base half: when the supplies
+    # shelf stands at the catalogue base price there is nothing
+    # to haggle over, so no haggle is recorded — but the pass
+    # still buys the household's one unit at the shelf price.
+    @classmethod
+    def setUpClass(cls):
+        cls.path = _tmp_path()
+        cls.sim = Simulation(cls.path, seed="q25-hb-nohaggle")
+        cls.sim.generate_population(60)
+        cls.store = cls.sim.store
+        cls.data = cls.sim.data
+        cls.sim.run_days(32)
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.sim.close()
+        os.remove(cls.path)
+
+    def test_no_supplies_haggle_rows_when_shelf_is_at_base(self):
+        self.assertEqual(
+            self.store.rows("SELECT * FROM haggle_events WHERE"
+                            " good_id = 'household_supplies'"), [])
+
+    def test_supplies_are_still_bought_at_base(self):
+        rows = self.store.rows(
+            "SELECT hc.* FROM household_consumption hc"
+            " JOIN households h ON h.household_id ="
+            " hc.household_id WHERE hc.month_index = 1 AND"
+            " hc.good_id = 'household_supplies' AND hc.units > 0")
+        self.assertTrue(rows)
+        # Every bought unit cost the base price: no haggle, no
+        # discount, the shelf price is the paid price.
+        for r in rows:
+            self.assertLessEqual(
+                abs(r["spend_ncr"] - round(r["units"] * 500)), 2)
+
+
+class TestPerGoodPurchaseAudit(unittest.TestCase):
+    # Queue 25 Unit HC — the per-good purchase audit (GDD-03 §2,
+    # GB follow-up): DECIDED — record the per-good split BESIDE
+    # the combined settlement row. The pass writes purchase_audit
+    # (one row per household per month per good: intended / spend /
+    # residual) and takings_audit (one row per city per month per
+    # good: spend / system takings / owner share); the combined
+    # `purchase` row is untouched and no ledger row is added. The
+    # month's per-good purchase in must reconcile to the takings
+    # out + the residual, per good, exactly.
+    @classmethod
+    def setUpClass(cls):
+        cls.path = _tmp_path()
+        cls.sim = Simulation(cls.path, seed="q25-hc-audit")
+        cls.sim.generate_population(60)
+        cls.store = cls.sim.store
+        cls.data = cls.sim.data
+        cls.sim.run_days(32)
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.sim.close()
+        os.remove(cls.path)
+
+    def test_month_per_good_purchase_reconciles(self):
+        # Per good: intended = spend + residual, exactly.
+        for r in self.store.rows(
+                "SELECT good_id, SUM(intended_spend_ncr) AS intended,"
+                " SUM(spend_ncr) AS spend, SUM(residual_ncr) AS"
+                " residual FROM purchase_audit WHERE month_index = 1"
+                " GROUP BY good_id"):
+            self.assertEqual(r["intended"],
+                             r["spend"] + r["residual"], r["good_id"])
+        self.assertEqual(
+            {r["good_id"] for r in self.store.rows(
+                "SELECT DISTINCT good_id FROM purchase_audit"
+                " WHERE month_index = 1")},
+            {"food_basket", "fish", "clothing_set",
+             "household_supplies"})
+        # Per city+good: spend = system takings + owner share,
+        # exactly.
+        for r in self.store.rows(
+                "SELECT * FROM takings_audit WHERE month_index = 1"):
+            self.assertEqual(
+                r["spend_ncr"],
+                r["system_takings_ncr"] + r["owner_share_ncr"],
+                (r["city_id"], r["good_id"]))
+        # And the two tables agree with each other: the takings
+        # audit's spend is the purchase audit's spend, per good.
+        for r in self.store.rows(
+                "SELECT good_id, SUM(spend_ncr) AS spend FROM"
+                " purchase_audit WHERE month_index = 1"
+                " GROUP BY good_id"):
+            city_spend = self.store.row(
+                "SELECT COALESCE(SUM(spend_ncr), 0) AS s FROM"
+                " takings_audit WHERE month_index = 1 AND"
+                " good_id = ?", (r["good_id"],))["s"]
+            self.assertEqual(city_spend, r["spend"], r["good_id"])
+
+    def test_audit_spend_matches_consumption_spend(self):
+        # The audit's spend is the consumption row's spend — the
+        # same figure, not a second computation.
+        for r in self.store.rows(
+                "SELECT good_id, SUM(spend_ncr) AS spend FROM"
+                " purchase_audit WHERE month_index = 1"
+                " GROUP BY good_id"):
+            cons = self.store.row(
+                "SELECT COALESCE(SUM(spend_ncr), 0) AS s FROM"
+                " household_consumption WHERE month_index = 1 AND"
+                " good_id = ?", (r["good_id"],))["s"]
+            self.assertEqual(cons, r["spend"], r["good_id"])
+
+    def test_system_takings_match_the_ledger(self):
+        # The audit's system takings are the ledger's
+        # retail_takings transfers for the month — exactly.
+        audit = self.store.row(
+            "SELECT COALESCE(SUM(system_takings_ncr), 0) AS s FROM"
+            " takings_audit WHERE month_index = 1")["s"]
+        ledger = self.store.row(
+            "SELECT COALESCE(SUM(amount), 0) AS s FROM"
+            " economy_ledger WHERE reason_code = 'retail_takings'"
+            " AND event_ref = 'month:1'")["s"]
+        self.assertEqual(audit, ledger)
+        self.assertGreater(audit, 0)
+
+    def test_owner_share_is_a_real_draw_not_an_invention(self):
+        # The owner share is positive where owner shops drew —
+        # and owner-run shops really did draw food in month 1
+        # (their shelves empty with a retail_sale movement, even
+        # though no takings row pays them).
+        food = self.store.row(
+            "SELECT * FROM takings_audit WHERE month_index = 1 AND"
+            " city_id = 'rupsha_city' AND good_id = 'food_basket'")
+        self.assertIsNotNone(food)
+        self.assertGreater(food["owner_share_ncr"], 0)
+        draws = self.store.row(
+            "SELECT COUNT(*) AS n FROM inventory_movements im"
+            " JOIN businesses b ON b.business_id = im.business_id"
+            " WHERE im.kind = 'retail_sale' AND im.good_id ="
+            " 'food_basket' AND b.owner_character_id !="
+            " 'SYS-MARKET' AND im.game_minutes = 43200")["n"]
+        self.assertGreater(draws, 0)
+
+    def test_combined_purchase_row_is_unchanged(self):
+        # The audit adds no ledger row: no month-1 `purchase`
+        # transfer names a good — every one is the settlement's
+        # combined row (living costs) or a furniture purchase,
+        # and the living-costs rows still stand.
+        notes = [r["note"] for r in self.store.rows(
+            "SELECT note FROM economy_ledger WHERE reason_code ="
+            " 'purchase' AND game_minutes = 43200")]
+        self.assertTrue(notes)
+        for note in notes:
+            for good in ("food_basket", "fish", "clothing_set",
+                         "household_supplies"):
+                self.assertNotIn(good, note or "")
+        self.assertIn("monthly living costs", notes)
+
+
 if __name__ == "__main__":
     unittest.main()
