@@ -41,7 +41,11 @@ Owner-run shops' takings are their settlement P&L (Session 01) —
 they are not paid twice; their shelves still empty. Households
 that ended the month in arrears consume less (the hardship
 factor), and a household that cannot get food records a real
-needs consequence. The money households pay is the settlement's
+needs consequence. Households with a head haggle food stalls
+down to the catalogue base price when the shelf stands above it
+(Queue 23 Unit FA — the live haggle call site for mission 2.3);
+the same spend buys more food, and the shelves are paid what the
+buyers actually paid. The money households pay is the settlement's
 single payment — this pass allocates its goods side; it does not
 charge anyone twice.
 """
@@ -56,6 +60,12 @@ from . import roads as roads_mod
 SYSTEM_CREW = 2
 SHIPPING_NCR_PER_UNIT_KM = 1
 FISH_SHARE_OF_FOOD_SPEND = 0.25
+# Queue 23 Unit FA: the goods the monthly shopping pass haggles
+# over — the mission's food goods (GDD-04 §3.6, mission 2.3 "The
+# Market Run": buy a week's food at Boro Bazar and haggle once).
+# Clothing and household supplies are bought at shelf prices;
+# haggling them is not modelled.
+HAGGLE_GOODS = ("food_basket", "fish")
 STORM_HALT_DAYS = 5
 PRICE_FLOOR_RATIO = 0.5
 PRICE_CAP_RATIO = 2.0
@@ -578,8 +588,9 @@ def retail_allocation(store, data, month_index, game_minutes):
     scarcity is shared and measured, never decided by iteration
     order. Returns totals."""
     from . import identity as identity_mod
+    from . import lost_items as lost_items_mod
     totals = {"households": 0, "units": 0.0, "unmet_units": 0.0,
-              "takings_ncr": 0}
+              "takings_ncr": 0, "haggles": 0}
     # Unit 12 propagation: an active demand shock scales what
     # households try to buy (late import — crises reads this
     # module's price index through indicators).
@@ -633,7 +644,13 @@ def retail_allocation(store, data, month_index, game_minutes):
                                * (max(adults, 1) + 0.3 * children))
         food_spend = fin["food_ncr"] * hardship
         fish_spend = food_spend * FISH_SHARE_OF_FOOD_SPEND
+        # Queue 23 Unit FA: the haggler is the household head (the
+        # buyer — the CX custody rule already names the head the
+        # owner of the carried shopping). A headless household has
+        # no haggler and buys at shelf prices.
+        head = lost_items_mod.household_head(store, hid)
         wants = {}
+        paid = {}
         for good_id, spend in (
                 ("food_basket", food_spend - fish_spend),
                 ("fish", fish_spend),
@@ -641,13 +658,15 @@ def retail_allocation(store, data, month_index, game_minutes):
             if spend <= 0:
                 continue
             price = price_of(store, data, city, good_id)
-            units = spend / price if price else 0
+            pay_price = _haggled_price(data, good_id, price, head)
+            units = spend / pay_price if pay_price else 0
             units *= demand_factor
             if units > 0:
                 wants[good_id] = units
+                paid[good_id] = pay_price
                 key = (city, good_id)
                 city_want[key] = city_want.get(key, 0.0) + units
-        wants_by_household[hid] = (household, city, wants)
+        wants_by_household[hid] = (household, city, wants, paid, head)
         totals["households"] += 1
     # Coverage per (city, good): stocked supply over total want.
     coverage = {}
@@ -666,22 +685,40 @@ def retail_allocation(store, data, month_index, game_minutes):
     from . import lost_items as lost_items_mod
     store.execute("DELETE FROM inventory_items WHERE item_type = 'goods'")
     city_got = {}
-    for hid, (household, city, wants) in wants_by_household.items():
+    city_paid = {}
+    for hid, (household, city, wants, paid, head) \
+            in wants_by_household.items():
         got = {}
         for good_id, want_units in wants.items():
             got_units = want_units * coverage[(city, good_id)]
+            shelf = price_of(store, data, city, good_id)
+            pay_price = paid[good_id]
             if got_units > 0:
                 key = (city, good_id)
                 city_got[key] = city_got.get(key, 0.0) + got_units
+                city_paid[key] = city_paid.get(key, 0.0) \
+                    + got_units * pay_price
                 got[good_id] = got_units
-            price = price_of(store, data, city, good_id)
+                # Queue 23 Unit FA: the haggled stall purchase is
+                # recorded here — the head haggled, the shelf stood
+                # above base, and goods were actually bought. A
+                # household that got nothing bought nothing, so no
+                # haggle is recorded for it; a household whose head
+                # is None never haggled (its pay price is the shelf
+                # price — see _haggled_price()).
+                if pay_price < shelf:
+                    zone = market_zone_of_city(data, city)
+                    if zone is not None and record_haggle(
+                            store, head, good_id, zone, shelf,
+                            pay_price, game_minutes) is not None:
+                        totals["haggles"] += 1
             unmet = round(want_units - got_units, 3)
             store.execute(
                 "INSERT OR REPLACE INTO household_consumption"
                 " (household_id, month_index, good_id, units,"
                 " spend_ncr, unmet_units) VALUES (?, ?, ?, ?, ?, ?)",
                 (hid, month_index, good_id, round(got_units, 3),
-                 int(round(got_units * price)), unmet))
+                 int(round(got_units * pay_price)), unmet))
             totals["units"] += got_units
             totals["unmet_units"] += unmet
             if good_id == "food_basket" and want_units > 0 \
@@ -691,13 +728,21 @@ def retail_allocation(store, data, month_index, game_minutes):
         # Queue 15 Unit CY (CX seeding): the carried shopping, owned
         # by the household head (the custody rule). A headless
         # household seeds nothing — no owner, no row.
-        head = lost_items_mod.household_head(store, hid)
         if head is not None and got:
             lost_items_mod.seed_goods_rows(store, data, hid, head, got,
                                            game_minutes)
     for (city, good_id), units in sorted(city_got.items()):
+        # Queue 23 Unit FA: the shelves are paid what the buyers
+        # actually paid — the blended paid price for the good in
+        # this city (shelf price where nobody haggled) — so the
+        # takings equal the households' recorded spend, not the
+        # shelf price times the units.
+        paid_value = city_paid[(city, good_id)]
+        unit_price = paid_value / units if units > 0 else None
         _draw_from_shelves(store, data, city, good_id, units,
-                           month_index, game_minutes, totals)
+                           month_index, game_minutes, totals,
+                           unit_price=unit_price)
+    return totals
 
 
 # -- Queue 22 Unit EV: the haggle record (GDD-04 §3.6, mission 2.3
@@ -717,16 +762,66 @@ def retail_allocation(store, data, month_index, game_minutes):
 # — paying over the ask is not a haggle, it is a data error — as
 # are a non-positive asked price and a negative paid price.
 #
-# Who writes it: NOBODY in a live world yet. The haggler is the
-# player (or an NPC) at a market stall, and the call site is the
-# Phase 6 dialogue/mission runtime that runs the stall
-# conversation — the monthly shopping pass buys at shelf prices
-# and never haggles, so retail_allocation does not call this.
-# The record + the 2.3 verifier are this unit; the live call site
-# is a later unit's job, recorded in GDD-04 §3.6, not hidden.
-# The verifier's zone rule lives in missions.py (d1_market —
-# Boro Bazar, the mission's zone_ref); this module records the
+# Who writes it: the monthly shopping pass (Queue 23 Unit FA —
+# the live call site: `retail_allocation` below), and the Phase 6
+# dialogue/mission runtime for the stall conversation when it is
+# built (the player or an NPC haggler at a market stall — no such
+# runtime exists in the sim yet; dialogue is data only, GDD-15,
+# so the pass is the honest live call site, not a placeholder for
+# one). The record + the 2.3 verifier are this unit's EV work;
+# FA wires the pass to them, and GDD-04 §3.6 records the call
+# site. The verifier's zone rule lives in missions.py (d1_market
+# — Boro Bazar, the mission's zone_ref); this module records the
 # zone the caller supplies and checks nothing about it.
+#
+# What the call site is and is not (Unit FA): the head haggles
+# the household's FOOD purchase (food_basket, fish — the mission's
+# goods) down to the catalogue base price when the shelf stands
+# above it; the same spend then buys more food, the consumption
+# row records the paid price, and the shelves are paid what the
+# buyers actually paid. Clothing and household supplies are still
+# bought at shelf prices — haggling them is not modelled. A
+# household that got no food bought nothing and records no
+# haggle; a headless household has no haggler. No dialogue
+# runtime is invented here: no stall conversation runs in the
+# sim, and the haggle is the pass's own deterministic rule, not
+# a played-out negotiation.
+
+def market_zone_of_city(data, city_id):
+    """The city's market zone — the zone in the city's zone list
+    ending in '_market' (d1_market for Rupsha City, c2_market for
+    Shibnagar Town; each city names exactly one). None when the
+    city names no market zone — a city with no market has no stall
+    to haggle at, so the pass records no haggle for it."""
+    for spec in data.city_specs():
+        if spec["city_id"] == city_id:
+            for zone in spec["zones"]:
+                if zone.endswith("_market"):
+                    return zone
+            return None
+    return None
+
+
+def _haggled_price(data, good_id, shelf_price_ncr, head_character_id):
+    """The price a household pays per unit of a good (Queue 23
+    Unit FA — the live haggle call site, GDD-04 §3.6 mission 2.3):
+    for the mission's food goods, a household WITH a head haggles
+    the stall down to the good's catalogue base price whenever the
+    shelf price stands above it — the buyer knows the fair price
+    (the dialogue line: "The stalls respect a buyer who knows
+    the price"), and the base price is the catalogue's own fact
+    (`data/economy-goods.json` `base_price_ncr`), not a rate this
+    module invents. The shelf price is the asked price, the base
+    price is the paid price, and success is derived (paid < asked)
+    by record_haggle(). A headless household has no haggler; a
+    shelf at or below base leaves nothing to win; a non-food good
+    is bought at shelf prices (haggling it is not modelled).
+    Returns the shelf price in all those cases."""
+    if head_character_id is None or good_id not in HAGGLE_GOODS:
+        return shelf_price_ncr
+    base = data.goods[good_id]["base_price_ncr"]
+    return base if shelf_price_ncr > base else shelf_price_ncr
+
 
 def record_haggle(store, character_id, good_id, zone,
                   asked_price_ncr, paid_price_ncr, game_minutes):
@@ -766,7 +861,6 @@ def has_successful_haggle(store, character_id, zone=None):
             " AND outcome = 'success' AND zone = ? LIMIT 1",
             (character_id, zone))
     return row is not None
-    return totals
 
 
 def _shelf_stock(store, data, city_id, good_id):
@@ -781,11 +875,16 @@ def _shelf_stock(store, data, city_id, good_id):
 
 
 def _draw_from_shelves(store, data, city_id, good_id, want_units,
-                       month_index, game_minutes, totals):
+                       month_index, game_minutes, totals,
+                       unit_price=None):
     """Draw units from the city's retail/food-service shelves in
     proportion to stock. System retailers are paid takings for
     what left their shelf; owner-run shops are not (their P&L is
-    the settlement's). Returns units actually drawn."""
+    the settlement's). Returns units actually drawn. The takings
+    price is `unit_price` when the caller passes one (Queue 23
+    Unit FA: the blended price the buyers actually paid — shelf
+    price where nobody haggled, lower where heads haggled the
+    stall down), else the shelf price."""
     sellers = []
     for b in business_mod.active_businesses(store):
         if b["category"] not in ("retail", "food_service"):
@@ -798,7 +897,8 @@ def _draw_from_shelves(store, data, city_id, good_id, want_units,
     total_stock = sum(q for _b, q in sellers)
     if total_stock <= 0 or want_units <= 0:
         return 0.0
-    price = price_of(store, data, city_id, good_id)
+    price = unit_price if unit_price is not None else price_of(
+        store, data, city_id, good_id)
     drawn = 0.0
     for b, qty in sellers:
         share = want_units * qty / total_stock

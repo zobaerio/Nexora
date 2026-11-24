@@ -5,7 +5,9 @@ import tempfile
 import unittest
 
 from tools.sim import business as business_mod
+from tools.sim import cities as cities_mod
 from tools.sim import market as market_mod
+from tools.sim import missions as ms
 from tools.sim.engine import Simulation
 
 
@@ -225,6 +227,197 @@ class TestConsumptionAfterAMonth(unittest.TestCase):
             " economy_ledger WHERE reason_code = 'retail_takings'"
             " GROUP BY transfer_key HAVING COUNT(*) > 1)")["n"]
         self.assertEqual(dup, 0)
+
+
+class TestHaggleAtTheMonthlyPass(unittest.TestCase):
+    # Queue 23 Unit FA — the live haggle call site (GDD-04 §3.6,
+    # mission 2.3): the monthly shopping pass haggles. Rupsha's
+    # food_basket shelf is raised above the catalogue base price
+    # (3750 vs base 2500) before the month-1 settlement, so every
+    # headed Rupsha household that buys food haggles the stall
+    # down to base — and the haggle records, verifies, and moves
+    # the money at the paid price.
+    @classmethod
+    def setUpClass(cls):
+        cls.path = _tmp_path()
+        cls.sim = Simulation(cls.path, seed="q23-fa-haggle")
+        cls.sim.generate_population(60)
+        cls.store = cls.sim.store
+        cls.data = cls.sim.data
+        cls.store.execute(
+            "UPDATE market_prices SET price_ncr = 3750 WHERE"
+            " city_id = 'rupsha_city' AND good_id = 'food_basket'")
+        cls.sim.run_days(32)
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.sim.close()
+        os.remove(cls.path)
+
+    def _rupsha_households_with_food(self):
+        out = []
+        for r in self.store.rows(
+                "SELECT hc.household_id, hc.units, hc.spend_ncr,"
+                " h.district_id FROM household_consumption hc"
+                " JOIN households h ON h.household_id ="
+                " hc.household_id WHERE hc.month_index = 1 AND"
+                " hc.good_id = 'food_basket' AND hc.units > 0"):
+            if cities_mod.city_of_zone(self.data,
+                                       r["district_id"]) != "rupsha_city":
+                continue
+            head = self.store.row(
+                "SELECT character_id FROM household_members WHERE"
+                " household_id = ? AND role = 'head' AND"
+                " left_at_game_minutes IS NULL",
+                (r["household_id"],))
+            out.append((r, head["character_id"] if head else None))
+        return out
+
+    def test_haggled_food_purchase_records_a_successful_haggle(self):
+        rows = self.store.rows("SELECT * FROM haggle_events")
+        self.assertTrue(rows)
+        # Every haggle is the mission's food good, in Boro Bazar,
+        # won down to the catalogue base price from the raised
+        # shelf — the fish shelf stood at base, so no fish haggle.
+        for r in rows:
+            self.assertEqual(r["good_id"], "food_basket")
+            self.assertEqual(r["zone"], "d1_market")
+            self.assertEqual(r["outcome"], "success")
+            self.assertEqual(r["asked_price_ncr"], 3750)
+            self.assertEqual(r["paid_price_ncr"], 2500)
+        # Exactly one haggle per headed Rupsha household that
+        # bought food — one stall purchase, one record.
+        haggled = {r["character_id"] for r in rows}
+        for _row, head in self._rupsha_households_with_food():
+            if head is None:
+                continue
+            self.assertIn(head, haggled)
+            self.assertEqual(
+                sum(1 for r in rows
+                    if r["character_id"] == head), 1)
+
+    def test_haggled_households_spend_the_paid_price(self):
+        haggled = {r["character_id"]
+                   for r in self.store.rows(
+                       "SELECT character_id FROM haggle_events")}
+        checked = 0
+        for row, head in self._rupsha_households_with_food():
+            if head is None or head not in haggled:
+                continue
+            checked += 1
+            # The consumption row records the paid price, and the
+            # same spend bought more food than the shelf price
+            # would have bought. (Units are stored rounded to 3
+            # decimals while spend is computed from the unrounded
+            # units, so the paid-price check allows ±2 NCr.)
+            self.assertLessEqual(
+                abs(row["spend_ncr"] - round(row["units"] * 2500)),
+                2)
+            self.assertGreater(row["units"] * 3750, row["spend_ncr"])
+        self.assertGreater(checked, 0)
+
+    def test_shelves_are_paid_what_buyers_paid(self):
+        # SYS-MARKET sellers are paid takings on what left their
+        # shelves at the price the buyers actually paid (2500),
+        # not the shelf price (3750); owner-run shops are not paid
+        # takings at all (their P&L is the settlement's). The
+        # per-seller int(round()) bounds the total error.
+        sys_drawn = 0.0
+        for r in self.store.rows(
+                "SELECT * FROM inventory_movements WHERE kind ="
+                " 'retail_sale' AND good_id = 'food_basket' AND"
+                " game_minutes = 43200"):
+            b = self.store.row(
+                "SELECT * FROM businesses WHERE business_id = ?",
+                (r["business_id"],))
+            if b and b["owner_character_id"] == "SYS-MARKET" \
+                    and business_mod.business_city(
+                        self.store, self.data, b) == "rupsha_city":
+                sys_drawn += -r["delta"]
+        takings = 0
+        sellers = set()
+        for r in self.store.rows(
+                "SELECT * FROM economy_ledger WHERE reason_code ="
+                " 'retail_takings' AND transfer_key LIKE"
+                " '%:food_basket:1'"):
+            b = self.store.row(
+                "SELECT * FROM businesses WHERE business_id = ?",
+                (r["to_business_id"],))
+            if b and business_mod.business_city(
+                    self.store, self.data, b) == "rupsha_city":
+                takings += r["amount"]
+                sellers.add(r["to_business_id"])
+        self.assertGreater(sys_drawn, 0)
+        self.assertLessEqual(abs(takings - round(sys_drawn * 2500)),
+                             len(sellers))
+        self.assertLess(abs(takings - round(sys_drawn * 2500)),
+                        abs(takings - round(sys_drawn * 3750)))
+
+    def test_haggled_month_completes_mission_2_3(self):
+        row = self.store.row("SELECT character_id FROM haggle_events"
+                             " LIMIT 1")
+        cid = row["character_id"]
+        self.assertTrue(market_mod.has_successful_haggle(
+            self.store, cid, "d1_market"))
+        ms.make_available(self.store, cid, "2.3", 10 ** 8)
+        ms.accept_mission(self.store, cid, "2.3", 10 ** 8 + 100)
+        self.assertTrue(ms.verify_mission_2_3(
+            self.store, self.data, cid, 10 ** 8 + 200))
+
+
+class TestNoHaggleAtBasePrices(unittest.TestCase):
+    # Queue 23 Unit FA — the negative case: at genesis prices
+    # every shelf stands at its base price, so there is nothing to
+    # haggle down to, no haggle is recorded, and the food purchase
+    # alone does not verify mission 2.3.
+    @classmethod
+    def setUpClass(cls):
+        cls.path = _tmp_path()
+        cls.sim = Simulation(cls.path, seed="q23-fa-nohaggle")
+        cls.sim.generate_population(60)
+        cls.store = cls.sim.store
+        cls.data = cls.sim.data
+        cls.sim.run_days(32)
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.sim.close()
+        os.remove(cls.path)
+
+    def test_no_haggle_rows_when_shelves_are_at_base(self):
+        self.assertEqual(
+            self.store.rows("SELECT * FROM haggle_events"), [])
+
+    def test_food_without_a_haggle_does_not_verify_2_3(self):
+        cid = None
+        for r in self.store.rows(
+                "SELECT hc.household_id FROM household_consumption"
+                " hc JOIN households h ON h.household_id ="
+                " hc.household_id WHERE hc.month_index = 1 AND"
+                " hc.good_id = 'food_basket' AND hc.units > 0"):
+            if cities_mod.city_of_zone(
+                    self.data,
+                    self.store.row(
+                        "SELECT district_id FROM households WHERE"
+                        " household_id = ?",
+                        (r["household_id"],))["district_id"]) \
+                    != "rupsha_city":
+                continue
+            head = self.store.row(
+                "SELECT character_id FROM household_members WHERE"
+                " household_id = ? AND role = 'head' AND"
+                " left_at_game_minutes IS NULL",
+                (r["household_id"],))
+            if head is not None:
+                cid = head["character_id"]
+                break
+        self.assertIsNotNone(cid)
+        self.assertFalse(market_mod.has_successful_haggle(
+            self.store, cid, "d1_market"))
+        ms.make_available(self.store, cid, "2.3", 10 ** 8)
+        ms.accept_mission(self.store, cid, "2.3", 10 ** 8 + 100)
+        self.assertFalse(ms.verify_mission_2_3(
+            self.store, self.data, cid, 10 ** 8 + 200))
 
 
 if __name__ == "__main__":
