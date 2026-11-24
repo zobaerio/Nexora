@@ -27,6 +27,8 @@ ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__),
 # 45a45edc63cee4b142891da938ef79bd. Previous baseline (v7 +
 # Queue 25, Unit HD):
 # 5431558ffa3d023c436366c26535f932. Previous baseline (v7 +
+# Queue 29, Unit KC):
+# f6cec5a23109c4e7f9aeff3f7361e89d. Previous baseline (v7 +
 # Queue 25, Unit HA):
 # ede430d0bf391fac3f8599334f55b77b. Previous baseline (v7 +
 # Queue 24, Units GD–GE):
@@ -36,7 +38,7 @@ ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__),
 # 2026-11-24 through Queue 22): 9ac10779c231b7aa6120a6ff457982de.
 # v5 baseline: 318c6114c143a81a579e70b39ccca8f8. v2 baseline (pinned
 # 2026-11-21 through v3): 16740182867525bd659735deeb05150a.
-ECONOMY_SIM_BASELINE_MD5 = "f6cec5a23109c4e7f9aeff3f7361e89d"
+ECONOMY_SIM_BASELINE_MD5 = "2b9d24f9663f88ad0d13be1f5e86c40c"
 
 
 class TestDayWageModelling(unittest.TestCase):
@@ -461,9 +463,12 @@ class TestDayWageModelling(unittest.TestCase):
 
     # Queue 24 Unit GE — the storm-position bridge line: the
     # bridge check prints the construction_worker entry row's
-    # starting balance + its worst storm-position dip. The worst
-    # dip is the early position (−500 entry); the line must carry
-    # the report's bridge observation (5,000 − 500 = 4,500).
+    # starting balance + its worst storm-position dip. Queue 31
+    # Unit LA sweeps the tiers too (the minimum across the
+    # first earner's tiers and the four storm positions, like
+    # the two-earner lines): the worst dip is senior early
+    # (−726), so the line is 5,000 − 726 = 4,274 — the
+    # household's worst across tiers, not the entry row's.
     def test_storm_position_bridge_line_is_printed(self):
         import subprocess
         out = subprocess.run(
@@ -474,7 +479,8 @@ class TestDayWageModelling(unittest.TestCase):
         text = out.stdout.decode()
         self.assertIn(
             "construction_worker    start   5000 + storm dip"
-            "    -500 =    4500  OK  (worst storm position)", text)
+            "    -726 =    4274  OK  (worst storm position,"
+            " all tiers)", text)
         self.assertIn("BRIDGE FAIL rows: []", text)
 
     def test_worst_storm_position_dip_is_the_early_one(self):
@@ -1659,7 +1665,8 @@ class TestShibnagarStormBridge(unittest.TestCase):
             "shibnagar first-month bridge check")[1]
         self.assertIn(
             "construction_worker    start   5000 + storm dip"
-            "    -500 =    4500  OK  (worst storm position)",
+            "    -726 =    4274  OK  (worst storm position,"
+            " all tiers)",
             variant)
         self.assertIn("shibnagar BRIDGE FAIL rows: []", text)
 
@@ -1686,6 +1693,72 @@ class TestShibnagarStormBridge(unittest.TestCase):
         sh_line = next(ln for ln in sh_variant.splitlines()
                        if label in ln)
         self.assertEqual(sh_line, d1_line)
+
+
+    # Queue 31 Unit LA — the single-earner storm line sweeps
+    # tiers: the printed dip is the minimum across the
+    # construction worker's tiers and the four storm positions
+    # (entry −500, mid −595, senior −726 — early worst at every
+    # tier), and the Shibnagar line sweeps the same way on its
+    # own rents, so the two lines agree.
+    def test_storm_line_sweeps_all_tiers(self):
+        from tools import economy_sim as econ
+        prices = econ.load("prices.json")
+        w = next(w for w in prices["wages_monthly"]
+                 if w["profession_id"] == "construction_worker")
+        positions = (econ.STORM_EARLY_DAYS, econ.STORM_MID_DAYS,
+                     econ.STORM_LATE_DAYS, econ.STORM_MEASURED_DAYS)
+        for tier, worst in (("entry", -500), ("mid", -595),
+                            ("senior", -726)):
+            dips = [econ.simulate(prices, w, tier, storm_days=pos)
+                    ["min_balance"] for pos in positions]
+            self.assertEqual(min(dips), worst, tier)
+        # The printed line's dip is the cross-tier minimum,
+        # not the entry row's: 5,000 − 726 = 4,274.
+        import subprocess
+        out = subprocess.run(
+            [sys.executable, os.path.join(ROOT, "tools",
+                                          "economy_sim.py")],
+            capture_output=True, cwd=ROOT)
+        self.assertEqual(out.returncode, 0)
+        text = out.stdout.decode()
+        line = next(ln for ln in text.splitlines()
+                    if "storm dip" in ln)
+        self.assertIn("-726 =    4274", line)
+        self.assertIn("(worst storm position, all tiers)", line)
+
+    def test_shibnagar_storm_line_sweeps_all_tiers(self):
+        from tools import economy_sim as econ
+        prices = econ.load("prices.json")
+        w = next(w for w in prices["wages_monthly"]
+                 if w["profession_id"] == "construction_worker")
+        rents, _stock = econ.load_shibnagar_rents(prices)
+        override = rents[econ.SHIBNAGAR_RENT_TIER
+                         ["construction_worker"]]
+        positions = (econ.STORM_EARLY_DAYS, econ.STORM_MID_DAYS,
+                     econ.STORM_LATE_DAYS, econ.STORM_MEASURED_DAYS)
+        # Every tier's worst dip is identical on Shibnagar
+        # rents — the rent is the tier-1 rent in both cities
+        # and the dip is the first earner's own.
+        for tier, worst in (("entry", -500), ("mid", -595),
+                            ("senior", -726)):
+            dips = [econ.simulate(prices, w, tier, storm_days=pos,
+                                  rent_override=override)
+                    ["min_balance"] for pos in positions]
+            self.assertEqual(min(dips), worst, tier)
+        import subprocess
+        sh = subprocess.run(
+            [sys.executable, os.path.join(ROOT, "tools",
+                                          "economy_sim.py"),
+             "--shibnagar"],
+            capture_output=True, cwd=ROOT)
+        self.assertEqual(sh.returncode, 0)
+        variant = sh.stdout.decode().split(
+            "shibnagar first-month bridge check")[1]
+        line = next(ln for ln in variant.splitlines()
+                    if "storm dip" in ln)
+        self.assertIn("-726 =    4274", line)
+        self.assertIn("(worst storm position, all tiers)", line)
 
 
 class TestNoRegression(unittest.TestCase):
