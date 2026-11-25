@@ -16,6 +16,9 @@ ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__),
 # entry renting second earner in the second-earner surge
 # table (MC).
 # See docs/ECONOMY-SIM-REPORT-V7.md §23.
+# Queue 35 (Unit MD, 2026-11-25) wires the surge table
+# into the --shibnagar variant only — the default-run
+# output is byte-identical, so this baseline stands.
 # Previous baseline (v7 + Queue 33, Unit MB):
 # 4abf52ff0dc7d00f6acd3168d7c1c807. Previous baseline (v7 + Queue 32, Unit MA):
 # bc9a35e1c95d4b8a512c0a4a6e0994cd. Previous baseline (v7 + Queue 31, Unit LA):
@@ -2017,6 +2020,181 @@ class TestRentingRowsInSurgeSection(unittest.TestCase):
             "         -389    12201      12656", section)
         self.assertEqual(
             section.count("taxi-driver (entry, renting)"), 3)
+
+
+class TestShibnagarSurgeTable(unittest.TestCase):
+    """Queue 35 Unit MD — the KC surge section in the
+    --shibnagar variant's own table (MC wired the fourth
+    pairing into the District 1 table; the section itself was
+    still District 1 only in the printed run)."""
+    def test_surged_rows_are_identical_on_shibnagar_rents(
+            self):
+        from tools import economy_sim as econ
+        prices = econ.load("prices.json")
+        rents, _stock = econ.load_shibnagar_rents(prices)
+        # Shibnagar's tier-1 rent is the prices.json tier-1
+        # rent (2,500) — asserted by load_shibnagar_rents,
+        # not assumed — and the surge rows rent at tier 1
+        # (the taxi driver and the construction worker both),
+        # so the figures must be identical by construction.
+        tier1 = next(r["rent_ncr"]
+                     for r in prices["rent_monthly_by_tier"]
+                     if r["tier"] == 1)
+        self.assertEqual(rents[1], tier1)
+        self.assertEqual(
+            rents[econ.SHIBNAGAR_RENT_TIER["taxi_driver"]],
+            tier1)
+        self.assertEqual(
+            rents[econ.SHIBNAGAR_RENT_TIER["construction_worker"]],
+            tier1)
+        bands = {w["profession_id"]: w
+                 for w in prices["wages_monthly"]}
+        cab = prices["taxi_fares"]["cab_rental_ncr_per_day"]
+        weather = dict(
+            taxi_rain_days=econ.TAXI_WEATHER_MEASURED_RAIN_DAYS,
+            taxi_storm_days=econ
+            .TAXI_WEATHER_MEASURED_STORM_DAYS)
+        checked = 0
+        # Single-earner rows: owning and renting at every
+        # tier, flat and surged.
+        shib_taxi = rents[econ.SHIBNAGAR_RENT_TIER["taxi_driver"]]
+        for kw in ({}, {"extra_daily_cost": cab,
+                        "label_suffix": " (renting cab)"}):
+            for tier in ("entry", "mid", "senior"):
+                for skw in ({}, weather):
+                    d1 = econ.simulate(prices, bands["taxi_driver"],
+                                       tier, **kw, **skw)
+                    sh = econ.simulate(prices, bands["taxi_driver"],
+                                       tier, rent_override=shib_taxi,
+                                       **kw, **skw)
+                    self.assertEqual(sh["min_balance"],
+                                     d1["min_balance"], tier)
+                    self.assertEqual(sh["net"], d1["net"], tier)
+                    self.assertEqual(sh["end_balance"],
+                                     d1["end_balance"], tier)
+                    checked += 1
+        # Second-earner rows: all four pairings × three tiers
+        # × four storm positions, flat and surged.
+        shib_cw = rents[econ.SHIBNAGAR_RENT_TIER[
+            "construction_worker"]]
+        w = bands["construction_worker"]
+        pairings = (
+            {"second_earner": "taxi_driver"},
+            {"second_earner": "taxi_driver",
+             "second_earner_tier": "mid"},
+            {"second_earner": "taxi_driver",
+             "second_earner_tier": "mid",
+             "second_earner_renting_cab": True},
+            {"second_earner": "taxi_driver",
+             "second_earner_renting_cab": True},
+        )
+        positions = (econ.STORM_EARLY_DAYS, econ.STORM_MID_DAYS,
+                     econ.STORM_LATE_DAYS, econ.STORM_MEASURED_DAYS)
+        for kw in pairings:
+            for tier in ("entry", "mid", "senior"):
+                for pos in positions:
+                    for skw in ({}, weather):
+                        d1 = econ.simulate(prices, w, tier,
+                                           storm_days=pos,
+                                           **kw, **skw)
+                        sh = econ.simulate(prices, w, tier,
+                                           storm_days=pos,
+                                           rent_override=shib_cw,
+                                           **kw, **skw)
+                        self.assertEqual(sh["min_balance"],
+                                         d1["min_balance"],
+                                         f"{kw}/{tier}/{pos}")
+                        self.assertEqual(sh["net"], d1["net"],
+                                         f"{kw}/{tier}/{pos}")
+                        self.assertEqual(sh["end_balance"],
+                                         d1["end_balance"],
+                                         f"{kw}/{tier}/{pos}")
+                        checked += 1
+        # 12 single-earner + 96 second-earner rows.
+        self.assertEqual(checked, 108)
+
+    def test_shibnagar_variant_prints_own_surge_table(self):
+        import subprocess
+        out = subprocess.run(
+            [sys.executable, os.path.join(ROOT, "tools",
+                                          "economy_sim.py"),
+             "--shibnagar"],
+            capture_output=True, cwd=ROOT)
+        self.assertEqual(out.returncode, 0)
+        text = out.stdout.decode()
+        # The variant's own table, computed on Shibnagar's
+        # rents — headed Unit MD, not a reprint of the D1
+        # section (which the run still prints first).
+        self.assertIn("shibnagar taxi weather-surge month "
+                      "(Unit MD", text)
+        self.assertIn("shibnagar taxi-driver second earner "
+                      "weather-surge month (Unit MD", text)
+        section = text.split(
+            "shibnagar taxi weather-surge month")[1].split(
+            "district 1 vs shibnagar")[0]
+        for row in (
+                "taxi_driver                  entry        14000"
+                "   14700     6500       6955      +455",
+                "taxi_driver                  mid          23000"
+                "   24150    11950      12641      +691",
+                "taxi_driver                  senior       36000"
+                "   37800    19750      20830     +1080",
+                "taxi_driver (renting cab)    entry        14000"
+                "   14700     1300       1755      +455",
+                "taxi_driver (renting cab)    mid          23000"
+                "   24150     6750       7441      +691",
+                "taxi_driver (renting cab)    senior       36000"
+                "   37800    14550      15630     +1080"):
+            self.assertIn(row, section)
+        self.assertEqual(section.count("(renting cab)"), 3)
+        for row in (
+                "taxi-driver (entry, owning)  senior         -72"
+                "          -42    17401      17856",
+                "taxi-driver (mid, owning)    senior           0"
+                "            0    22851      23542",
+                "taxi-driver (mid, renting)   senior         -56"
+                "           -9    17651      18342",
+                "taxi-driver (entry, renting) senior        -419"
+                "         -389    12201      12656"):
+            self.assertIn(row, section)
+        for pairing in ("taxi-driver (entry, owning)",
+                        "taxi-driver (mid, owning)",
+                        "taxi-driver (mid, renting)",
+                        "taxi-driver (entry, renting)"):
+            self.assertIn(pairing, section)
+        self.assertNotIn("senior, renting", section)
+        self.assertIn("shibnagar BRIDGE FAIL rows: []", text)
+
+    def test_shibnagar_surge_table_matches_district1(self):
+        import subprocess
+        d1 = subprocess.run(
+            [sys.executable, os.path.join(ROOT, "tools",
+                                          "economy_sim.py")],
+            capture_output=True, cwd=ROOT)
+        sh = subprocess.run(
+            [sys.executable, os.path.join(ROOT, "tools",
+                                          "economy_sim.py"),
+             "--shibnagar"],
+            capture_output=True, cwd=ROOT)
+        self.assertEqual(d1.returncode, 0)
+        self.assertEqual(sh.returncode, 0)
+        d1_text, sh_text = d1.stdout.decode(), sh.stdout.decode()
+        # The data rows of the two tables, line for line —
+        # the headers differ (Unit KC vs Unit MD) but every
+        # printed figure is the same.
+        d1_rows = [ln for ln in d1_text.split(
+            "taxi weather-surge month (Unit KC")[1].splitlines()
+            if (ln.startswith("taxi_driver")
+                or ln.startswith("taxi-driver"))
+            and "weather-surge month" not in ln]
+        sh_rows = [ln for ln in sh_text.split(
+            "shibnagar taxi weather-surge month")[1].split(
+            "district 1 vs shibnagar")[0].splitlines()
+            if (ln.startswith("taxi_driver")
+                or ln.startswith("taxi-driver"))
+            and "weather-surge month" not in ln]
+        self.assertEqual(len(d1_rows), 18)
+        self.assertEqual(sh_rows, d1_rows)
 
 
 class TestNoRegression(unittest.TestCase):

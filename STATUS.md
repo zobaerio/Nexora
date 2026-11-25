@@ -46,6 +46,20 @@
 - **Queue 35 drafted** in WORK-QUEUE.md (MD surge section in the Shibnagar variant — traces to a gap Queue 34 recorded; no owner tuning call taken; the UE pick on the PC build stays owner-side, NOT queued).
 - **Remaining:** the next honest milestone is unchanged (Phase 1 on the owner's PC; owner still owes Step 0: PC specs).
 
+## Queue 35 — "Queue 34 Follow-up: Surge Section in the Shibnagar Variant" (drafted 2026-11-25; built + verified locally, awaiting the GitHub batch)
+
+| Unit | State | PR |
+|---|---|---|
+| MD — Surge Section in the Shibnagar Variant | ✅ Built + verified locally (41 checks, 0 failures) — DECIDED: wire the variant's own surge table. Measured live: 108/108 surged rows identical on Shibnagar rents — 12 single-earner + 96 second-earner (4 pairings × 3 tiers × 4 storm positions × flat/surged), compared on minbal, net and end balance; the variant's 18 printed rows match District 1 line-for-line. The KC section is now `print_taxi_weather_surge(prices, bands, variant=..., rent_overrides=...)`; the default run calls it with no overrides (byte-identical output, pinned md5 `a818a327…` stands) and the `--shibnagar` variant calls it after its bridge check on Shibnagar's own rents. Non-zero early dips, same in both cities: entry-owning senior −72 → −42; mid-renting senior −56 → −9; entry-renting −193 → −163 / −288 → −258 / −419 → −389; nets +455 (entry second earner) / +691 (mid) at every tier; single-earner deltas +455 / +691 / +1,080, renting rows matching owning rows (rental stays the flat 5,200 unsurged). Every trajectory ends exactly at net. The `--shibnagar` full-output md5 moves to `762a2b63…` (MC `2aaf1c47…` kept as history). 3 new tests pin the printed table + the D1 match | — |
+
+## Queue 35 status (2026-11-25)
+
+- **Queue 35 is built + verified locally on branch `feat/queue35-md`** (local commits `cbc4736` MD, `78b382c` queue ticks + Queue 36 draft) — 41 verify checks, 0 failures, re-run post-commit by the parent run; final sweep of the affected suites 200 tests, all passing (`test_no_regression` 65/65, `test_economy_business_market` + `test_missions` + `test_mission_progress_regression` + `test_acceptance` + `test_economy_labour_banking` 135/135); `tools/validate_data.py` green throughout — awaiting the parent run's GitHub batch (push + PR + merge). Queue 36 (ME) is drafted below — the current queue for later runs.
+- **Verification:** the unit verified by its own script + tests + validator. Sim behaviour changed only where the unit says: the KC surge section is now a shared function, printed by both runs (MD); the default run's output is byte-identical. No owner tuning call taken: the loss rate stays 0 in `data/lost-items-config.json`.
+- **Real findings recorded in the docs (not silent):** the D1 section does not stand alone for both cities in print even though the figures are identical — the variant now prints its own table on its own rents (MD — V7 §24); whether the renting senior-tier taxi second earner belongs in the tool at all stays open — allowed but unmeasured, no measured household pairs the construction worker with a senior taxi driver (MD — Queue 36 Unit ME).
+- **Queue 36 drafted** in WORK-QUEUE.md (ME renting senior-tier taxi second earner decision — traces to a gap Queue 35 recorded; no owner tuning call taken; the UE pick on the PC build stays owner-side, NOT queued).
+- **Remaining:** the next honest milestone is unchanged (Phase 1 on the owner's PC; owner still owes Step 0: PC specs).
+
 ## Queue 31 — "Queue 30 Follow-up: Single-Earner Storm Line Across Tiers" (drafted 2026-11-25; MERGED 2026-11-25 — PR #49, main `e487abb5`, blob-verified)
 
 | Unit | State | PR |
