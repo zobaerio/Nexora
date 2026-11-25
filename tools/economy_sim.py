@@ -1301,6 +1301,23 @@ def print_taxi_weather_surge(prices, bands, variant=False,
             # earner (Unit IB) — measured but unprinted until
             # now; the surge shrinks its early dips by the
             # entry taxi surge (+455 net at every tier).
+            # Queue 36 / Unit ME: DECIDED — the renting
+            # senior-tier taxi second earner stays allowed
+            # but unprinted. simulate() computes it (the
+            # senior wage and the flat rental are both
+            # sourced), but no row is printed here and no
+            # bridge line is wired for it in either check:
+            # no measured household pairs the construction
+            # worker with a senior taxi driver (§12 standing
+            # rule), and every renting row sits beside its
+            # owning row — the owning senior second earner
+            # is itself unmodelled, so the row would dangle
+            # (and its net would publish the owning senior
+            # net by implication, net + 5,200). A live check
+            # while deciding found the row would add no
+            # finding (the senior pay covers the cost-only
+            # days at every tier). Re-opens only if a
+            # measured household appears (Queue 37 Unit MF).
             ("taxi-driver (entry, renting)",
              {"second_earner": "taxi_driver",
               "second_earner_renting_cab": True})):

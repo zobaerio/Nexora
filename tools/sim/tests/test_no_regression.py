@@ -2197,6 +2197,88 @@ class TestShibnagarSurgeTable(unittest.TestCase):
         self.assertEqual(sh_rows, d1_rows)
 
 
+class TestSeniorRentingSecondEarnerDecision(unittest.TestCase):
+    """Queue 36 Unit ME — the renting senior-tier taxi
+    second earner stays allowed but unmeasured (MD follow-up):
+    simulate() computes the combination (the senior wage and
+    the flat rental are both sourced), but the default run
+    prints no row for it and neither bridge check wires a
+    line for it — no measured household pairs the
+    construction worker with a senior taxi driver (§12
+    standing rule), and every renting row sits beside its
+    owning row, which is itself unmodelled at senior."""
+    def test_senior_renting_second_earner_is_allowed(self):
+        from tools import economy_sim as econ
+        prices = econ.load("prices.json")
+        bands = {w["profession_id"]: w
+                 for w in prices["wages_monthly"]}
+        w = bands["construction_worker"]
+        rental = (prices["taxi_fares"]["cab_rental_ncr_per_day"]
+                  * econ.WORK_DAYS)
+        self.assertEqual(rental, 5200)
+        positions = (econ.STORM_EARLY_DAYS, econ.STORM_MID_DAYS,
+                     econ.STORM_LATE_DAYS, econ.STORM_MEASURED_DAYS)
+        for tier in ("entry", "mid", "senior"):
+            for pos in positions:
+                kw = dict(second_earner="taxi_driver",
+                          second_earner_tier="senior",
+                          second_earner_renting_cab=True)
+                r = econ.simulate(prices, w, tier,
+                                  storm_days=pos, **kw)
+                own = econ.simulate(
+                    prices, w, tier, storm_days=pos,
+                    second_earner="taxi_driver",
+                    second_earner_tier="senior")
+                # The combination computes (allowed, not
+                # refused); the rental is the same flat
+                # 5,200 at every tier and position, so the
+                # net is exactly 5,200 below the owning
+                # senior driver — the rental rule, not a
+                # measured household figure — and the
+                # trajectory ends exactly at net.
+                self.assertEqual(r["net"], own["net"] - 5200)
+                self.assertEqual(r["end_balance"], r["net"])
+                # The senior pay covers the cost-only days
+                # at every tier, so the pairing dips nowhere
+                # — the row would add no finding, which is
+                # part of why ME leaves it unprinted.
+                self.assertEqual(r["min_balance"], 0)
+
+    def test_senior_renting_second_earner_is_not_printed(self):
+        import subprocess
+        d1 = subprocess.run(
+            [sys.executable, os.path.join(ROOT, "tools",
+                                          "economy_sim.py")],
+            capture_output=True, cwd=ROOT)
+        sh = subprocess.run(
+            [sys.executable, os.path.join(ROOT, "tools",
+                                          "economy_sim.py"),
+             "--shibnagar"],
+            capture_output=True, cwd=ROOT)
+        self.assertEqual(d1.returncode, 0)
+        self.assertEqual(sh.returncode, 0)
+        for text in (d1.stdout.decode(), sh.stdout.decode()):
+            # The surge table keeps its four pairings and
+            # neither bridge check wires a senior renting
+            # line; the renting mid-tier line (Unit KA) is
+            # the only renting second-earner line in either
+            # check.
+            self.assertNotIn("senior, renting", text)
+            self.assertNotIn("taxi-driver (senior, renting)",
+                             text)
+            self.assertIn("taxi-driver (mid, renting)", text)
+            self.assertIn(
+                "construction_worker + taxi-driver"
+                " (mid, renting)", text)
+        section = d1.stdout.decode().split(
+            "taxi-driver second earner weather-surge month")[1]
+        for pairing in ("taxi-driver (entry, owning)",
+                        "taxi-driver (mid, owning)",
+                        "taxi-driver (mid, renting)",
+                        "taxi-driver (entry, renting)"):
+            self.assertIn(pairing, section)
+
+
 class TestNoRegression(unittest.TestCase):
     def test_economy_sim_output_unchanged(self):
         out = subprocess.run(

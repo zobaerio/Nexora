@@ -1790,4 +1790,78 @@ driver (36,000) and senior civil engineer (65,000) as
 second earner stay unmodelled for the same reason (§12).
 Whether the renting senior-tier second earner belongs in
 the tool at all — measured, kept refused, or kept
-allowed-but-unmeasured — is Queue 36 Unit ME.
+allowed-but-unmeasured — is Queue 36 Unit ME. (Closed
+2026-11-25 by Queue 36 Unit ME — §25.)
+
+## 25. Addendum — Renting senior-tier taxi second earner: belongs in the tool? (Unit ME, Queue 36)
+
+**Date:** 2026-11-25. **Method:** decide whether the
+renting senior-tier taxi second earner
+(`simulate(..., second_earner="taxi_driver",
+second_earner_tier="senior",
+second_earner_renting_cab=True)`) belongs in the tool at
+all — measure it on the KA pattern, keep it refused with
+a stated reason, or keep it allowed-but-unmeasured with a
+stated reason — and wire the surge-table row + bridge line
+only if the decision says so. No invented household, no
+tuning call.
+
+**DECIDED: keep allowed-but-unmeasured.** The combination
+stays computable — `simulate()` raises nothing for it, the
+senior wage (36,000) is `prices.json` `wages_monthly` and
+the rental is the settlement's flat 5,200/month (200 ×
+WORK_DAYS 26) — but the default run prints no row for it,
+the KC second-earner surge table keeps its four pairings,
+and neither bridge check wires a line for it. Three
+reasons, in order:
+
+1. The §12 standing rule: no measured household pairs the
+construction worker with a senior taxi driver, so the
+senior second earner stays unmodelled rather than assumed.
+The renting variant is the same household at the same tier
+— measuring it alone would overturn the rule for one
+variant only, while the owning senior pairing it compares
+against stays unmodelled.
+2. The table's own structure: every renting row sits beside
+its owning row — the single-earner renting rows beside the
+owning rows (MB), the entry renting second earner beside
+the entry owning second earner (MC), the renting mid-tier
+second earner beside the owning mid-tier one in §14's
+table (KA). A renting-senior row with no owning-senior row
+would dangle — and its net would publish the owning senior
+net by implication (net + 5,200), smuggling §12's
+unmodelled pairing in through the back door.
+3. It would add no finding: a live check while deciding
+(three first-earner tiers × four storm positions, flat and
+surged) found the senior taxi pay covers the cost-only days
+at every tier — the early dip is 0 everywhere, the
+measured position dips 0, every trajectory ends exactly at
+net, and the net is exactly 5,200 below the owning senior
+driver at every tier — so the bridge line would be the
+trivial 10,000 + 0 = 10,000. A row of zeros says nothing
+the owning pattern plus the flat rental does not already
+say.
+
+No refusal is invented either: refusing the combination
+would add a restriction the data does not support — the
+wage and the rental are both sourced, and the tool's tier
+parameter already spans entry/mid/senior for the mixed
+second earner (IC). The boundary is therefore exactly:
+computable, not printed, not wired — pinned by the ME
+tests, which fail loudly if a later run prints the row or
+wires the line without revisiting this decision.
+
+The pinned md5 does NOT move — the MC baseline
+`a818a3273cdad108c4d8d4ae198b5b44` stands (the change is a
+comment only; the default run is byte-identical). The
+`--shibnagar` full-output md5 does NOT move either —
+`762a2b6395a1c83fc86f2b5f9c1839bc` stands.
+
+**No tuning call.** Nothing in the data moves.
+
+**Open, recorded:** the decision re-opens only if a
+measured household appears — a live settlement household
+pairing the construction worker with a senior taxi driver
+(or a senior civil engineer) as second earner (Queue 37
+Unit MF); until then the §12 rule stands and the senior
+second earners stay unmodelled.
