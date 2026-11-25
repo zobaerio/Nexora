@@ -12,10 +12,12 @@ import unittest
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__),
                                     "..", "..", ".."))
 # Pinned default-run md5 of tools/economy_sim.py.
-# v7 + Queue 33 baseline (Unit MB, 2026-11-25): the
-# renting-cab rows in the KC surge section (MB).
-# See docs/ECONOMY-SIM-REPORT-V7.md §22.
-# Previous baseline (v7 + Queue 32, Unit MA):
+# v7 + Queue 34 baseline (Unit MC, 2026-11-25): the
+# entry renting second earner in the second-earner surge
+# table (MC).
+# See docs/ECONOMY-SIM-REPORT-V7.md §23.
+# Previous baseline (v7 + Queue 33, Unit MB):
+# 4abf52ff0dc7d00f6acd3168d7c1c807. Previous baseline (v7 + Queue 32, Unit MA):
 # bc9a35e1c95d4b8a512c0a4a6e0994cd. Previous baseline (v7 + Queue 31, Unit LA):
 # 2b9d24f9663f88ad0d13be1f5e86c40c. Previous baseline (v7 +
 # Queue 28, Unit KA):
@@ -41,7 +43,7 @@ ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__),
 # 2026-11-24 through Queue 22): 9ac10779c231b7aa6120a6ff457982de.
 # v5 baseline: 318c6114c143a81a579e70b39ccca8f8. v2 baseline (pinned
 # 2026-11-21 through v3): 16740182867525bd659735deeb05150a.
-ECONOMY_SIM_BASELINE_MD5 = "4abf52ff0dc7d00f6acd3168d7c1c807"
+ECONOMY_SIM_BASELINE_MD5 = "a818a3273cdad108c4d8d4ae198b5b44"
 
 
 class TestDayWageModelling(unittest.TestCase):
@@ -1341,12 +1343,12 @@ class TestTaxiWeatherSurge(unittest.TestCase):
         prices = econ.load("prices.json")
         w = next(w for w in prices["wages_monthly"]
                  if w["profession_id"] == "construction_worker")
-        # The surge shrinks both early dips — the HD senior
-        # dip and the KA renting senior dip — but closes
-        # neither; the measured position dips 0 flat and
-        # surged for every pairing and tier; the nets rise by
-        # the second earner's surged-gross gain (+455 entry,
-        # +691 mid).
+        # The surge shrinks all three early dips — the HD senior
+        # dip, the KA renting senior dip, and the IB entry
+        # renting dips — but closes none of them; the measured
+        # position dips 0 flat and surged for every pairing and
+        # tier; the nets rise by the second earner's
+        # surged-gross gain (+455 entry, +691 mid).
         cases = (
             ({"second_earner": "taxi_driver"}, "senior", -72, -42,
              17401, 17856),
@@ -1357,6 +1359,9 @@ class TestTaxiWeatherSurge(unittest.TestCase):
               "second_earner_tier": "mid",
               "second_earner_renting_cab": True}, "senior", -56, -9,
              17651, 18342),
+            ({"second_earner": "taxi_driver",
+              "second_earner_renting_cab": True}, "senior", -419,
+             -389, 12201, 12656),
         )
         for kw, tier, dip, surged_dip, net, surged_net in cases:
             flat = econ.simulate(
@@ -1379,6 +1384,8 @@ class TestTaxiWeatherSurge(unittest.TestCase):
                     "second_earner_tier": "mid"},
                    {"second_earner": "taxi_driver",
                     "second_earner_tier": "mid",
+                    "second_earner_renting_cab": True},
+                   {"second_earner": "taxi_driver",
                     "second_earner_renting_cab": True}):
             for tier in ("entry", "mid", "senior"):
                 for pos in (econ.STORM_EARLY_DAYS,
@@ -1406,6 +1413,8 @@ class TestTaxiWeatherSurge(unittest.TestCase):
                     "second_earner_tier": "mid"},
                    {"second_earner": "taxi_driver",
                     "second_earner_tier": "mid",
+                    "second_earner_renting_cab": True},
+                   {"second_earner": "taxi_driver",
                     "second_earner_renting_cab": True}):
             for tier in ("entry", "mid", "senior"):
                 flat = econ.simulate(
@@ -1962,7 +1971,7 @@ class TestRentingRowsInSurgeSection(unittest.TestCase):
             "   37800    14550      15630     +1080", section)
         self.assertEqual(section.count("(renting cab)"), 3)
 
-    def test_second_earner_surge_table_is_untouched(self):
+    def test_second_earner_surge_table_has_four_pairings(self):
         import subprocess
         out = subprocess.run(
             [sys.executable, os.path.join(ROOT, "tools",
@@ -1972,14 +1981,42 @@ class TestRentingRowsInSurgeSection(unittest.TestCase):
         text = out.stdout.decode()
         section = text.split(
             "taxi-driver second earner weather-surge month")[1]
-        # The two-earner table keeps exactly its three
-        # pairings — MB wires the single-earner table only;
-        # the renting senior-tier second earner stays
-        # unmeasured (V7 §14), not queued.
+        # Queue 34 Unit MC wires the fourth pairing in — the
+        # entry renting second earner (Unit IB), measured but
+        # unprinted until now. The MB "untouched" test is
+        # superseded by this one; the renting senior-tier
+        # second earner stays unmeasured (V7 §14), not queued.
         self.assertIn("taxi-driver (entry, owning)", section)
         self.assertIn("taxi-driver (mid, owning)", section)
         self.assertIn("taxi-driver (mid, renting)", section)
+        self.assertIn("taxi-driver (entry, renting)", section)
         self.assertNotIn("senior, renting", section)
+
+    def test_second_earner_surge_table_prints_entry_renting_rows(
+            self):
+        import subprocess
+        out = subprocess.run(
+            [sys.executable, os.path.join(ROOT, "tools",
+                                          "economy_sim.py")],
+            capture_output=True, cwd=ROOT)
+        self.assertEqual(out.returncode, 0)
+        text = out.stdout.decode()
+        section = text.split(
+            "taxi-driver second earner weather-surge month")[1]
+        # The IB dips shrink by the entry taxi surge but close
+        # none: -193 -> -163, -288 -> -258, -419 -> -389; the
+        # nets rise +455 at every tier.
+        self.assertIn(
+            "taxi-driver (entry, renting) entry         -193"
+            "         -163     5500       5955", section)
+        self.assertIn(
+            "taxi-driver (entry, renting) mid           -288"
+            "         -258     8744       9199", section)
+        self.assertIn(
+            "taxi-driver (entry, renting) senior        -419"
+            "         -389    12201      12656", section)
+        self.assertEqual(
+            section.count("taxi-driver (entry, renting)"), 3)
 
 
 class TestNoRegression(unittest.TestCase):

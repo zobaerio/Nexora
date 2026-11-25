@@ -303,6 +303,28 @@ the surge section):
   md5 moves again (the MA md5 is kept in
   test_no_regression.py as history). No tuning call.
 
+What v7 adds vs v6, Queue 34 Unit MC (the entry renting
+second earner in the surge table):
+- The KC second-earner surge table printed three pairings
+  while the entry renting second earner (Unit IB: early
+  dips -193 / -288 / -419, nets 5,500 / 8,744 / 12,201)
+  was measured but not shown — so the surge's effect on
+  its dips was unprinted. The table now prints the
+  (entry, renting) pairing at every tier beside the other
+  three: early -193 -> -163, -288 -> -258, -419 -> -389,
+  nets +455 at every tier (5,500 -> 5,955, 8,744 -> 9,199,
+  12,201 -> 12,656) — the surge shrinks all three early
+  dips but closes none, exactly the entry taxi surge, since
+  the second earner's gross is the entry band and the
+  rental stays the flat 5,200 unsurged. The measured
+  position dips 0 flat and surged, and every trajectory
+  ends exactly at net. The renting senior-tier taxi second
+  earner stays unmeasured (V7 §14) — not queued. The
+  bridge check stays flat — the factor is >= 1, so the flat
+  lines are the conservative case. The pinned md5 moves
+  again (the MB md5 is kept in test_no_regression.py as
+  history). No tuning call.
+
 What v6 changes vs v5 (Queue 22, Unit EY — the ES day-wage
 follow-up):
 - The construction worker is now modelled on the settlement's
@@ -2081,9 +2103,10 @@ def main():
     # position is where the dips live (the measured position
     # dips 0 flat and surged for every pairing and tier), so
     # the table prints the early minbal flat vs surged beside
-    # the net flat vs surged. The surge shrinks both early
-    # dips — the HD senior dip and the KA renting senior dip —
-    # but closes neither.
+    # the net flat vs surged. The surge shrinks all three
+    # early dips — the HD senior dip, the KA renting senior
+    # dip, and the IB entry renting dips — but closes none of
+    # them.
     print()
     print("taxi-driver second earner weather-surge month (Unit KC"
           " — same EY weather; early-position minbal flat vs"
@@ -2100,6 +2123,13 @@ def main():
             ("taxi-driver (mid, renting)",
              {"second_earner": "taxi_driver",
               "second_earner_tier": "mid",
+              "second_earner_renting_cab": True}),
+            # Queue 34 / Unit MC: the entry renting second
+            # earner (Unit IB) — measured but unprinted until
+            # now; the surge shrinks its early dips by the
+            # entry taxi surge (+455 net at every tier).
+            ("taxi-driver (entry, renting)",
+             {"second_earner": "taxi_driver",
               "second_earner_renting_cab": True})):
         for tier in ("entry", "mid", "senior"):
             w = bands["construction_worker"]
