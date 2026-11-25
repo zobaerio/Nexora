@@ -1330,6 +1330,19 @@ def print_taxi_weather_surge(prices, bands, variant=False,
             # second earner — senior here means tier >= 3,
             # since TIER_WAGE_KEYS maps tiers 3-5 to the
             # senior band. Full detail: V7 report §26.
+            # Queue 38 / Unit MG checked 2026-11-25 — MG
+            # swept the same check across five seeds
+            # (mg-seed-1..5, 120 population, 90 days each):
+            # 0 senior taxi-driver and 0 senior civil-
+            # engineer second earners in construction-
+            # worker-headed households in every seed, so
+            # the §12 rule stands on the broader base and
+            # nothing is wired. Senior second earners do
+            # occur in those worlds (a tier-3 shop owner,
+            # two tier-3 business owners) — just never a
+            # senior taxi driver or civil engineer under a
+            # construction-worker head. Full detail: V7
+            # report §27.
             ("taxi-driver (entry, renting)",
              {"second_earner": "taxi_driver",
               "second_earner_renting_cab": True})):

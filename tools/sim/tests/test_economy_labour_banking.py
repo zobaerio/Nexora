@@ -284,6 +284,111 @@ class TestSeniorSecondEarnerLiveWorld(unittest.TestCase):
                 65000)
 
 
+class TestSeniorSecondEarnerMultiSeedSweep(unittest.TestCase):
+    """Queue 38 Unit MG — the multi-seed senior second
+    earner sweep (Unit MF follow-up: MF checked one seeded
+    world, so the absence may be a small-world artifact —
+    senior-tier citizens are rare in it). The same pairing
+    query as MF (senior = tier >= 3) across three seeded
+    worlds, each 60 population and 30 days: no
+    construction-worker-headed household has a senior
+    taxi-driver or senior civil-engineer second earner in
+    any of them. The full 5-seed 120-population 90-day
+    sweep is pinned by tools/verify_queue38_mg.py; these
+    guard tests pin the method at suite speed and fail
+    loudly if a future world ever produces such a
+    household — that is the re-open condition, recorded
+    in the V7 report §27.
+    """
+
+    SEEDS = ("mg-guard-1", "mg-guard-2", "mg-guard-3")
+
+    @classmethod
+    def setUpClass(cls):
+        cls.worlds = []
+        for seed in cls.SEEDS:
+            path = _tmp_path()
+            sim = Simulation(path, seed=seed)
+            sim.generate_population(60)
+            sim.run_days(30)
+            cls.worlds.append((seed, sim, path))
+
+    @classmethod
+    def tearDownClass(cls):
+        for _seed, sim, path in cls.worlds:
+            sim.close()
+            os.remove(path)
+
+    def _pairing_query(self, store, prof):
+        # The MF pairing query: a non-head member of a
+        # construction-worker-headed household, currently
+        # employed as a senior-band (tier >= 3) taxi driver
+        # or civil engineer.
+        head = ("household_members hm ON hm.household_id"
+                " = h.household_id JOIN employments e"
+                " ON e.character_id = hm.character_id")
+        member = ("household_members hm2 ON hm2.household_id"
+                  " = h.household_id JOIN employments e2"
+                  " ON e2.character_id = hm2.character_id")
+        cw_head = ("hm.role = 'head'"
+                   " AND hm.left_at_game_minutes IS NULL"
+                   " AND e.profession_id = 'construction_worker'"
+                   " AND e.ended_at_game_minutes IS NULL")
+        member_now = ("hm2.role != 'head'"
+                      " AND hm2.left_at_game_minutes IS NULL"
+                      " AND e2.ended_at_game_minutes IS NULL")
+        return store.row(
+            "SELECT COUNT(*) AS n FROM households h JOIN "
+            + head + " JOIN " + member +
+            " WHERE " + cw_head + " AND " + member_now +
+            " AND e2.profession_id = ? AND e2.tier >= 3",
+            (prof,))["n"]
+
+    def test_no_senior_second_earner_in_any_seed(self):
+        for seed, sim, _path in self.worlds:
+            store = sim.store
+            for prof in ("taxi_driver", "civil_engineer"):
+                found = self._pairing_query(store, prof)
+                self.assertEqual(found, 0, f"{seed} {prof}")
+            # Non-vacuous per world: the world holds
+            # construction-worker heads and both professions,
+            # so the zeros are measured absences.
+            cw_heads = store.row(
+                "SELECT COUNT(*) AS n FROM household_members hm"
+                " JOIN employments e ON e.character_id ="
+                " hm.character_id WHERE hm.role = 'head'"
+                " AND hm.left_at_game_minutes IS NULL"
+                " AND e.profession_id = 'construction_worker'"
+                " AND e.ended_at_game_minutes IS NULL")["n"]
+            self.assertGreater(cw_heads, 0, seed)
+            for prof in ("taxi_driver", "civil_engineer"):
+                n = store.row(
+                    "SELECT COUNT(*) AS n FROM employments WHERE"
+                    " profession_id = ?"
+                    " AND ended_at_game_minutes IS NULL",
+                    (prof,))["n"]
+                self.assertGreater(n, 0, f"{seed} {prof}")
+
+    def test_senior_band_wage_holds_in_every_seed(self):
+        # Every current senior-band (tier >= 3) taxi driver
+        # earns the senior 36,000 and every senior-band civil
+        # engineer the senior 65,000, in each sweep world —
+        # the band definition the query relies on.
+        for seed, sim, _path in self.worlds:
+            store = sim.store
+            for prof, wage in (("taxi_driver", 36000),
+                               ("civil_engineer", 65000)):
+                rows = store.rows(
+                    "SELECT tier, wage_per_month FROM employments"
+                    " WHERE profession_id = ? AND tier >= 3"
+                    " AND ended_at_game_minutes IS NULL",
+                    (prof,))
+                for row in rows:
+                    self.assertEqual(
+                        row["wage_per_month"], wage,
+                        f"{seed} {prof} tier {row['tier']}")
+
+
 class TestBankingAndInvestment(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
