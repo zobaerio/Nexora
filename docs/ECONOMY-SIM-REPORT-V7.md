@@ -1864,4 +1864,68 @@ measured household appears — a live settlement household
 pairing the construction worker with a senior taxi driver
 (or a senior civil engineer) as second earner (Queue 37
 Unit MF); until then the §12 rule stands and the senior
-second earners stay unmodelled.
+second earners stay unmodelled. (Checked 2026-11-25 by
+Queue 37 Unit MF — no measured household appears in the
+mf-measure world; see §26.)
+
+## 26. Addendum — Senior second earner live-world check (Unit MF, Queue 37)
+
+**Date:** 2026-11-25. **Method:** run the ME reopen check
+against live households, not the tool's parameter space —
+a seeded live world (seed `mf-measure`, 120 population, 90
+days, the KF pattern) and count households pairing a
+construction-worker head with a senior taxi driver (36,000)
+or senior civil engineer (65,000) second earner. If none
+appears, re-confirm the §12 rule stands and close with no
+change (measurement only, like KF); if one appears, measure
+it on the KA/IC pattern and wire the row + bridge line only
+for the pairing that actually appears. No invented
+household, no tuning call.
+
+**DECIDED: no change — the §12 rule stands.** No measured
+household appears:
+
+- 0 senior taxi-driver second earners in
+  construction-worker-headed households.
+- 0 senior civil-engineer second earners in
+  construction-worker-headed households.
+
+The world, so the zeros are measured absences and not an
+empty query: 55 households, 4 construction-worker-headed,
+2 of those with a second earner — HH000043 (a mid-tier
+construction worker, 14,000) and HH000054 (a mid-tier
+police officer, 28,000) — so the pairing query finds real
+second earners, just none senior in either profession. The
+world holds 8 taxi drivers (1 entry, 6 mid, 1 senior-band)
+and 7 civil engineers (1 entry, 6 mid, 0 senior-band).
+
+**The one senior-band driver is a head, not a second
+earner.** The world's single senior-band taxi driver is
+NEX000032 (tier 4, 36,000), head of HH000017 — so even the
+one senior taxi wage in the world sits on the wrong side of
+the pairing. And no senior-band civil engineer exists in
+the world at all.
+
+**"Senior" in the live world means tier >= 3, not
+tier == 3.** `tools/sim/dataio.py` `TIER_WAGE_KEYS` maps
+tiers 3–5 to the senior band (`("entry", "mid", "senior",
+"senior", "senior")`), so a tier-4 driver earns the senior
+wage — a naive `tier == 3` check would have missed the
+world's only senior-band taxi driver entirely. The
+measurement counts tier >= 3, i.e. wage == the senior band
+(36,000 / 65,000 from `prices.json` `wages_monthly`).
+
+The pinned md5 does NOT move — the MC baseline
+`a818a3273cdad108c4d8d4ae198b5b44` stands (the change is a
+comment only; the default run is byte-identical). The
+`--shibnagar` full-output md5 does NOT move either —
+`762a2b6395a1c83fc86f2b5f9c1839bc` stands.
+
+**No tuning call.** Nothing in the data moves.
+
+**Open, recorded:** this is one seeded world, and senior
+second earners are rare in it precisely because senior-tier
+citizens are rare in it — one senior-band taxi driver and
+zero senior-band civil engineers in 120 people. Whether the
+absence holds across seeds is a broader-base question, not
+a reason to model the pairing now (Queue 38 Unit MG).
