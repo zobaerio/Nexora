@@ -1182,13 +1182,21 @@ flat vs surged:
 | mid, renting | entry | 0 | 0 | 10,950 | 11,641 |
 | mid, renting | mid | 0 | 0 | 14,194 | 14,885 |
 | mid, renting | senior | −56 | −9 | 17,651 | 18,342 |
+| entry, renting | entry | −193 | −163 | 5,500 | 5,955 |
+| entry, renting | mid | −288 | −258 | 8,744 | 9,199 |
+| entry, renting | senior | −419 | −389 | 12,201 | 12,656 |
 
-**Finding: the surge shrinks both early dips but closes
-neither.** The HD senior dip −72 → −42 and the KA renting
-senior dip −56 → −9 — the surged taxi pay (791/day against
-781/day of household cost at senior) almost covers the two
-storm-less days, but not quite. The measured position dips 0 flat and surged for
-every pairing and tier. The surge can only raise a taxi gross
+**Finding: the surge shrinks all three early dips but closes
+none of them.** The HD senior dip −72 → −42, the KA renting
+senior dip −56 → −9, and the IB entry renting dips −193 →
+−163 / −288 → −258 / −419 → −389 — the surged taxi pay
+(791/day against 781/day of household cost at senior) almost
+covers the two storm-less days, but not quite. The entry
+renting household's nets rise +455 at every tier — exactly
+the entry taxi surge, since the second earner's gross is the
+entry band and the rental stays the flat 5,200 unsurged. The
+measured position dips 0 flat and surged for every pairing
+and tier. The surge can only raise a taxi gross
 (the factor is ≥ 1 for any weather), so the flat bridge lines
 are the conservative case and they stand unchanged — no
 bridge line is re-wired, and the KA line (10,000 − 56 =
@@ -1217,6 +1225,9 @@ taxi-driver (mid, owning)    senior           0            0    22851      23542
 taxi-driver (mid, renting)   entry            0            0    10950      11641
 taxi-driver (mid, renting)   mid              0            0    14194      14885
 taxi-driver (mid, renting)   senior         -56           -9    17651      18342
+taxi-driver (entry, renting) entry         -193         -163     5500       5955
+taxi-driver (entry, renting) mid           -288         -258     8744       9199
+taxi-driver (entry, renting) senior        -419         -389    12201      12656
 ```
 
 **Honest limit, recorded:** the surge is applied in exactly
@@ -1604,9 +1615,70 @@ run.
 prints only three pairings — the entry renting second
 earner (Unit IB: early dips −193 / −288 / −419, nets 5,500
 / 8,744 / 12,201) is measured but not shown there, so the
-surge's effect on its dips is unprinted — Queue 34 Unit MC; the renting senior-tier taxi second earner stays
+surge's effect on its dips is unprinted — Queue 34 Unit MC. *(Closed 2026-11-25 by Queue 34 Unit MC — §23.)* The renting senior-tier taxi second earner stays
 unmeasured — no measured household pairs the construction
 worker with a senior taxi driver, so it stays unmodelled
 rather than assumed (§14); the senior taxi driver (36,000)
 and senior civil engineer (65,000) as second earner stay
 unmodelled for the same reason (§12).
+
+## 23. Addendum — Entry renting second earner in the surge table (Unit MC, Queue 34)
+
+**Date:** 2026-11-25. **Method:** re-run the entry renting
+taxi-driver second earner (Unit IB) at every tier with the
+same calls the KC second-earner surge table uses —
+`simulate(..., second_earner="taxi_driver",
+second_earner_renting_cab=True, storm_days=STORM_EARLY_DAYS,
+taxi_rain_days=..., taxi_storm_days=...)` — and decide
+whether the pairing belongs in the table or the
+three-pairing table is the right statement.
+
+**Measured: the pairing holds at every tier, with exactly
+the entry taxi surge.** The second earner's gross is the
+entry band (14,000 → 14,700), the rental stays the flat
+5,200 unsurged, so the nets rise +455 at every tier:
+
+| First-earner tier | Early flat | Early surged | Net flat | Net surged |
+|---|---:|---:|---:|---:|
+| entry | −193 | −163 | 5,500 | 5,955 |
+| mid | −288 | −258 | 8,744 | 9,199 |
+| senior | −419 | −389 | 12,201 | 12,656 |
+
+The surge shrinks all three early dips but closes none —
+the same shape as the HD senior dip (−72 → −42) and the KA
+renting senior dip (−56 → −9), which the table already
+prints. The measured position dips 0 flat and surged, and
+every trajectory ends exactly at net flat and surged — so
+the surge adds no dip the flat rows hide, and no bridge
+line is affected (the check stays flat: the factor is ≥ 1,
+so the flat lines are the conservative case).
+
+**DECIDED: wire the pairing.** The KC second-earner surge
+table now prints the (entry, renting) pairing at every
+tier beside the other three — the table no longer omits the
+one measured pairing whose surge effect was prose-only
+(§11). The verbatim output in §16 gains the three rows,
+and the §16 Finding now reads three early dips, not two.
+The table now has four pairings; the MB "untouched" test
+is superseded by a four-pairings test.
+
+The pinned md5 moves to `a818a3273cdad108c4d8d4ae198b5b44`
+(the MB md5 is kept in `test_no_regression.py` as
+history): the three new printed rows are part of the
+default run.
+
+**No tuning call.** Nothing in the data moves.
+
+**Open, recorded:** the renting senior-tier taxi second
+earner stays unmeasured — no measured household pairs the
+construction worker with a senior taxi driver, so it stays
+unmodelled rather than assumed (§14); the senior taxi
+driver (36,000) and senior civil engineer (65,000) as
+second earner stay unmodelled for the same reason (§12).
+The surge section is District 1 only in the printed run —
+the `--shibnagar` variant prints the D1 section, not its
+own surge table; measured live while drafting, all four
+pairings × three tiers × four storm positions, surged, are
+identical on Shibnagar rents (the construction worker's
+Shibnagar rent is the tier-1 rent, 2,500, the same as
+District 1) — Queue 35 Unit MD.
