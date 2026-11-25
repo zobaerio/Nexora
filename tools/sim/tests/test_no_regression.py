@@ -12,10 +12,11 @@ import unittest
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__),
                                     "..", "..", ".."))
 # Pinned default-run md5 of tools/economy_sim.py.
-# v7 + Queue 32 baseline (Unit MA, 2026-11-25): the
-# renting-cab row at mid/senior tiers (MA).
-# See docs/ECONOMY-SIM-REPORT-V7.md §21.
-# Previous baseline (v7 + Queue 31, Unit LA):
+# v7 + Queue 33 baseline (Unit MB, 2026-11-25): the
+# renting-cab rows in the KC surge section (MB).
+# See docs/ECONOMY-SIM-REPORT-V7.md §22.
+# Previous baseline (v7 + Queue 32, Unit MA):
+# bc9a35e1c95d4b8a512c0a4a6e0994cd. Previous baseline (v7 + Queue 31, Unit LA):
 # 2b9d24f9663f88ad0d13be1f5e86c40c. Previous baseline (v7 +
 # Queue 28, Unit KA):
 # 5f50931cbaad263812473ce1c7830e59. Previous baseline (v7 +
@@ -40,7 +41,7 @@ ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__),
 # 2026-11-24 through Queue 22): 9ac10779c231b7aa6120a6ff457982de.
 # v5 baseline: 318c6114c143a81a579e70b39ccca8f8. v2 baseline (pinned
 # 2026-11-21 through v3): 16740182867525bd659735deeb05150a.
-ECONOMY_SIM_BASELINE_MD5 = "bc9a35e1c95d4b8a512c0a4a6e0994cd"
+ECONOMY_SIM_BASELINE_MD5 = "4abf52ff0dc7d00f6acd3168d7c1c807"
 
 
 class TestDayWageModelling(unittest.TestCase):
@@ -1883,6 +1884,102 @@ class TestRentingCabRowAtAllTiers(unittest.TestCase):
         self.assertIn("5000 + dip       0 =    5000  OK", line)
         self.assertIn("(worst renting tier)", line)
         self.assertIn("shibnagar BRIDGE FAIL rows: []", text)
+
+
+class TestRentingRowsInSurgeSection(unittest.TestCase):
+    def test_renting_surge_rows_at_all_tiers_are_measured(self):
+        from tools import economy_sim as econ
+        prices = econ.load("prices.json")
+        w = next(w for w in prices["wages_monthly"]
+                 if w["profession_id"] == "taxi_driver")
+        cab = prices["taxi_fares"]["cab_rental_ncr_per_day"]
+        # The rental stays the flat 5,200 unsurged, so the
+        # renting rows rise by exactly the owning driver's
+        # surge deltas (+455 / +691 / +1,080) — measured in
+        # V7 §16 prose, now printed rows.
+        expected = (("entry", 14000, 14700, 1300, 1755, 455),
+                    ("mid", 23000, 24150, 6750, 7441, 691),
+                    ("senior", 36000, 37800, 14550, 15630, 1080))
+        for tier, flat_gross, surged_gross, flat_net, surged_net, delta in expected:
+            flat = econ.simulate(
+                prices, w, tier, extra_daily_cost=cab,
+                label_suffix=" (renting cab)")
+            surged = econ.simulate(
+                prices, w, tier, extra_daily_cost=cab,
+                label_suffix=" (renting cab)",
+                taxi_rain_days=econ
+                .TAXI_WEATHER_MEASURED_RAIN_DAYS,
+                taxi_storm_days=econ
+                .TAXI_WEATHER_MEASURED_STORM_DAYS)
+            self.assertEqual(
+                (flat["gross"], surged["gross"], flat["net"],
+                 surged["net"], surged["net"] - flat["net"]),
+                (flat_gross, surged_gross, flat_net, surged_net,
+                 delta), tier)
+            self.assertEqual(surged["extra"], 5200, tier)
+            self.assertEqual(surged["end_balance"],
+                             surged["net"], tier)
+            self.assertEqual(
+                (flat["min_balance"], surged["min_balance"]),
+                (0, 0), tier)
+            owning_flat = econ.simulate(prices, w, tier)
+            owning_surged = econ.simulate(
+                prices, w, tier,
+                taxi_rain_days=econ
+                .TAXI_WEATHER_MEASURED_RAIN_DAYS,
+                taxi_storm_days=econ
+                .TAXI_WEATHER_MEASURED_STORM_DAYS)
+            self.assertEqual(
+                owning_surged["net"] - owning_flat["net"],
+                delta, tier)
+            self.assertEqual(
+                owning_surged["net"] - surged["net"], 5200, tier)
+
+    def test_surge_table_prints_all_three_renting_rows(self):
+        import subprocess
+        out = subprocess.run(
+            [sys.executable, os.path.join(ROOT, "tools",
+                                          "economy_sim.py")],
+            capture_output=True, cwd=ROOT)
+        self.assertEqual(out.returncode, 0)
+        text = out.stdout.decode()
+        section = text.split(
+            "taxi weather-surge month (Unit KC")[1].split(
+            "taxi-driver second earner")[0]
+        # The owning rows are unchanged; the renting rows now
+        # print at every tier, in the same columns.
+        self.assertIn(
+            "taxi_driver                  entry        14000"
+            "   14700     6500       6955      +455", section)
+        self.assertIn(
+            "taxi_driver (renting cab)    entry        14000"
+            "   14700     1300       1755      +455", section)
+        self.assertIn(
+            "taxi_driver (renting cab)    mid          23000"
+            "   24150     6750       7441      +691", section)
+        self.assertIn(
+            "taxi_driver (renting cab)    senior       36000"
+            "   37800    14550      15630     +1080", section)
+        self.assertEqual(section.count("(renting cab)"), 3)
+
+    def test_second_earner_surge_table_is_untouched(self):
+        import subprocess
+        out = subprocess.run(
+            [sys.executable, os.path.join(ROOT, "tools",
+                                          "economy_sim.py")],
+            capture_output=True, cwd=ROOT)
+        self.assertEqual(out.returncode, 0)
+        text = out.stdout.decode()
+        section = text.split(
+            "taxi-driver second earner weather-surge month")[1]
+        # The two-earner table keeps exactly its three
+        # pairings — MB wires the single-earner table only;
+        # the renting senior-tier second earner stays
+        # unmeasured (V7 §14), not queued.
+        self.assertIn("taxi-driver (entry, owning)", section)
+        self.assertIn("taxi-driver (mid, owning)", section)
+        self.assertIn("taxi-driver (mid, renting)", section)
+        self.assertNotIn("senior, renting", section)
 
 
 class TestNoRegression(unittest.TestCase):

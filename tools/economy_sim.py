@@ -282,6 +282,27 @@ mid/senior tiers):
   verified). The pinned md5 moves again (the LA md5 is kept
   in test_no_regression.py as history). No tuning call.
 
+What v7 adds vs v6, Queue 33 Unit MB (the renting rows in
+the surge section):
+- The KC taxi weather-surge section printed the renting-cab
+  row at the entry tier only, while the base table (Unit MA)
+  models it at every tier — the surge deltas at mid/senior
+  were prose in V7 §16, not printed rows. The section now
+  prints the renting row at every tier, beside the owning
+  rows: mid 6,750 -> 7,441 (+691), senior 14,550 -> 15,630
+  (+1,080) — exactly the owning driver's deltas, because
+  the rental stays the flat 5,200 unsurged. The surged nets
+  stay exactly 5,200 below the owning surged nets at every
+  tier, minbal is 0 flat and surged, and every trajectory
+  ends exactly at net. The second-earner surge table is
+  untouched: its renting row is the two-earner household
+  (mid-tier taxi second earner), and the renting senior-tier
+  taxi second earner stays unmeasured (V7 §14) — not
+  queued. The bridge check stays flat — the factor is >= 1,
+  so the flat lines are the conservative case. The pinned
+  md5 moves again (the MA md5 is kept in
+  test_no_regression.py as history). No tuning call.
+
 What v6 changes vs v5 (Queue 22, Unit EY — the ES day-wage
 follow-up):
 - The construction worker is now modelled on the settlement's
@@ -2035,19 +2056,27 @@ def main():
               f"{flat['net']:>8} {surged['net']:>10} "
               f"{surged['net'] - flat['net']:+9d}")
     cab_rent = prices["taxi_fares"]["cab_rental_ncr_per_day"]
-    flat = simulate(prices, bands["taxi_driver"], "entry",
-                    extra_daily_cost=cab_rent,
-                    label_suffix=" (renting cab)")
-    surged = simulate(
-        prices, bands["taxi_driver"], "entry",
-        extra_daily_cost=cab_rent,
-        label_suffix=" (renting cab)",
-        taxi_rain_days=TAXI_WEATHER_MEASURED_RAIN_DAYS,
-        taxi_storm_days=TAXI_WEATHER_MEASURED_STORM_DAYS)
-    print(f"{flat['profession']:28} {flat['tier']:7} "
-          f"{flat['gross']:>10} {surged['gross']:>7} "
-          f"{flat['net']:>8} {surged['net']:>10} "
-          f"{surged['net'] - flat['net']:+9d}")
+    # Queue 33 / Unit MB: the renting-cab row at every tier,
+    # as in the District 1 base table (Unit MA) — the entry
+    # row alone understated the section: the mid/senior
+    # renting rows rise by exactly the same surge deltas as
+    # the owning driver (+691 / +1,080), because the rental
+    # stays the flat 5,200 unsurged. Measured live before
+    # wiring: mid 6,750 -> 7,441, senior 14,550 -> 15,630.
+    for tier in ("entry", "mid", "senior"):
+        flat = simulate(prices, bands["taxi_driver"], tier,
+                        extra_daily_cost=cab_rent,
+                        label_suffix=" (renting cab)")
+        surged = simulate(
+            prices, bands["taxi_driver"], tier,
+            extra_daily_cost=cab_rent,
+            label_suffix=" (renting cab)",
+            taxi_rain_days=TAXI_WEATHER_MEASURED_RAIN_DAYS,
+            taxi_storm_days=TAXI_WEATHER_MEASURED_STORM_DAYS)
+        print(f"{flat['profession']:28} {flat['tier']:7} "
+              f"{flat['gross']:>10} {surged['gross']:>7} "
+              f"{flat['net']:>8} {surged['net']:>10} "
+              f"{surged['net'] - flat['net']:+9d}")
     # The same surge on the taxi second earner: the early
     # position is where the dips live (the measured position
     # dips 0 flat and surged for every pairing and tier), so
