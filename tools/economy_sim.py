@@ -259,6 +259,29 @@ line across tiers):
   The pinned md5 moves again (the KC md5 is kept in
   test_no_regression.py as history). No tuning call.
 
+What v7 adds vs v6, Queue 32 Unit MA (the renting-cab row at
+mid/senior tiers):
+- The single-earner renting-cab row is now modelled at every
+  tier, not the entry tier alone: the base table gains the
+  mid and senior renting rows beside the entry one, each the
+  same `simulate(..., tier, extra_daily_cost=cab_rental)`
+  call (200 NCr/day x WORK_DAYS 26 = 5,200/month flat, the
+  settlement rule JB confirmed — the rental is the same at
+  every tier, so the tier moves the pay, not the rental).
+  Measured: mid net 6,750 (29.3%), senior net 14,550
+  (40.4%) — exactly 5,200 below the owning driver at every
+  tier, minbal 0 at every tier, trajectory ends exactly at
+  net. Only the entry row is TIGHT (9.3%, net 1,300). The
+  bridge check's renting line now sweeps tiers like the
+  storm line (Unit LA): the worst minbal across the three
+  renting rows against the same 5,000 start — 5,000 + 0 =
+  5,000 OK, unchanged in figure, now honestly the
+  household's worst across tiers rather than the entry
+  row's. The Shibnagar variant gains the same rows and the
+  same swept line on its own rents (identical figures,
+  verified). The pinned md5 moves again (the LA md5 is kept
+  in test_no_regression.py as history). No tuning call.
+
 What v6 changes vs v5 (Queue 22, Unit EY — the ES day-wage
 follow-up):
 - The construction worker is now modelled on the settlement's
@@ -1141,10 +1164,17 @@ def print_shibnagar_variant(prices, d1_rows, start_balances):
             rows.append(simulate(prices, w, tier, rent_override=override))
         if pid == "taxi_driver":
             cab_rent = prices["taxi_fares"]["cab_rental_ncr_per_day"]
-            rows.append(simulate(prices, w, "entry",
-                                 extra_daily_cost=cab_rent,
-                                 label_suffix=" (renting cab)",
-                                 rent_override=override))
+            # Queue 32 / Unit MA: the renting-cab row at every
+            # tier, as in the District 1 base table — the same
+            # flat 5,200/month rental on the variant's own
+            # rents. Measured identical to District 1 at every
+            # tier (the taxi rent tier is unchanged in
+            # Shibnagar), verified by the MA tests.
+            for tier in ("entry", "mid", "senior"):
+                rows.append(simulate(prices, w, tier,
+                                     extra_daily_cost=cab_rent,
+                                     label_suffix=" (renting cab)",
+                                     rent_override=override))
     print(f"{'profession':28} {'tier':7} {'gross':>7} {'tax':>6} {'rent':>6} "
           f"{'costs':>6} {'net/mo':>8} {'save%':>6} {'minbal':>8}  flags")
     for r in rows:
@@ -1320,13 +1350,20 @@ def print_shibnagar_variant(prices, d1_rows, start_balances):
                   f"{worst_rent_mid:>7} = {rent_mid_worst:>7}  "
                   f"{rent_mid_status}  (worst renting storm"
                   " position)")
-    rent_row = next(r for r in rows if "renting" in r["profession"])
+    # Queue 32 / Unit MA: the renting line sweeps tiers like
+    # the District 1 line — the worst minbal across the three
+    # renting rows on the variant's own rents. Measured 0 at
+    # every tier, so the line is 5,000 + 0 = 5,000 OK in both
+    # cities. A failing line joins BRIDGE FAIL, as in
+    # District 1.
+    rent_rows = [r for r in rows if "renting" in r["profession"]]
+    worst_rent = min(r["min_balance"] for r in rent_rows)
     start = start_balances.get("taxi_driver", 0)
-    worst = start + rent_row["min_balance"]
+    worst = start + worst_rent
     status = "OK" if worst >= 0 else "BRIDGE FAIL"
     if worst < 0:
         bridge_fail.append("taxi_driver (renting cab)")
-    print(f"  {'taxi_driver (renting cab)':22} start {start:>6} + dip {rent_row['min_balance']:>7} = {worst:>7}  {status}")
+    print(f"  {'taxi_driver (renting cab)':22} start {start:>6} + dip {worst_rent:>7} = {worst:>7}  {status}  (worst renting tier)")
     print(f"shibnagar BRIDGE FAIL rows: {bridge_fail}")
     print()
     print("district 1 vs shibnagar (rent delta -> net delta; only the "
@@ -1364,9 +1401,19 @@ def main():
             rows.append(simulate(prices, w, tier))
         if w["profession_id"] == "taxi_driver":
             cab_rent = prices["taxi_fares"]["cab_rental_ncr_per_day"]
-            rows.append(simulate(prices, w, "entry",
-                                 extra_daily_cost=cab_rent,
-                                 label_suffix=" (renting cab)"))
+            # Queue 32 / Unit MA: the renting-cab row at every
+            # tier, not the entry tier alone — the rental is the
+            # same flat 5,200/month at every tier (Unit KA
+            # proved it for the second earner; Unit JB
+            # confirmed the 26-day rule), so the tier moves the
+            # pay, not the rental. Measured: mid net 6,750
+            # (29.3%), senior net 14,550 (40.4%) — exactly
+            # 5,200 below the owning driver at every tier,
+            # minbal 0 at every tier.
+            for tier in ("entry", "mid", "senior"):
+                rows.append(simulate(prices, w, tier,
+                                     extra_daily_cost=cab_rent,
+                                     label_suffix=" (renting cab)"))
 
     print(f"{'profession':28} {'tier':7} {'gross':>7} {'tax':>6} {'rent':>6} "
           f"{'costs':>6} {'net/mo':>8} {'save%':>6} {'minbal':>8}  flags")
@@ -1582,13 +1629,21 @@ def main():
                   f"{rent_mid_status}  (worst renting storm"
                   " position)")
     # The renting-cab variant shares the taxi driver's starting balance.
-    rent_row = next(r for r in rows if "renting" in r["profession"])
+    # Queue 32 / Unit MA: the line sweeps tiers like the storm
+    # line (Unit LA) — the worst minbal across the three renting
+    # rows against the same 5,000 start. Measured minbal is 0
+    # at every tier, so the line is still 5,000 + 0 = 5,000 OK —
+    # unchanged in figure, now honestly the household's worst
+    # across tiers rather than the entry row's. A failing line
+    # joins BRIDGE FAIL, as in District 1.
+    rent_rows = [r for r in rows if "renting" in r["profession"]]
+    worst_rent = min(r["min_balance"] for r in rent_rows)
     start = start_balances.get("taxi_driver", 0)
-    worst = start + rent_row["min_balance"]
+    worst = start + worst_rent
     status = "OK" if worst >= 0 else "BRIDGE FAIL"
     if worst < 0:
         bridge_fail.append("taxi_driver (renting cab)")
-    print(f"  {'taxi_driver (renting cab)':22} start {start:>6} + dip {rent_row['min_balance']:>7} = {worst:>7}  {status}")
+    print(f"  {'taxi_driver (renting cab)':22} start {start:>6} + dip {worst_rent:>7} = {worst:>7}  {status}  (worst renting tier)")
     print(f"BRIDGE FAIL rows: {bridge_fail}")
 
     # Pacing checks (entry tier, civil engineer = owner reference)

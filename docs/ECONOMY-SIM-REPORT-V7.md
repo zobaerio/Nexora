@@ -1470,3 +1470,75 @@ bridge line is entry-only, like the storm line was — the
 renting row itself is modelled at the entry tier alone, so
 there is no mid/senior renting row to sweep (Queue 32 Unit
 MA).
+
+## 21. Addendum — Renting-cab row at mid/senior tiers (Unit MA, Queue 32)
+
+**Date:** 2026-11-25. **Method:** re-run the single-earner
+renting-cab row for every tier (entry, mid, senior) with the
+same call the base table uses — `simulate(..., tier,
+extra_daily_cost=cab_rental)` — in District 1 and on
+Shibnagar rents, and decide whether the rows hold and the
+bridge line should sweep tiers like the storm line (Unit
+LA) or stay entry-only.
+
+**Measured: the rows hold at every tier.** The rental is
+the flat 5,200/month at every tier (200 NCr/day × WORK_DAYS
+26, the settlement rule JB confirmed; Unit KA proved the
+same flat rental for the second earner), so the tier moves
+the pay, not the rental:
+
+| tier | gross | tax | costs | extra | net/mo | save% | minbal | flags |
+|---|---|---|---|---|---|---|---|---|
+| entry | 14,000 | 0 | 12,700 | 5,200 | 1,300 | 9.3 | 0 | TIGHT |
+| mid | 23,000 | 400 | 15,850 | 5,200 | 6,750 | 29.3 | 0 | - |
+| senior | 36,000 | 1,050 | 20,400 | 5,200 | 14,550 | 40.4 | 0 | - |
+
+Every row's net is exactly 5,200 below the owning driver
+at the same tier (6,500 / 11,950 / 19,750), every
+trajectory ends exactly at net, and minbal is 0 at every
+tier — so no bridge failure is hidden at any tier, and only
+the entry row is TIGHT (9.3%), as before. The figures are
+identical on Shibnagar rents at every tier — the taxi rent
+tier is unchanged in Shibnagar, so the variant's rows match
+District 1 exactly (rent 2,500 → 2,500, net +0 at every
+tier).
+
+**DECIDED: wire the rows and sweep the line.** The base
+table gains the mid and senior renting rows beside the entry
+one (36 rows, was 34), in District 1 and in the Shibnagar
+variant, and the bridge check's renting line now sweeps tiers
+like the storm line (Unit LA): the worst minbal across the
+three renting rows against the same 5,000 start. The line is
+5,000 + 0 = 5,000 OK in both cities:
+
+```
+  taxi_driver (renting cab) start   5000 + dip       0 =    5000  OK  (worst renting tier)
+```
+
+Unchanged in figure — the entry-only line already printed
+5,000 + 0 = 5,000 — but now honestly the household's worst
+across tiers rather than the entry row's, so a future tier
+that dips would show up in the check instead of hiding
+behind the entry row. The storm line is untouched (5,000 −
+726 = 4,274, §20).
+
+The pinned md5 moves to `bc9a35e1c95d4b8a512c0a4a6e0994cd`
+(the LA md5 is kept in `test_no_regression.py` as
+history): the two new base-table rows and the swept line are
+part of the default run.
+
+**No tuning call.** Nothing in the data moves.
+
+**Open, recorded:** the KC surge section still prints the
+entry renting row only — the surge deltas at mid/senior are
+already measured in §16 prose (single-earner nets rise +455
+/ +691 / +1,080; the rental stays the flat 5,200 unsurged,
+so the renting rows rise by exactly the same deltas —
+measured: mid 6,750 → 7,441, senior 14,550 → 15,630), but
+the section's printed table does not show them (Queue 33
+Unit MB); the renting senior-tier taxi second earner stays
+unmeasured — no measured household pairs the construction
+worker with a senior taxi driver, so it stays unmodelled
+rather than assumed (§14); the senior taxi driver (36,000)
+and senior civil engineer (65,000) as second earner stay
+unmodelled for the same reason (§12).

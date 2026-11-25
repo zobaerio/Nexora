@@ -12,10 +12,12 @@ import unittest
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__),
                                     "..", "..", ".."))
 # Pinned default-run md5 of tools/economy_sim.py.
-# v7 + Queue 29 baseline (Unit KC, 2026-11-24): the
-# taxi weather surge (KC).
-# See docs/ECONOMY-SIM-REPORT-V7.md §16.
-# Previous baseline (v7 + Queue 28, Unit KA):
+# v7 + Queue 32 baseline (Unit MA, 2026-11-25): the
+# renting-cab row at mid/senior tiers (MA).
+# See docs/ECONOMY-SIM-REPORT-V7.md §21.
+# Previous baseline (v7 + Queue 31, Unit LA):
+# 2b9d24f9663f88ad0d13be1f5e86c40c. Previous baseline (v7 +
+# Queue 28, Unit KA):
 # 5f50931cbaad263812473ce1c7830e59. Previous baseline (v7 +
 # Queue 27, Unit JA):
 # b70b18972aeb5c3b2d0273b986060058. Previous baseline (v7 +
@@ -38,7 +40,7 @@ ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__),
 # 2026-11-24 through Queue 22): 9ac10779c231b7aa6120a6ff457982de.
 # v5 baseline: 318c6114c143a81a579e70b39ccca8f8. v2 baseline (pinned
 # 2026-11-21 through v3): 16740182867525bd659735deeb05150a.
-ECONOMY_SIM_BASELINE_MD5 = "2b9d24f9663f88ad0d13be1f5e86c40c"
+ECONOMY_SIM_BASELINE_MD5 = "bc9a35e1c95d4b8a512c0a4a6e0994cd"
 
 
 class TestDayWageModelling(unittest.TestCase):
@@ -1759,6 +1761,128 @@ class TestShibnagarStormBridge(unittest.TestCase):
                     if "storm dip" in ln)
         self.assertIn("-726 =    4274", line)
         self.assertIn("(worst storm position, all tiers)", line)
+
+
+class TestRentingCabRowAtAllTiers(unittest.TestCase):
+    def test_renting_cab_rows_at_all_tiers_are_measured(self):
+        from tools import economy_sim as econ
+        prices = econ.load("prices.json")
+        w = next(w for w in prices["wages_monthly"]
+                 if w["profession_id"] == "taxi_driver")
+        cab = prices["taxi_fares"]["cab_rental_ncr_per_day"]
+        # The rental is the same flat 5,200/month at every
+        # tier (200 x WORK_DAYS 26, the settlement rule) — the
+        # tier moves the pay, not the rental.
+        self.assertEqual(cab * econ.WORK_DAYS, 5200)
+        expected = (("entry", 14000, 0, 1300, 9.3, True),
+                    ("mid", 23000, 400, 6750, 29.3, False),
+                    ("senior", 36000, 1050, 14550, 40.4, False))
+        for tier, gross, tax, net, rate, tight in expected:
+            owning = econ.simulate(prices, w, tier)
+            renting = econ.simulate(
+                prices, w, tier, extra_daily_cost=cab,
+                label_suffix=" (renting cab)")
+            self.assertEqual(
+                (renting["gross"], renting["tax"],
+                 renting["extra"], renting["net"],
+                 renting["rate"], renting["min_balance"]),
+                (gross, tax, 5200, net, rate, 0), tier)
+            self.assertEqual(renting["end_balance"],
+                             renting["net"], tier)
+            self.assertEqual(owning["net"] - renting["net"],
+                             5200, tier)
+            self.assertEqual("TIGHT" in renting["flags"], tight,
+                             tier)
+
+    def test_base_table_has_three_renting_rows(self):
+        import subprocess
+        out = subprocess.run(
+            [sys.executable, os.path.join(ROOT, "tools",
+                                          "economy_sim.py")],
+            capture_output=True, cwd=ROOT)
+        self.assertEqual(out.returncode, 0)
+        text = out.stdout.decode()
+        self.assertIn("rows: 36", text)
+        self.assertIn(
+            "taxi_driver (renting cab)    entry     14000"
+            "      0   2500  12700     1300    9.3        0"
+            "  TIGHT", text)
+        self.assertIn(
+            "taxi_driver (renting cab)    mid       23000"
+            "    400   2500  15850     6750   29.3        0"
+            "  -", text)
+        self.assertIn(
+            "taxi_driver (renting cab)    senior    36000"
+            "   1050   2500  20400    14550   40.4        0"
+            "  -", text)
+
+    def test_renting_bridge_line_sweeps_tiers(self):
+        import subprocess
+        out = subprocess.run(
+            [sys.executable, os.path.join(ROOT, "tools",
+                                          "economy_sim.py")],
+            capture_output=True, cwd=ROOT)
+        self.assertEqual(out.returncode, 0)
+        text = out.stdout.decode()
+        # The printed line's dip is the cross-tier minimum
+        # (0 at every tier), not the entry row's alone:
+        # 5,000 + 0 = 5,000 OK.
+        line = next(ln for ln in text.splitlines()
+                    if "renting cab" in ln and "start" in ln)
+        self.assertIn("5000 + dip       0 =    5000  OK", line)
+        self.assertIn("(worst renting tier)", line)
+        self.assertIn("BRIDGE FAIL rows: []", text)
+
+    def test_shibnagar_renting_rows_match_district1(self):
+        from tools import economy_sim as econ
+        prices = econ.load("prices.json")
+        w = next(w for w in prices["wages_monthly"]
+                 if w["profession_id"] == "taxi_driver")
+        cab = prices["taxi_fares"]["cab_rental_ncr_per_day"]
+        rents, _stock = econ.load_shibnagar_rents(prices)
+        override = rents[econ.SHIBNAGAR_RENT_TIER["taxi_driver"]]
+        # The taxi rent tier is unchanged in Shibnagar, so
+        # every renting row is identical on the variant's own
+        # rents — verified, not assumed.
+        for tier, net in (("entry", 1300), ("mid", 6750),
+                          ("senior", 14550)):
+            d1 = econ.simulate(prices, w, tier,
+                               extra_daily_cost=cab,
+                               label_suffix=" (renting cab)")
+            sh = econ.simulate(prices, w, tier,
+                               extra_daily_cost=cab,
+                               label_suffix=" (renting cab)",
+                               rent_override=override)
+            self.assertEqual((sh["net"], sh["min_balance"],
+                              sh["end_balance"]), (net, 0, net),
+                             tier)
+            self.assertEqual(sh["net"], d1["net"], tier)
+            self.assertEqual(sh["min_balance"],
+                             d1["min_balance"], tier)
+        import subprocess
+        sh_out = subprocess.run(
+            [sys.executable, os.path.join(ROOT, "tools",
+                                          "economy_sim.py"),
+             "--shibnagar"],
+            capture_output=True, cwd=ROOT)
+        self.assertEqual(sh_out.returncode, 0)
+        text = sh_out.stdout.decode()
+        # Each renting base-table line appears twice — once
+        # in the District 1 table, once in the variant table.
+        for row in ("taxi_driver (renting cab)    entry"
+                    "     14000      0   2500  12700     1300",
+                    "taxi_driver (renting cab)    mid"
+                    "       23000    400   2500  15850     6750",
+                    "taxi_driver (renting cab)    senior"
+                    "    36000   1050   2500  20400    14550"):
+            self.assertEqual(text.count(row), 2, row)
+        variant = text.split(
+            "shibnagar first-month bridge check")[1]
+        line = next(ln for ln in variant.splitlines()
+                    if "renting cab" in ln and "start" in ln)
+        self.assertIn("5000 + dip       0 =    5000  OK", line)
+        self.assertIn("(worst renting tier)", line)
+        self.assertIn("shibnagar BRIDGE FAIL rows: []", text)
 
 
 class TestNoRegression(unittest.TestCase):
