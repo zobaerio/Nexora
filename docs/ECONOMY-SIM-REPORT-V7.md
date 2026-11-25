@@ -1186,6 +1186,14 @@ flat vs surged:
 | entry, renting | mid | −288 | −258 | 8,744 | 9,199 |
 | entry, renting | senior | −419 | −389 | 12,201 | 12,656 |
 
+**The Shibnagar variant now prints its own surge table (Unit
+MD, Queue 35, §24).** The `--shibnagar` run prints this
+District 1 section first, then the variant's own table
+computed on Shibnagar's rents — all 108 rows identical to
+the figures above, so the table here stands for both cities
+and the variant's table is a second printing, not a second
+set of figures.
+
 **Finding: the surge shrinks all three early dips but closes
 none of them.** The HD senior dip −72 → −42, the KA renting
 senior dip −56 → −9, and the IB entry renting dips −193 →
@@ -1681,4 +1689,105 @@ own surge table; measured live while drafting, all four
 pairings × three tiers × four storm positions, surged, are
 identical on Shibnagar rents (the construction worker's
 Shibnagar rent is the tier-1 rent, 2,500, the same as
-District 1) — Queue 35 Unit MD.
+District 1) — Queue 35 Unit MD. (Closed 2026-11-25 by
+Queue 35 Unit MD — §24.)
+
+## 24. Addendum — Surge section in the Shibnagar variant (Unit MD, Queue 35)
+
+**Date:** 2026-11-25. **Method:** re-run every surged row
+on Shibnagar rents — `simulate(..., rent_override =
+rents[SHIBNAGAR_RENT_TIER[...]])` — for the single-earner
+owning and renting rows at every tier (flat and surged) and
+the second-earner table (all four pairings × three tiers ×
+four storm positions, flat and surged), and compare minbal,
+net and end balance against District 1.
+
+**Measured: all 108 rows identical.** 12 single-earner rows
+(owning + renting × 3 tiers × flat/surged) and 96
+second-earner rows (4 pairings × 3 tiers × 4 positions ×
+flat/surged) agree on minbal, net and end balance. The
+reason is the same as KD's (§17): the surge rows rent at
+tier 1 (the taxi driver and the construction worker both),
+and Shibnagar's tier-1 rent is the prices.json tier-1 rent
+(2,500 — asserted by `load_shibnagar_rents`, not assumed).
+The non-zero early dips are the same ones the District 1
+table prints:
+
+| Second earner | First-earner tier | Early flat | Early surged | Net flat | Net surged |
+|---|---|---:|---:|---:|---:|
+| entry, owning | senior | −72 | −42 | 17,401 | 17,856 |
+| mid, renting | senior | −56 | −9 | 17,651 | 18,342 |
+| entry, renting | entry | −193 | −163 | 5,500 | 5,955 |
+| entry, renting | mid | −288 | −258 | 8,744 | 9,199 |
+| entry, renting | senior | −419 | −389 | 12,201 | 12,656 |
+
+and the single-earner deltas are the same +455 / +691 /
++1,080 (the renting rows rise by the same deltas as the
+owning rows, the rental staying the flat 5,200 unsurged).
+Every other second-earner early dip is 0 flat and surged,
+and every trajectory ends exactly at net flat and surged —
+so the surge adds no dip the flat rows hide, and no bridge
+line is affected (the check stays flat: the factor is ≥ 1,
+so the flat lines are the conservative case).
+
+**DECIDED: wire the variant's own table.** The KC section
+is now a function, `print_taxi_weather_surge(prices, bands,
+variant=..., rent_overrides=...)`: the default run calls it
+with no overrides (`rent_override=None` is the District 1
+rent, so its output is byte-identical), and the
+`--shibnagar` variant calls it after its bridge check with
+the town's own rents (taxi 2,500, construction worker
+2,500). The variant's table is computed on its own rents,
+not quoted from the District 1 run — the run still prints
+the D1 section first, then the variant's table, the same
+way it prints both bridge checks. The §16 figures stand for
+both cities; the variant's table is a second printing, not
+a second set of figures.
+
+Verbatim output (new `--shibnagar` section):
+
+```
+shibnagar taxi weather-surge month (Unit MD — the same KC section on Shibnagar's own rents: 2 rain days, 2 storm days, taxi_factor 1.05; taxi gross x 1.05, tax and uplift recomputed on the surged gross):
+profession                   tier    flat gross  surged flat net surged net delta net
+taxi_driver                  entry        14000   14700     6500       6955      +455
+taxi_driver                  mid          23000   24150    11950      12641      +691
+taxi_driver                  senior       36000   37800    19750      20830     +1080
+taxi_driver (renting cab)    entry        14000   14700     1300       1755      +455
+taxi_driver (renting cab)    mid          23000   24150     6750       7441      +691
+taxi_driver (renting cab)    senior       36000   37800    14550      15630     +1080
+
+shibnagar taxi-driver second earner weather-surge month (Unit MD — same EY weather, on Shibnagar rents; early-position minbal flat vs surged, net flat vs surged; the measured position dips 0 flat and surged for every pairing and tier):
+second earner                tier    early flat early surged net flat net surged
+taxi-driver (entry, owning)  entry            0            0    10700      11155
+taxi-driver (entry, owning)  mid              0            0    13944      14399
+taxi-driver (entry, owning)  senior         -72          -42    17401      17856
+taxi-driver (mid, owning)    entry            0            0    16150      16841
+taxi-driver (mid, owning)    mid              0            0    19394      20085
+taxi-driver (mid, owning)    senior           0            0    22851      23542
+taxi-driver (mid, renting)   entry            0            0    10950      11641
+taxi-driver (mid, renting)   mid              0            0    14194      14885
+taxi-driver (mid, renting)   senior         -56           -9    17651      18342
+taxi-driver (entry, renting) entry         -193         -163     5500       5955
+taxi-driver (entry, renting) mid           -288         -258     8744       9199
+taxi-driver (entry, renting) senior        -419         -389    12201      12656
+```
+
+The pinned md5 does NOT move — the MC baseline
+`a818a3273cdad108c4d8d4ae198b5b44` stands (the wiring
+touches only the `--shibnagar` output, and the default run
+is byte-identical). The `--shibnagar` full-output md5 is now
+`762a2b6395a1c83fc86f2b5f9c1839bc` (was
+`2aaf1c4786292fcc405bdc9f5925982b`); two consecutive
+`--shibnagar` runs are byte-identical.
+
+**No tuning call.** Nothing in the data moves.
+
+**Open, recorded:** the renting senior-tier taxi second
+earner stays unmeasured — no measured household pairs the
+construction worker with a senior taxi driver, so it stays
+unmodelled rather than assumed (§14); the senior taxi
+driver (36,000) and senior civil engineer (65,000) as
+second earner stay unmodelled for the same reason (§12).
+Whether the renting senior-tier second earner belongs in
+the tool at all — measured, kept refused, or kept
+allowed-but-unmeasured — is Queue 36 Unit ME.
