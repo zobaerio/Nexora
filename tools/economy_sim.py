@@ -1318,6 +1318,18 @@ def print_taxi_weather_surge(prices, bands, variant=False,
             # finding (the senior pay covers the cost-only
             # days at every tier). Re-opens only if a
             # measured household appears (Queue 37 Unit MF).
+            # Queue 37 / Unit MF checked 2026-11-25 — MF
+            # checked the live world (seed mf-measure, 120
+            # population, 90 days) and no measured household
+            # appears: 0 senior taxi-driver second earners
+            # and 0 senior civil-engineer second earners in
+            # construction-worker-headed households, so the
+            # §12 rule stands and nothing is wired. Note the
+            # world's one senior-band taxi driver (NEX000032,
+            # tier 4, 36,000) is a household head, not a
+            # second earner — senior here means tier >= 3,
+            # since TIER_WAGE_KEYS maps tiers 3-5 to the
+            # senior band. Full detail: V7 report §26.
             ("taxi-driver (entry, renting)",
              {"second_earner": "taxi_driver",
               "second_earner_renting_cab": True})):

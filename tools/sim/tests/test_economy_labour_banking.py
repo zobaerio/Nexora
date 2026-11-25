@@ -195,6 +195,95 @@ class TestBusinessEmployedTaxiSurge(unittest.TestCase):
         self.assertEqual(business_taxi, 0)
 
 
+class TestSeniorSecondEarnerLiveWorld(unittest.TestCase):
+    """Queue 37 Unit MF — the senior second earner live-world
+    check (Unit ME's reopen condition: the decision to keep
+    the renting senior-tier taxi second earner allowed but
+    unmeasured re-opens only if a measured household appears
+    — a live settlement household pairing the construction
+    worker with a senior taxi driver or senior civil engineer
+    as second earner). The seeded world pins that none
+    appears, and the senior-band definition pins that
+    "senior" in the live world means tier >= 3: dataio
+    TIER_WAGE_KEYS maps tiers 3-5 to the senior band, so a
+    tier-4 taxi driver earns the senior 36,000 and a
+    tier == 3 check would miss them. The tests fail loudly
+    if a future world ever produces such a household — that
+    is the re-open condition, recorded in the V7 report §26.
+    """
+
+    @classmethod
+    def setUpClass(cls):
+        cls.path = _tmp_path()
+        cls.sim = Simulation(cls.path, seed="mf-guard")
+        cls.sim.generate_population(60)
+        cls.sim.run_days(30)
+        cls.store = cls.sim.store
+        cls.data = cls.sim.data
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.sim.close()
+        os.remove(cls.path)
+
+    def test_no_senior_second_earner_in_seeded_world(self):
+        # The pairing query: a non-head member of a
+        # construction-worker-headed household, currently
+        # employed as a senior-band (tier >= 3) taxi driver
+        # or civil engineer.
+        head = ("household_members hm ON hm.household_id"
+                " = h.household_id JOIN employments e"
+                " ON e.character_id = hm.character_id")
+        member = ("household_members hm2 ON hm2.household_id"
+                  " = h.household_id JOIN employments e2"
+                  " ON e2.character_id = hm2.character_id")
+        cw_head = ("hm.role = 'head'"
+                   " AND hm.left_at_game_minutes IS NULL"
+                   " AND e.profession_id = 'construction_worker'"
+                   " AND e.ended_at_game_minutes IS NULL")
+        member_now = ("hm2.role != 'head'"
+                      " AND hm2.left_at_game_minutes IS NULL"
+                      " AND e2.ended_at_game_minutes IS NULL")
+        for prof in ("taxi_driver", "civil_engineer"):
+            found = self.store.row(
+                "SELECT COUNT(*) AS n FROM households h JOIN "
+                + head + " JOIN " + member +
+                " WHERE " + cw_head + " AND " + member_now +
+                " AND e2.profession_id = ? AND e2.tier >= 3",
+                (prof,))["n"]
+            self.assertEqual(found, 0, prof)
+        # Non-vacuous: the world holds construction-worker
+        # heads and both professions, so the zeros are
+        # measured absences, not an empty query.
+        cw_heads = self.store.row(
+            "SELECT COUNT(*) AS n FROM household_members hm"
+            " JOIN employments e ON e.character_id ="
+            " hm.character_id WHERE hm.role = 'head'"
+            " AND hm.left_at_game_minutes IS NULL"
+            " AND e.profession_id = 'construction_worker'"
+            " AND e.ended_at_game_minutes IS NULL")["n"]
+        self.assertGreater(cw_heads, 0)
+        for prof in ("taxi_driver", "civil_engineer"):
+            n = self.store.row(
+                "SELECT COUNT(*) AS n FROM employments WHERE"
+                " profession_id = ?"
+                " AND ended_at_game_minutes IS NULL",
+                (prof,))["n"]
+            self.assertGreater(n, 0, prof)
+
+    def test_senior_band_is_tier_three_or_higher(self):
+        from tools.sim import dataio as dataio_mod
+        self.assertEqual(
+            dataio_mod.WorldData.TIER_WAGE_KEYS[2:],
+            ("senior", "senior", "senior"))
+        for tier in (3, 4, 5):
+            self.assertEqual(
+                self.data.wage_at("taxi_driver", tier), 36000)
+            self.assertEqual(
+                self.data.wage_at("civil_engineer", tier),
+                65000)
+
+
 class TestBankingAndInvestment(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
