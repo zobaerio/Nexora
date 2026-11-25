@@ -1154,6 +1154,8 @@ weather (gross, tax, uplift, net):
 | mid | 23,000 | 24,150 | 11,950 | 12,641 | +691 |
 | senior | 36,000 | 37,800 | 19,750 | 20,830 | +1,080 |
 | entry (renting cab) | 14,000 | 14,700 | 1,300 | 1,755 | +455 |
+| mid (renting cab) | 23,000 | 24,150 | 6,750 | 7,441 | +691 |
+| senior (renting cab) | 36,000 | 37,800 | 14,550 | 15,630 | +1,080 |
 
 The entry driver's uplift appears only under the surge (245:
 35% of the 700 above the entry band) — the flat entry row has
@@ -1161,7 +1163,10 @@ none, because its gross equals its entry wage. The mid
 driver's surged tax is 457, not 458: the 5% band starts at
 15,001 in `prices.json`, so 5% falls on 24,150 − 15,001 =
 9,149. The renting row's net rises by the same +455 as the
-owning entry row — the rental does not scale.
+owning entry row — the rental does not scale. The mid and
+senior renting rows rise by the same deltas as their owning
+rows (+691 / +1,080), so all three renting rows are now
+printed in the section (Unit MB, Queue 33, §22).
 
 Taxi-driver second earner, early-position minbal and net,
 flat vs surged:
@@ -1198,6 +1203,8 @@ taxi_driver                  entry        14000   14700     6500       6955     
 taxi_driver                  mid          23000   24150    11950      12641      +691
 taxi_driver                  senior       36000   37800    19750      20830     +1080
 taxi_driver (renting cab)    entry        14000   14700     1300       1755      +455
+taxi_driver (renting cab)    mid          23000   24150     6750       7441      +691
+taxi_driver (renting cab)    senior       36000   37800    14550      15630     +1080
 
 taxi-driver second earner weather-surge month (Unit KC — same EY weather; early-position minbal flat vs surged, net flat vs surged; the measured position dips 0 flat and surged for every pairing and tier):
 second earner                tier    early flat early surged net flat net surged
@@ -1537,6 +1544,67 @@ so the renting rows rise by exactly the same deltas —
 measured: mid 6,750 → 7,441, senior 14,550 → 15,630), but
 the section's printed table does not show them (Queue 33
 Unit MB); the renting senior-tier taxi second earner stays
+unmeasured — no measured household pairs the construction
+worker with a senior taxi driver, so it stays unmodelled
+rather than assumed (§14); the senior taxi driver (36,000)
+and senior civil engineer (65,000) as second earner stay
+unmodelled for the same reason (§12).
+
+*(Closed 2026-11-25 by Queue 33 Unit MB — the KC surge
+section now prints the renting row at every tier; §22. The
+other two items stay open.)*
+
+## 22. Addendum — Renting rows in the surge section (Unit MB, Queue 33)
+
+**Date:** 2026-11-25. **Method:** re-run the single-earner
+renting-cab row for every tier (entry, mid, senior) with the
+same call the surge section uses — `simulate(..., tier,
+extra_daily_cost=cab_rental, taxi_rain_days=...,
+taxi_storm_days=...)` — and decide whether the mid/senior
+rows belong in the KC section's printed table or entry-only
+is the right statement for that section.
+
+**Measured: the rows hold at every tier, with exactly the
+owning driver's deltas.** The rental stays the flat 5,200
+unsurged, so the surge lifts the gross and nothing else
+moves:
+
+| tier | Flat gross | Surged gross | Flat net | Surged net | Delta |
+|---|---:|---:|---:|---:|---:|
+| entry (renting cab) | 14,000 | 14,700 | 1,300 | 1,755 | +455 |
+| mid (renting cab) | 23,000 | 24,150 | 6,750 | 7,441 | +691 |
+| senior (renting cab) | 36,000 | 37,800 | 14,550 | 15,630 | +1,080 |
+
+Every surged net is exactly 5,200 below the owning
+driver's surged net at the same tier (6,955 / 12,641 /
+20,830), every trajectory ends exactly at net flat and
+surged, and minbal is 0 flat and surged at every tier — so
+the surge adds no dip the flat rows hide, and no bridge
+line is affected (the check stays flat: the factor is ≥ 1,
+so the flat lines are the conservative case).
+
+**DECIDED: wire the rows.** The KC section's first table
+now prints the renting row at every tier beside the owning
+rows, in the same columns — the section no longer
+understates the renting household the way the entry-only
+base table once did (§21). The verbatim output in §16
+gains the two rows. The second-earner surge table is
+untouched: its renting row is the two-earner household
+(mid-tier taxi second earner), and the renting senior-tier
+taxi second earner stays unmeasured (§14) — not queued.
+
+The pinned md5 moves to `4abf52ff0dc7d00f6acd3168d7c1c807`
+(the MA md5 is kept in `test_no_regression.py` as
+history): the two new printed rows are part of the default
+run.
+
+**No tuning call.** Nothing in the data moves.
+
+**Open, recorded:** the second-earner surge table still
+prints only three pairings — the entry renting second
+earner (Unit IB: early dips −193 / −288 / −419, nets 5,500
+/ 8,744 / 12,201) is measured but not shown there, so the
+surge's effect on its dips is unprinted — Queue 34 Unit MC; the renting senior-tier taxi second earner stays
 unmeasured — no measured household pairs the construction
 worker with a senior taxi driver, so it stays unmodelled
 rather than assumed (§14); the senior taxi driver (36,000)
