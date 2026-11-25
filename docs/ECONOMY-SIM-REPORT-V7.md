@@ -1929,3 +1929,65 @@ citizens are rare in it — one senior-band taxi driver and
 zero senior-band civil engineers in 120 people. Whether the
 absence holds across seeds is a broader-base question, not
 a reason to model the pairing now (Queue 38 Unit MG).
+
+## 27. Addendum — Multi-seed senior second earner sweep (Unit MG, Queue 38)
+
+**Date:** 2026-11-25. **Method:** run the MF check across
+five seeds instead of one — the same pairing query (senior
+= tier >= 3), the same KF pattern per seed (120 population,
+90 days), seeds `mg-seed-1` … `mg-seed-5`. If a pairing
+appears in any seed, measure it on the KA/IC pattern and
+wire the row + bridge line only for the pairing that
+actually appears; if none appears in any, the §12 rule
+stands on a broader base. No invented household, no tuning
+call.
+
+**DECIDED: no change — the §12 rule stands on a broader
+base.** No measured household appears in any of the five
+seeds:
+
+| seed | households | construction-worker-headed | second earners in those households | senior-band taxi drivers | senior-band civil engineers | target taxi | target CE |
+|---|---|---|---|---|---|---|---|
+| mg-seed-1 | 51 | 6 | HH000014 software developer (mid, 52,000); HH000043 shop owner (senior, 55,000) | 1 | 2 | 0 | 0 |
+| mg-seed-2 | 42 | 4 | HH000012 software developer (mid, 52,000); HH000032 business owner (mid, 110,000); HH000035 construction worker (senior, 20,000) | 1 | 2 | 0 | 0 |
+| mg-seed-3 | 45 | 3 | HH000002 pilot (mid, 95,000) + pilot (entry, 45,000); HH000020 software developer (mid, 52,000); HH000033 software developer (mid, 52,000) | 2 | 2 | 0 | 0 |
+| mg-seed-4 | 48 | 6 | HH000002 business owner (senior, 300,000); HH000018 police officer (mid, 28,000) + pilot (entry, 45,000); HH000027 police officer (mid, 28,000); HH000036 taxi driver (mid, 23,000) | 2 | 2 | 0 | 0 |
+| mg-seed-5 | 48 | 8 | HH000014 pilot (mid, 95,000); HH000025 doctor (mid, 55,000); HH000031 teacher (mid, 24,000); HH000035 business owner (senior, 300,000); HH000040 software developer (mid, 52,000); HH000043 pilot (mid, 95,000) | 0 | 2 | 0 | 0 |
+
+Totals across the five seeds: 234 households, 27
+construction-worker-headed, 20 second earners found in
+those households, 6 senior-band taxi drivers and 10
+senior-band civil engineers in the five worlds — and 0
+senior taxi-driver second earners and 0 senior
+civil-engineer second earners in construction-worker-headed
+households in every seed.
+
+**The zeros are specific to the two target professions,
+not a world with no senior second earners at all.**
+Senior second earners do occur in these worlds — a tier-3
+shop owner (55,000, the senior band) in mg-seed-1, and a
+tier-3 business owner (300,000) in each of mg-seed-4 and
+mg-seed-5 — and the query finds the measured pairings too
+(a mid-tier taxi driver second earner in mg-seed-4, a
+tier-3 construction worker second earner in mg-seed-2).
+The pairing query is not vacuous; the two target
+professions simply never sit on the second-earner side of
+a construction-worker-headed household. The MF world's
+single senior-band taxi driver being a head, not a second
+earner, is the same shape at a larger scale: the senior
+wages exist in the worlds, they just do not pair that way.
+
+The pinned md5 does NOT move — the MC baseline
+`a818a3273cdad108c4d8d4ae198b5b44` stands (the change is a
+comment only; the default run is byte-identical). The
+`--shibnagar` full-output md5 does NOT move either —
+`762a2b6395a1c83fc86f2b5f9c1839bc` stands.
+
+**No tuning call.** Nothing in the data moves.
+
+**Open, recorded:** 90 days may be too short for a senior
+earner to join a household after genesis — a member hired
+or promoted to the senior band after day 90, or a marriage
+bringing a senior earner in — and 120 people is still a
+small world. Whether the absence holds over a longer
+horizon is the next check (Queue 39 Unit MH).
