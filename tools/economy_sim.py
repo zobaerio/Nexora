@@ -376,6 +376,31 @@ second earner, wired):
   pinned md5 moves again (the MI md5 is kept in
   test_no_regression.py as history). No tuning call.
 
+What v7 adds vs v6, Queue 45 Unit MN (the senior taxi-driver
+second earner in the surge table):
+- MM wired the senior taxi-driver second earner in the IC
+  section and both bridge checks, but the KC second-earner
+  surge table still printed only four pairings — the surge's
+  effect on its row was unprinted. It is per-fare, so its
+  gross DOES surge with the taxi weather (unlike the
+  monthly-paid senior civil engineer, which the taxi surge
+  cannot move by construction). The table now prints the
+  (senior, owning) pairing at every tier beside the other
+  four: early 0 -> 0 at every tier (the per-fare senior pay
+  already covers the cost-only days flat, so there is no dip
+  for the surge to shrink), nets +1,080 at every tier
+  (23,950 -> 25,030, 27,194 -> 28,274, 30,651 -> 31,731) —
+  exactly the senior single-earner taxi surge delta, at
+  every tier and storm position, flat and surged, in both
+  cities. The measured position dips 0 flat and surged,
+  and every trajectory ends exactly at net. The renting
+  senior-tier taxi second earner stays allowed but
+  unprinted (V7 §33) — not queued. The bridge check stays
+  flat — the factor is >= 1, so the flat lines are the
+  conservative case. The pinned md5 moves again (the MM
+  md5 is kept in test_no_regression.py as history). No
+  tuning call.
+
 What v6 changes vs v5 (Queue 22, Unit EY — the ES day-wage
 follow-up):
 - The construction worker is now modelled on the settlement's
@@ -1322,7 +1347,10 @@ def print_taxi_weather_surge(prices, bands, variant=False,
     # the net flat vs surged. The surge shrinks all three
     # early dips — the HD senior dip, the KA renting senior
     # dip, and the IB entry renting dips — but closes none of
-    # them.
+    # them. The senior owning row (Queue 45 / Unit MN) dips 0
+    # flat and surged at every tier, so there is no dip for
+    # the surge to shrink — its nets rise by exactly the
+    # senior taxi surge (+1,080 at every tier).
     if variant:
         print()
         print("shibnagar taxi-driver second earner weather-surge "
@@ -1387,6 +1415,18 @@ def print_taxi_weather_surge(prices, bands, variant=False,
             # now fully implied by the wired owning net plus
             # the flat-rental rule, so the row adds nothing
             # new. Full detail: V7 report §33.
+            # Queue 45 / Unit MN: the senior owning pairing
+            # joins this table — MM wired it in the IC
+            # section and both bridge checks, but the surge's
+            # effect on its row was unprinted. It is per-fare,
+            # so its gross DOES surge with the taxi weather:
+            # early 0 -> 0 at every tier, nets +1,080 at every
+            # tier (23,950 -> 25,030, 27,194 -> 28,274,
+            # 30,651 -> 31,731) — exactly the senior
+            # single-earner taxi surge delta. The renting
+            # senior-tier taxi second earner stays allowed but
+            # unprinted (V7 §33) — not queued. Full detail:
+            # V7 report §34.
             # Queue 37 / Unit MF checked 2026-11-25 — MF
             # checked the live world (seed mf-measure, 120
             # population, 90 days) and no measured household
@@ -1520,7 +1560,15 @@ def print_taxi_weather_surge(prices, bands, variant=False,
             # senior row is modelled).
             ("taxi-driver (entry, renting)",
              {"second_earner": "taxi_driver",
-              "second_earner_renting_cab": True})):
+              "second_earner_renting_cab": True}),
+            # Queue 45 / Unit MN: the senior owning second
+            # earner — measured (ML) and wired (MM) in the IC
+            # section, now printed here too: the surge raises
+            # its nets by exactly the senior taxi surge
+            # (+1,080 at every tier) and its early dip stays 0.
+            ("taxi-driver (senior, owning)",
+             {"second_earner": "taxi_driver",
+              "second_earner_tier": "senior"})):
         for tier in ("entry", "mid", "senior"):
             w = bands["construction_worker"]
             early = simulate(prices, w, tier,
@@ -1799,7 +1847,7 @@ def print_shibnagar_variant(prices, d1_rows, start_balances):
     # same KC section, computed on Shibnagar's own rents (the
     # taxi and construction-worker rents are both the tier-1
     # rent, 2,500 — asserted by load_shibnagar_rents, not
-    # assumed — and the MD tests verify all 108 rows identical
+    # assumed — and the MD tests verify all 132 rows identical
     # to District 1). The section prints its own leading
     # blank line.
     print_taxi_weather_surge(
