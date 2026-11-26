@@ -1157,6 +1157,17 @@ weather (gross, tax, uplift, net):
 | mid (renting cab) | 23,000 | 24,150 | 6,750 | 7,441 | +691 |
 | senior (renting cab) | 36,000 | 37,800 | 14,550 | 15,630 | +1,080 |
 
+**Second weather factors (Unit MP, Queue 47, §36):** the
+formula is corroborated at two more live factors, same EY
+shape (60 population, 32 days) — seed `mo-probe-1`: 1 rain
+day + 2 storm days, factor 1.0417, settled grosses 14,583 /
+23,958 / 37,500; seed `mo-probe-2`: 4 rain days + 3 storm
+days, factor 1.0833, settled grosses 15,167 / 24,917 /
+39,000. Per-tier gross deltas: at 1.0417, +583 / +958 /
++1,500; at 1.0833, +1,167 / +1,917 / +3,000 (entry/mid/
+senior). Every settled gross is round(band × factor) — the
+tool rounds the same way the settlement does.
+
 The entry driver's uplift appears only under the surge (245:
 35% of the 700 above the entry band) — the flat entry row has
 none, because its gross equals its entry wage. The mid
@@ -2754,3 +2765,70 @@ sixth (senior, renting) decided unprinted with a measured
 reason on both the flat rows (ME/MM, §33) and the surge
 pattern (this unit). The §34 open note is closed by this
 unit.
+
+## 36. Addendum — Taxi surge at a second weather factor (Unit MP, Queue 47)
+
+**Date:** 2026-11-26. **Method:** measure fresh seeded live
+months in the EY shape (`Simulation`,
+`generate_population(60)`, 32 days) — read each month's
+rain/storm counts from `daily_weather` and every taxi
+driver's settled month-1 wage from `economy_ledger` (the
+`wage` row at `game_minutes` 43,200) against the band in
+`employments` — and check the tool's formula reproduces the
+settled grosses at each new factor, including the rounding
+rule (settled amounts are integers; the tool must round the
+same way). No invented household, no tuning call.
+
+**Measured: the formula reproduces the settled grosses at
+both new factors.** Seed `mo-probe-1`: 1 rain day
+(day_index 9) + 2 storm days (day_index 6 and 28), factor
+`1 + 0.25 × 1/30 + 0.5 × 2/30 = 1.0417` — four taxi drivers,
+all SYS-EMPLOYERS-paid, settled exactly at round(band ×
+1.0417): entry 14,000 → 14,583, mid 23,000 → 23,958,
+senior 36,000 → 37,500 (two drivers). Seed `mo-probe-2`: 4
+rain days (day_index 0, 3, 9, 15) + 3 storm days
+(day_index 4, 5, 28), factor `1 + 0.25 × 4/30 + 0.5 × 3/30
+= 1.0833` — two taxi drivers, all SYS-EMPLOYERS-paid,
+settled exactly at round(band × 1.0833): mid 23,000 →
+24,917, senior 36,000 → 39,000. The tool's
+`simulate(..., taxi_rain_days=..., taxi_storm_days=...)`
+grosses at the same factors are identical — 14,583 /
+23,958 / 37,500 and 15,167 / 24,917 / 39,000 — and the
+rounding agrees in both directions: 14,000 × 1.0417 is
+14,583.33 → 14,583 (rounds down) and 23,000 × 1.0833 is
+24,916.67 → 24,917 (rounds up). No settled gross disagrees
+with the formula, so no disagreement is recorded and no
+model fix follows.
+
+Single-earner taxi rows at the two new factors (gross,
+net, delta vs flat):
+
+| Factor | Tier | Surged gross | Surged net | Gross delta | Net delta |
+|---|---:|---:|---:|---:|---:|
+| 1.0417 | entry | 14,583 | 6,879 | +583 | +379 |
+| 1.0417 | mid | 23,958 | 12,525 | +958 | +575 |
+| 1.0417 | senior | 37,500 | 20,650 | +1,500 | +900 |
+| 1.0833 | entry | 15,167 | 7,251 | +1,167 | +751 |
+| 1.0833 | mid | 24,917 | 13,100 | +1,917 | +1,150 |
+| 1.0833 | senior | 39,000 | 21,550 | +3,000 | +1,800 |
+
+The surge is now corroborated at three live factors —
+1.0417, 1.05 (the EY month, §16) and 1.0833 — and the
+formula's only live inputs remain the month's rain/storm
+counts, which the tool takes as named counts. The KC
+section keeps printing the EY month's weather (factor
+1.05) as the canonical scenario; the two new factors are
+recorded here and in §16, not printed as a second section.
+The pinned md5 does NOT move — the tool's output is
+byte-identical (a comment only in `economy_sim.py`); the
+MN baseline `c70567cb94bd018ef50df1470fdbe746` stands, and
+the `--shibnagar` md5 `95022a1592dca4d34b91f5f0a6890526`
+stands.
+
+**No tuning call.** Nothing in the data moves.
+
+**Open, recorded:** none from this unit. The KC surge's
+single-factor grounding is now three-factor grounding; the
+next honest check on the surge would be a factor outside
+the 1.04–1.09 band — a very wet or very stormy month —
+which no seeded month has yet produced.

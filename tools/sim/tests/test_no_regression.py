@@ -1811,6 +1811,69 @@ class TestTaxiWeatherSurge(unittest.TestCase):
                                  sh_surged["net"],
                                  f"shibnagar/{tier}/{pos}")
 
+    def test_taxi_surge_at_second_weather_factors_is_measured(self):
+        from tools import economy_sim as econ
+        prices = econ.load("prices.json")
+        wages = {w["profession_id"]: w
+                 for w in prices["wages_monthly"]}
+        # Queue 47 Unit MP: the KC surge formula corroborated
+        # at two more live factors — seed mo-probe-1 (1 rain +
+        # 2 storm, factor 1.0417) and seed mo-probe-2 (4 rain +
+        # 3 storm, factor 1.0833), both the EY shape (60
+        # population, 32 days). The tool's gross at each
+        # factor is round(band x factor), the same rounding
+        # the settlement applies — 14,000 x 1.0417 is
+        # 14,583.33 -> 14,583 (rounds down) and 23,000 x
+        # 1.0833 is 24,916.67 -> 24,917 (rounds up) — and
+        # the nets follow with tax and uplift recomputed on
+        # the surged gross.
+        self.assertAlmostEqual(econ.taxi_weather_factor(1, 2),
+                               1.0416666666666667)
+        self.assertAlmostEqual(econ.taxi_weather_factor(4, 3),
+                               1.0833333333333335)
+        for (rain, storm), rows in (
+                ((1, 2), (("entry", 14583, 6879),
+                          ("mid", 23958, 12525),
+                          ("senior", 37500, 20650))),
+                ((4, 3), (("entry", 15167, 7251),
+                          ("mid", 24917, 13100),
+                          ("senior", 39000, 21550)))):
+            for tier, gross, net in rows:
+                flat = econ.simulate(prices, wages["taxi_driver"],
+                                     tier)
+                surged = econ.simulate(
+                    prices, wages["taxi_driver"], tier,
+                    taxi_rain_days=rain, taxi_storm_days=storm)
+                self.assertEqual(surged["gross"], gross,
+                                 f"{rain}/{storm}/{tier}")
+                self.assertEqual(surged["net"], net,
+                                 f"{rain}/{storm}/{tier}")
+                self.assertEqual(surged["end_balance"],
+                                 surged["net"], f"{rain}/{storm}/"
+                                 f"{tier}")
+                self.assertEqual(surged["min_balance"], 0,
+                                 f"{rain}/{storm}/{tier}")
+                self.assertEqual(surged["gross"],
+                                 round(flat["gross"]
+                                       * econ.taxi_weather_factor(
+                                           rain, storm)),
+                                 f"{rain}/{storm}/{tier}")
+        # The deltas are the per-tier surge at each factor,
+        # not the EY factor's: +583 / +958 / +1,500 gross at
+        # 1.0417 and +1,167 / +1,917 / +3,000 at 1.0833.
+        for (rain, storm), deltas in (
+                ((1, 2), (583, 958, 1500)),
+                ((4, 3), (1167, 1917, 3000))):
+            for tier, delta in zip(("entry", "mid", "senior"),
+                                   deltas):
+                flat = econ.simulate(prices, wages["taxi_driver"],
+                                     tier)
+                surged = econ.simulate(
+                    prices, wages["taxi_driver"], tier,
+                    taxi_rain_days=rain, taxi_storm_days=storm)
+                self.assertEqual(surged["gross"] - flat["gross"],
+                                 delta, f"{rain}/{storm}/{tier}")
+
     def test_taxi_weather_refusals(self):
         from tools import economy_sim as econ
         prices = econ.load("prices.json")
