@@ -1204,6 +1204,25 @@ the tool rounds the same way the settlement does, and this
 time the rounding goes up at both settled tiers
 (15,516.67 → 15,517; 25,491.67 → 25,492).
 
+**Live senior settlement above the band (Unit MS, Queue 50,
+§39):** the senior gross above the band is now live-settled
+for the first time — seed `ms-probe-11`: 5 rain days + 3
+storm days, factor 1.0917, four taxi drivers all
+SYS-EMPLOYERS-paid, settled grosses 15,283 / 25,108 /
+25,108 / 39,300 (entry, mid, mid, senior). A second seeded
+month lands on the SAME factor from different day positions
+— seed `ms-probe-7`: 5 rain days + 3 storm days, factor
+1.0917, two taxi drivers all SYS-EMPLOYERS-paid, both mid
+settled 25,108 — so the settlement keys on the counts, not
+the positions: the same counts settle identically wherever
+the wet days fall. Per-tier gross deltas at 1.0917: +1,283 / +2,108 / +3,300 (entry/mid/senior). Every settled gross is
+round(band × factor) — the tool rounds the same way the
+settlement does, and this time the rounding goes down at
+both settled lower tiers (15,283.33 → 15,283; 25,108.33 →
+25,108), while the senior product is an integer up to float
+error (36,000 × 1.0917 = 39,300.00...), so rounding is a
+no-op there.
+
 The entry driver's uplift appears only under the surge (245:
 35% of the 700 above the entry band) — the flat entry row has
 none, because its gross equals its entry wage. The mid
@@ -3046,3 +3065,120 @@ stands.
 above the 1.09 band is still unmeasured (this unit) — the
 hunt for a seeded live month above the band holding a
 senior driver is Queue 50 Unit MS.
+
+## 39. Addendum — Live senior taxi settlement above the band (Unit MS, Queue 50)
+
+**Date:** 2026-11-26. **Method:** hunt for a seeded live
+month in the EY shape (`Simulation`,
+`generate_population(60)`, 32 days) with factor above 1.09
+that holds a senior taxi driver — sweep sixteen fresh seeds
+(`ms-probe-1`–`ms-probe-16`), recording each month's
+rain/storm counts, factor, and driver bands — and check the
+tool's formula reproduces the senior settled gross
+(round(36,000 × factor)), including the rounding rule
+(settled amounts are integers; the tool must round the same
+way). No invented household, no tuning call.
+
+**Measured: the senior gross above the band is now
+live-settled.** Seed `ms-probe-11`: 5 rain days (day_index
+6, 10, 11, 19, 25) + 3 storm days (day_index 3, 14, 17),
+factor `1 + 0.25 × 5/30 + 0.5 × 3/30 = 1.0917` — four taxi
+drivers, all SYS-EMPLOYERS-paid, settled exactly at
+round(band × 1.0917): entry 14,000 → 15,283 (NEX000047),
+mid 23,000 → 25,108 (NEX000013, NEX000042), senior 36,000 →
+39,300 (NEX000043). The senior driver is the first senior
+taxi driver to settle live above the band — the senior
+gross at 1.0917 (39,300) is a measured figure, not
+tool-computed. A second seeded month lands on the SAME
+factor from different day positions — seed `ms-probe-7`: 5
+rain days (day_index 7, 12, 19, 26, 28) + 3 storm days
+(day_index 0, 1, 4), factor 1.0917 — two taxi drivers, all
+SYS-EMPLOYERS-paid, both mid settled 25,108. The tool's
+`simulate(..., taxi_rain_days=..., taxi_storm_days=...)`
+grosses at the same factor are identical — 15,283 / 25,108
+/ 39,300 — and the rounding goes DOWN at both settled lower
+tiers this time: 14,000 × 1.0917 is 15,283.33 → 15,283
+(rounds down), 23,000 × 1.0917 is 25,108.33 → 25,108
+(rounds down), while the senior product is an integer up to
+float error (36,000 × 1.0917 = 39,300.00...), so rounding
+is a no-op there. No settled gross disagrees with the
+formula, so no disagreement is recorded and no model fix
+follows.
+
+Single-earner taxi rows at the new factor (gross, net,
+delta vs flat):
+
+| Factor | Tier | Surged gross | Surged net | Gross delta | Net delta |
+|---|---:|---:|---:|---:|---:|
+| 1.0917 | entry | 15,283 | 7,320 | +1,283 | +820 |
+| 1.0917 | mid | 25,108 | 13,215 | +2,108 | +1,265 |
+| 1.0917 | senior | 39,300 | 21,730 | +3,300 | +1,980 |
+
+**The settlement keys on the counts, not the positions.**
+The two months share the counts (5 rain + 3 storm) but put
+the wet days on different days — `ms-probe-11` rains on
+day_index 6, 10, 11, 19, 25 and storms on 3, 14, 17, while
+`ms-probe-7` rains on 7, 12, 19, 26, 28 and storms on 0, 1,
+4 — and they settle identically: the mid driver settles
+25,108 in both. The formula takes only the counts, and the
+counts enter only through the factor, so any two months with
+the same counts must settle the same grosses — and here they
+do, live, with the positions moved. The MP pin on the
+rounding in both directions stands, now extended downward
+again: down at 1.0417 / 1.0917 / 1.1167, up at 1.0833 /
+1.1083, no-op at 1.1000.
+
+**The full sweep.** Sixteen fresh seeds, EY shape (60
+population, 32 days each) — 46 taxi drivers in all, 6 of
+them senior; 3 months above the band, and only one of those
+holds a senior:
+
+| Seed | Rain | Storm | Factor | Drivers (band: settled) |
+|---|---:|---:|---:|---|
+| ms-probe-1 | 5 | 1 | 1.0583 | mid: 24,342; entry: 14,817 |
+| ms-probe-2 | 6 | 2 | 1.0833 | mid: 24,917 × 3 |
+| ms-probe-3 | 3 | 1 | 1.0417 | entry: 14,583 × 2; mid: 23,958 × 2 |
+| ms-probe-4 | 3 | 1 | 1.0417 | mid: 23,958 × 2; senior: 37,500 |
+| ms-probe-5 | 6 | 1 | 1.0667 | entry: 14,933; mid: 24,533; senior: 38,400 |
+| ms-probe-6 | 9 | 2 | 1.1083 | mid: 25,492 × 2 |
+| ms-probe-7 | 5 | 3 | 1.0917 | mid: 25,108 × 2 |
+| ms-probe-8 | 7 | 1 | 1.0750 | senior: 38,700 |
+| ms-probe-9 | 3 | 1 | 1.0417 | none |
+| ms-probe-10 | 8 | 1 | 1.0833 | mid: 24,917 × 4 |
+| ms-probe-11 | 5 | 3 | 1.0917 | entry: 15,283; mid: 25,108 × 2; senior: 39,300 |
+| ms-probe-12 | 0 | 1 | 1.0167 | entry: 14,233 × 2; mid: 23,383 × 2 |
+| ms-probe-13 | 2 | 0 | 1.0167 | entry: 14,233; mid: 23,383 |
+| ms-probe-14 | 4 | 2 | 1.0667 | mid: 24,533 |
+| ms-probe-15 | 4 | 0 | 1.0333 | senior: 37,200 × 2; mid: 23,767 × 2 |
+| ms-probe-16 | 4 | 3 | 1.0833 | mid: 24,917 × 6; entry: 15,167 |
+
+Every settled gross in the sweep is round(band × factor) —
+the sweep corroborates the formula at eight factors in one
+pass (1.0167, 1.0333, 1.0417, 1.0583, 1.0667, 1.0750,
+1.0833, 1.0917, 1.1083), including a third corroboration at
+1.1083 (`ms-probe-6`: two mids settled 25,492, the same
+grosses MR measured). Seniors settle in-band at 1.0333 to
+1.0750 (five of them: 37,200, 37,500, 38,400, 38,700, and a
+second 37,200) — the same range MR recorded — and above the
+band at 1.0917 only, once. The hit rate is thin: 3
+above-band months in 16 seeds, and only one holds a senior.
+
+The surge is now corroborated at seven live factors —
+1.0417, 1.05 (the EY month, §16), 1.0833, 1.0917, 1.1000,
+1.1083 and 1.1167 — and the senior tier is live-settled
+above the band for the first time, at exactly one factor.
+The KC section keeps printing the EY month's weather
+(factor 1.05) as the canonical scenario; the new factor is
+recorded here and in §16, not printed as a second section.
+The pinned md5 does NOT move — the tool's output is
+byte-identical (a comment only in `economy_sim.py`); the MN
+baseline `c70567cb94bd018ef50df1470fdbe746` stands, and the
+`--shibnagar` md5 `95022a1592dca4d34b91f5f0a6890526`
+stands.
+
+**No tuning call.** Nothing in the data moves.
+
+**Open, recorded:** the senior settlement above the band is
+measured at exactly one factor (1.0917) — a second
+above-band senior settlement, at a different factor, is
+Queue 51 Unit MT.
