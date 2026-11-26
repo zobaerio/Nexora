@@ -724,6 +724,135 @@ class TestSeniorTaxiSecondEarnerAnyHousehold(unittest.TestCase):
                         f"{seed} {prof} tier {row['tier']}")
 
 
+class TestSeniorTaxiSecondEarnerHeadWage(unittest.TestCase):
+    """Queue 42 Unit MK — the senior taxi driver under a
+    low-wage head (Unit MJ follow-up: MJ found senior taxi
+    drivers as second earners under eight kinds of head at
+    every tier from 1 to 5, but never under a
+    construction-worker head — yet the sweep recorded head
+    professions and tiers, not head wages, so it cannot say
+    whether the exception is the profession or the wage
+    band). The same any-household query as MJ with the
+    head's current wage joined (e.wage_per_month) across
+    three seeded worlds, each 60 population and 30 days:
+    the join returns the head's real current wage, and a
+    construction-worker head's wage follows the band for
+    its tier — so a tier >= 3 head earns the senior 20,000
+    flat. The full 2-seed 300-population 365-day sweep is
+    pinned by tools/verify_queue42_mk.py; these guard tests
+    pin the method at suite speed and fail loudly if the
+    head-wage join ever drifts from the employment row —
+    that join is what the MK decision stands on, recorded
+    in the V7 report §31.
+    """
+
+    SEEDS = ("mk-guard-1", "mk-guard-2", "mk-guard-3")
+
+    @classmethod
+    def setUpClass(cls):
+        cls.worlds = []
+        for seed in cls.SEEDS:
+            path = _tmp_path()
+            sim = Simulation(path, seed=seed)
+            sim.generate_population(60)
+            sim.run_days(30)
+            cls.worlds.append((seed, sim, path))
+
+    @classmethod
+    def tearDownClass(cls):
+        for _seed, sim, path in cls.worlds:
+            sim.close()
+            os.remove(path)
+
+    def _head_wage_query(self, store):
+        # The MJ any-household query WITH the head's current
+        # wage joined: a non-head member of ANY household,
+        # currently employed, with the head's current
+        # employment wage beside them.
+        head = ("household_members hm ON hm.household_id"
+                " = h.household_id JOIN employments e"
+                " ON e.character_id = hm.character_id")
+        member = ("household_members hm2 ON hm2.household_id"
+                  " = h.household_id JOIN employments e2"
+                  " ON e2.character_id = hm2.character_id")
+        head_now = ("hm.role = 'head'"
+                    " AND hm.left_at_game_minutes IS NULL"
+                    " AND e.ended_at_game_minutes IS NULL")
+        member_now = ("hm2.role != 'head'"
+                      " AND hm2.left_at_game_minutes IS NULL"
+                      " AND e2.ended_at_game_minutes IS NULL")
+        return store.rows(
+            "SELECT h.household_id, hm.character_id AS"
+            " head_id, e.profession_id AS head_prof,"
+            " e.tier AS head_tier, e.wage_per_month AS"
+            " head_wage, e2.profession_id AS se_prof,"
+            " e2.tier AS se_tier, e2.wage_per_month AS se_wage"
+            " FROM households h JOIN " + head + " JOIN "
+            + member + " WHERE " + head_now + " AND "
+            + member_now)
+
+    def test_head_wage_join_returns_the_current_employment_wage(self):
+        for seed, sim, _path in self.worlds:
+            store = sim.store
+            rows = self._head_wage_query(store)
+            # Non-vacuous: second earners occur in every
+            # world, so the join is measuring a real
+            # population.
+            self.assertGreater(len(rows), 0, seed)
+            for row in rows:
+                # The joined wage is the head's CURRENT
+                # employment wage, read back directly.
+                direct = store.row(
+                    "SELECT wage_per_month FROM employments"
+                    " WHERE character_id = ?"
+                    " AND ended_at_game_minutes IS NULL",
+                    (row["head_id"],))
+                self.assertIsNotNone(direct, seed)
+                self.assertEqual(row["head_wage"],
+                                 direct["wage_per_month"], seed)
+                self.assertGreater(row["head_wage"], 0, seed)
+            # And the senior taxi rows, where they exist,
+            # still sit at the senior 36,000.
+            for row in rows:
+                if (row["se_prof"] == "taxi_driver"
+                        and row["se_tier"] >= 3):
+                    self.assertEqual(row["se_wage"], 36000,
+                                     seed)
+
+    def test_construction_worker_head_wage_follows_the_band(self):
+        # A construction-worker head's wage is the band wage
+        # for its tier — so at tier >= 3 it is the senior
+        # 20,000 flat, which is why all 17 construction-
+        # worker heads in the MK sweep earn exactly 20,000.
+        senior_cw_heads = 0
+        for seed, sim, _path in self.worlds:
+            store = sim.store
+            data = sim.data
+            heads = store.rows(
+                "SELECT e.tier, e.wage_per_month FROM"
+                " households h JOIN household_members hm ON"
+                " hm.household_id = h.household_id JOIN"
+                " employments e ON e.character_id ="
+                " hm.character_id WHERE hm.role = 'head'"
+                " AND hm.left_at_game_minutes IS NULL"
+                " AND e.ended_at_game_minutes IS NULL"
+                " AND e.profession_id ="
+                " 'construction_worker'")
+            for head in heads:
+                self.assertEqual(
+                    head["wage_per_month"],
+                    data.wage_at("construction_worker",
+                                 head["tier"]),
+                    f"{seed} tier {head['tier']}")
+                if head["tier"] >= 3:
+                    senior_cw_heads += 1
+                    self.assertEqual(head["wage_per_month"],
+                                     20000, seed)
+        # Non-vacuous: senior construction-worker heads
+        # occur across the guard worlds.
+        self.assertGreater(senior_cw_heads, 0)
+
+
 class TestBankingAndInvestment(unittest.TestCase):
     @classmethod
     def setUpClass(cls):

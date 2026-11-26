@@ -1415,6 +1415,25 @@ def print_taxi_weather_surge(prices, bands, variant=False,
             # pairs a construction-worker head with a senior
             # civil-engineer second earner (tier 4, 65,000).
             # Full detail: V7 report §30.
+            # Queue 42 / Unit MK checked 2026-11-26 — MK ran
+            # the MJ query WITH the head's current wage joined
+            # (e.wage_per_month) on the same two worlds
+            # (mi-seed-1 + mj-seed-2 re-runs, 300 population,
+            # 365 days each): exactly ONE senior taxi-driver
+            # second earner sits under a head earning <=
+            # 25,000 — mi-seed-1 HH000061, teacher head Jamal
+            # Begum at the mid-tier 24,000, second earner
+            # Tamim Sarkar (tier 4, 36,000) — so the strong
+            # wage-band hypothesis (none under any <= 25,000
+            # head) is REFUTED. But none sits under a head
+            # earning <= 20,000 in either world, and every
+            # head earning <= 20,000 in both worlds IS a
+            # construction worker (17 heads, all at the flat
+            # senior 20,000), so at the construction-worker
+            # wage the profession and the wage band are
+            # confounded — neither explanation is established.
+            # No wiring: the tool models the construction-
+            # worker household only. Full detail: V7 report §31.
             ("taxi-driver (entry, renting)",
              {"second_earner": "taxi_driver",
               "second_earner_renting_cab": True})):
