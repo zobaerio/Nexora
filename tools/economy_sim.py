@@ -325,6 +325,29 @@ second earner in the surge table):
   again (the MB md5 is kept in test_no_regression.py as
   history). No tuning call.
 
+What v7 adds vs v6, Queue 40 Unit MI (the senior civil-engineer
+second earner, wired):
+- The MF/MG/MH absence is broken by the larger world: seed
+  mi-seed-1 (300 population, 365 days) holds a measured
+  household pairing a construction-worker head with a senior
+  civil-engineer second earner (HH000086, tier-5 civil
+  engineer at 65,000/month), so the pairing is wired exactly
+  on the KA/IC pattern — the IC section gains the senior
+  civil-engineer rows (entry/mid/senior first-earner tiers,
+  all four storm positions) and both bridge checks gain the
+  line 30,000 - 17,758 = 12,242 (combined canonical start
+  5,000 + 25,000, worst minbal the entry tier at the early
+  position). The senior second earner DEEPENS the month-1 dip
+  despite the higher pay: the senior lifestyle uplift
+  (15,050) accrues daily while the 65,000 monthly lump lands
+  on day 30, so entry early dips -17,758 against the mid-tier
+  pairing's -8,623 — the net is higher (42,900 vs 27,950),
+  the trough is deeper. The senior taxi-driver second earner
+  stays unprinted: no measured household pairs the
+  construction worker with one, in the larger world either
+  (0 in mi-seed-1). The pinned md5 moves again (the MC md5 is
+  kept in test_no_regression.py as history). No tuning call.
+
 What v6 changes vs v5 (Queue 22, Unit EY — the ES day-wage
 follow-up):
 - The construction worker is now modelled on the settlement's
@@ -1343,6 +1366,55 @@ def print_taxi_weather_surge(prices, bands, variant=False,
             # senior taxi driver or civil engineer under a
             # construction-worker head. Full detail: V7
             # report §27.
+            # Queue 39 / Unit MH checked 2026-11-25 — MH
+            # ran the same check over a longer horizon (two
+            # seeds, mh-seed-1/2, 120 population, 365 days
+            # each): 0 senior taxi-driver and 0 senior
+            # civil-engineer second earners in construction-
+            # worker-headed households in either seed, so
+            # the §12 rule stands over the longer horizon
+            # too and nothing is wired. The longer horizon
+            # does grow the senior bands (4 senior-band
+            # taxi drivers and 3-4 senior-band civil
+            # engineers per world, up from 0-2 at 90 days)
+            # and senior second earners in other professions
+            # do occur (a tier-3 teacher, a tier-5 shop
+            # owner, a tier-4 police officer, a tier-3
+            # chef) — just never a senior taxi driver or
+            # civil engineer under a construction-worker
+            # head. Full detail: V7 report §28.
+            # Queue 40 / Unit MI checked 2026-11-25 — MI ran
+            # the same check in a larger world (seed mi-seed-1,
+            # 300 population, 365 days) and the absence BROKE
+            # for one pairing: HH000086 pairs a construction-
+            # worker head with a senior civil-engineer second
+            # earner (tier 5, 65,000/month), so the senior CE
+            # pairing is now wired (IC section + both bridge
+            # checks, V7 report §29) and the §12 rule stands
+            # only for the senior taxi driver. No senior taxi-
+            # driver second earner appears in the larger world
+            # either (0 targets in mi-seed-1, 9 senior-band
+            # taxi drivers in it), so the renting senior-tier
+            # taxi second earner stays allowed but unprinted
+            # and no row is added here.
+            # Queue 41 / Unit MJ checked 2026-11-25 — MJ ran
+            # the MF pairing query WITHOUT the construction-
+            # worker-head restriction on the larger worlds
+            # (mi-seed-1 re-run + fresh mj-seed-2, 300
+            # population, 365 days each): senior taxi
+            # drivers DO sit on the second-earner side — 6
+            # in mi-seed-1 and 5 in mj-seed-2, under doctor,
+            # teacher, shop-owner, business-owner, pilot,
+            # software-developer, civil-engineer and taxi-
+            # driver heads — but 0 under a construction-
+            # worker head in either world, so the absence is
+            # specific to the construction-worker pairing
+            # and nothing is wired: the tool models the
+            # construction-worker household only. The fresh
+            # seed corroborates the MI wiring — HH000028
+            # pairs a construction-worker head with a senior
+            # civil-engineer second earner (tier 4, 65,000).
+            # Full detail: V7 report §30.
             ("taxi-driver (entry, renting)",
              {"second_earner": "taxi_driver",
               "second_earner_renting_cab": True})):
@@ -1528,10 +1600,22 @@ def print_shibnagar_variant(prices, d1_rows, start_balances):
                   f" start {same_start:>6} + same-tier dip "
                   f"{worst_same:>7} = {same_worst:>7}  "
                   f"{same_status}  (worst same-tier storm position)")
+            # Queue 40 / Unit MI: the senior civil-engineer
+            # second earner joins this loop too — the same
+            # measured household (seed mi-seed-1, HH000086)
+            # as in District 1, on the variant's own rents.
+            # The line is 30,000 − 17,758 = 12,242, identical
+            # to District 1 (the two-earner rows rent at tier
+            # 1, and Shibnagar's tier-1 rent is the prices.json
+            # tier-1 rent, 2,500 — the MD identity). The senior
+            # taxi-driver second earner stays out: no measured
+            # household pairs the construction worker with one.
             for second_pid, second_tier, second_label in (
                     ("taxi_driver", "mid", "taxi-driver (mid)"),
                     ("civil_engineer", "entry",
-                     "civil-engineer (entry)")):
+                     "civil-engineer (entry)"),
+                    ("civil_engineer", "senior",
+                     "civil-engineer (senior)")):
                 worst_other = min(
                     simulate(prices, bands["construction_worker"],
                              tier, storm_days=pos,
@@ -1812,10 +1896,26 @@ def main():
                   f" start {same_start:>6} + same-tier dip "
                   f"{worst_same:>7} = {same_worst:>7}  "
                   f"{same_status}  (worst same-tier storm position)")
+            # Queue 40 / Unit MI: the senior civil-engineer
+            # second earner joins this loop — a measured
+            # household appeared in the larger world (seed
+            # mi-seed-1, 300 population, 365 days: HH000086
+            # pairs a construction-worker head with a tier-5
+            # civil engineer at 65,000/month). The line is
+            # 30,000 − 17,758 = 12,242 (the worst minbal is
+            # the entry tier at the early position — the
+            # senior monthly lump lands day 30 while the
+            # senior lifestyle uplift accrues daily). The
+            # senior taxi-driver second earner stays out of
+            # this loop: no measured household pairs the
+            # construction worker with one, in the larger
+            # world either.
             for second_pid, second_tier, second_label in (
                     ("taxi_driver", "mid", "taxi-driver (mid)"),
                     ("civil_engineer", "entry",
-                     "civil-engineer (entry)")):
+                     "civil-engineer (entry)"),
+                    ("civil_engineer", "senior",
+                     "civil-engineer (senior)")):
                 worst_other = min(
                     simulate(prices, bands["construction_worker"],
                              tier, storm_days=pos,
@@ -2129,11 +2229,28 @@ def main():
     # monthly pay lands on day 30 regardless) — the
     # storm-position effect still comes from the first earner
     # alone. No tuning call.
+    # Queue 40 / Unit MI: the senior civil-engineer second
+    # earner joins this section — a measured household appeared
+    # in the larger world (seed mi-seed-1, 300 population, 365
+    # days: HH000086 pairs a construction-worker head with a
+    # tier-5 civil engineer at 65,000/month), so the pairing is
+    # wired here exactly like the IC pairings: the senior
+    # monthly lump lands on day 30 while the senior lifestyle
+    # uplift accrues daily, so the month-1 dip is DEEPER than
+    # the mid-tier pairing despite the higher pay (entry early
+    # −17,758 against the mid tier's −8,623). The bridge line
+    # for it is wired in both bridge checks (JA loop). The
+    # senior taxi-driver second earner stays unprinted — no
+    # measured household pairs the construction worker with
+    # one, in the larger world either (0 in mi-seed-1).
     for second_pid, second_tier, second_label in (
             ("taxi_driver", "mid",
              "taxi-driver second earner (mid 23,000, per-fare)"),
             ("civil_engineer", "entry",
              "civil-engineer second earner (entry 22,000,"
+             " monthly)"),
+            ("civil_engineer", "senior",
+             "civil-engineer second earner (senior 65,000,"
              " monthly)")):
         print()
         print(f"second earner at another tier storm-position month"
