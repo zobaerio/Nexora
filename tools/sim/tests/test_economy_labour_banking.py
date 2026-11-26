@@ -853,6 +853,123 @@ class TestSeniorTaxiSecondEarnerHeadWage(unittest.TestCase):
         self.assertGreater(senior_cw_heads, 0)
 
 
+class TestLowWageHeadNotConstructionWorker(unittest.TestCase):
+    """Queue 43 Unit ML — the low-wage head who is not a
+    construction worker (Unit MK follow-up: MK left the
+    profession-vs-wage question confounded — every head
+    earning <= 20,000 in both measured worlds is a
+    construction worker, and no head in either world earns
+    an entry wage at all — so the question needs a
+    low-wage head who is NOT a construction worker). The
+    same head-wage query as MK, restricted to heads earning
+    <= 20,000, across three seeded worlds, each 60
+    population and 30 days: the query returns the head's
+    profession beside its real current wage, and the five
+    entry bands the sweep looks for (shop owner 12,000,
+    chef 13,000, taxi driver 14,000, teacher 15,000, police
+    officer 18,000) are the data's tier-1 wages. The full
+    5-seed 300-population 365-day sweep is pinned by
+    tools/verify_queue43_ml.py; these guard tests pin the
+    method at suite speed and fail loudly if the low-wage
+    query ever drifts from the employment rows — that
+    query is what the ML decision stands on, recorded in
+    the V7 report §32.
+    """
+
+    SEEDS = ("ml-guard-1", "ml-guard-2", "ml-guard-3")
+
+    @classmethod
+    def setUpClass(cls):
+        cls.worlds = []
+        for seed in cls.SEEDS:
+            path = _tmp_path()
+            sim = Simulation(path, seed=seed)
+            sim.generate_population(60)
+            sim.run_days(30)
+            cls.worlds.append((seed, sim, path))
+
+    @classmethod
+    def tearDownClass(cls):
+        for _seed, sim, path in cls.worlds:
+            sim.close()
+            os.remove(path)
+
+    def test_low_wage_head_query_returns_profession_and_current_wage(self):
+        # The MK head-wage query restricted to heads earning
+        # <= 20,000: each row carries the head's profession
+        # beside its current employment wage.
+        low_heads = 0
+        for seed, sim, _path in self.worlds:
+            store = sim.store
+            rows = store.rows(
+                "SELECT h.household_id, e.profession_id AS"
+                " prof, e.tier, e.wage_per_month AS wage,"
+                " hm.character_id AS head_id FROM households"
+                " h JOIN household_members hm ON"
+                " hm.household_id = h.household_id JOIN"
+                " employments e ON e.character_id ="
+                " hm.character_id WHERE hm.role = 'head'"
+                " AND hm.left_at_game_minutes IS NULL"
+                " AND e.ended_at_game_minutes IS NULL"
+                " AND e.wage_per_month <= 20000")
+            for row in rows:
+                low_heads += 1
+                # The joined wage and profession are the
+                # head's CURRENT employment row, read back
+                # directly.
+                direct = store.row(
+                    "SELECT profession_id, wage_per_month"
+                    " FROM employments WHERE character_id = ?"
+                    " AND ended_at_game_minutes IS NULL",
+                    (row["head_id"],))
+                self.assertIsNotNone(direct, seed)
+                self.assertEqual(row["prof"],
+                                 direct["profession_id"], seed)
+                self.assertEqual(row["wage"],
+                                 direct["wage_per_month"], seed)
+                self.assertGreater(row["wage"], 0, seed)
+                # And the wage is the band wage for the
+                # profession and tier — a tier >= 3
+                # construction-worker head is the flat
+                # senior 20,000.
+                self.assertEqual(
+                    row["wage"],
+                    sim.data.wage_at(row["prof"], row["tier"]),
+                    f"{seed} {row['prof']} tier {row['tier']}")
+        # Non-vacuous: low-wage heads occur across the guard
+        # worlds (construction-worker heads at 20,000 are
+        # the common case — the ML sweep found 44 of 45).
+        self.assertGreater(low_heads, 0)
+
+    def test_entry_band_wages_are_the_sweep_targets(self):
+        # The five entry wages the ML sweep looks for below
+        # 20,000 are the data's tier-1 wages, and the
+        # prices.json bands agree — so a head at 12,000 is
+        # an entry shop owner, not a data error.
+        from tools import economy_sim as econ
+        expected = {"shop_owner": 12000, "chef": 13000,
+                    "taxi_driver": 14000, "teacher": 15000,
+                    "police_officer": 18000}
+        prices = econ.load("prices.json")
+        bands = {w["profession_id"]: w
+                 for w in prices["wages_monthly"]}
+        for seed, sim, _path in self.worlds:
+            for prof, wage in expected.items():
+                self.assertEqual(
+                    sim.data.wage_at(prof, 1), wage,
+                    f"{seed} {prof} tier 1")
+                self.assertEqual(bands[prof]["entry"], wage,
+                                 f"{prof} entry band")
+            # And the construction-worker wage the sweep
+            # compares against stays flat at 20,000 at
+            # every senior tier.
+            for tier in (3, 4, 5):
+                self.assertEqual(
+                    sim.data.wage_at("construction_worker",
+                                     tier),
+                    20000, f"{seed} tier {tier}")
+
+
 class TestBankingAndInvestment(unittest.TestCase):
     @classmethod
     def setUpClass(cls):

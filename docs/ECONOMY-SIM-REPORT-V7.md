@@ -2330,3 +2330,123 @@ head at an entry wage below 20,000 — and neither world
 contains one. Whether such a head exists at all in the
 live world, and whether it holds a senior taxi-driver
 second earner, is the next check (Queue 43 Unit ML).
+
+## 32. Addendum — Low-wage head who is not a construction worker (Unit ML, Queue 43)
+
+**Date:** 2026-11-26. **Method:** run the MK head-wage
+query on five fresh seeds — ml-seed-1..5, 300 population,
+365 days each, the MJ/MK world size — and look for any
+household head earning <= 20,000 in another profession,
+or any head at an entry wage below 20,000 (shop owner
+12,000, chef 13,000, taxi driver 14,000, teacher 15,000,
+police officer 18,000). If such a head exists and holds a
+senior taxi-driver second earner, the profession
+explanation is refuted — record it and stop. If such
+heads exist but none holds the pairing, the profession
+explanation gains support — record it honestly as support,
+not proof (small base). If no such head exists in any
+seed, record that the live world produces no low-wage
+non-construction-worker head at all — the confound is
+structural, and the question cannot be settled without a
+seeded world, which would be inventing a household — so
+stop and record. No wiring either way: the tool models
+the construction-worker household only. No invented
+household, no tuning call.
+
+**DECIDED: record it and stop — the profession
+explanation is refuted, and the §12 taxi half falls.**
+The sweep answers the question it was asked, and then
+goes past it. A low-wage head who is NOT a construction
+worker DOES exist — exactly one in five seeds, ml-seed-1
+HH000035, shop-owner head Sabbir Fakir at the entry
+12,000 — but he holds no senior taxi-driver second
+earner, and on that narrow question alone (a base of one
+head) nothing could be concluded either way. What settles
+the question is the pairing itself: **a senior
+taxi-driver second earner sits under a
+construction-worker head in TWO of the five seeds** —
+ml-seed-1 HH000030 (head Sohel Howlader, construction
+worker tier 5, 20,000; second earner Ishrat Chowdhury,
+taxi driver tier 4, 36,000) and ml-seed-3 HH000042 (head
+Karim Biswas, construction worker tier 5, 20,000; second
+earner Rina Saha, taxi driver tier 5, 36,000). The
+profession does not block it, and neither does the wage
+band: both pairings sit under a head earning exactly the
+construction-worker wage, 20,000. The absence that stood
+through MF, MG, MH, MI, MJ and MK — nine worlds, 0
+senior taxi-driver second earners under a
+construction-worker head — was chance on a thin base, not
+a rule: 2 pairings among 44 construction-worker-headed
+households in this sweep, against 0 among 17 in the
+MJ/MK worlds.
+
+| seed | households | senior-band taxi drivers | senior taxi second earners in any household (head wage) | senior CE second earners in any household | second earners in any household | under a construction-worker head |
+|---|---|---|---|---|---|---|
+| ml-seed-1 | 123 | 20 | 9 — HH000030 construction worker (tier 5, **20,000**) / Ishrat Chowdhury (taxi tier 4); HH000070 teacher (tier 5, 38,000) / Arif Talukder (tier 5); HH000018 shop owner (tier 5, 55,000) / Mitu Sarkar (tier 5); HH000052 shop owner (tier 3, 55,000) / Tareq Sikder (tier 4); HH000120 civil engineer (tier 4, 65,000) / Mehedi Gazi (tier 5); HH000055 software developer (tier 3, 90,000) / Tanvir Bepari (tier 5); HH000112 software developer (tier 4, 90,000) / Liton Pramanik (tier 5); HH000117 software developer (tier 5, 90,000) / Rony Sarkar (tier 4); HH000088 pilot (tier 2, 95,000) / Rumana Mondal (tier 5) | 6 | 63 | 1 taxi, 1 CE |
+| ml-seed-2 | 124 | 7 | 2 — HH000055 pilot (tier 1, 45,000) / Niloy Ahmed (tier 4); HH000080 civil engineer (tier 5, 65,000) / Shahana Kazi (tier 5) | 5 | 63 | 0 |
+| ml-seed-3 | 113 | 12 | 5 — HH000042 construction worker (tier 5, **20,000**) / Rina Saha (taxi tier 5); HH000066 taxi driver (tier 5, 36,000) / Sakib Pramanik (tier 4); HH000027 shop owner (tier 4, 55,000) / Niloy Sarkar (tier 4); HH000039 civil engineer (tier 4, 65,000) / Nabila Akter (tier 5); HH000054 pilot (tier 2, 95,000) / Rahad Sardar (tier 5) | 2 | 71 | 1 taxi, 0 CE |
+| ml-seed-4 | 113 | 12 | 2 — HH000093 teacher (tier 5, 38,000) / Shakil Pal (tier 5); HH000082 shop owner (tier 5, 55,000) / Mitu Matubbar (tier 5) | 11 | 62 | 0 taxi, 1 CE |
+| ml-seed-5 | 129 | 13 | 4 — HH000046 teacher (tier 3, 38,000) / Sumon Molla (tier 5); HH000125 pilot (tier 3, 180,000) / Beauty Marma (tier 5); HH000053 business owner (tier 5, 300,000) / Mizan Rahman (tier 5); HH000110 business owner (tier 4, 300,000) / Anik Rahman (tier 4) | 5 | 74 | 0 taxi, 1 CE |
+
+Totals: 602 households, 64 senior-band taxi drivers, 22
+senior taxi-driver second earners in any household, 29
+senior civil-engineer second earners in any household,
+333 second earners in any household — **2 senior
+taxi-driver second earners under a construction-worker
+head** (ml-seed-1 HH000030, ml-seed-3 HH000042) and 3
+senior civil-engineer second earners under a
+construction-worker head (the MI pairing, a third and
+fourth and fifth measured instance). The low-wage heads:
+**45 heads earn <= 20,000** across the five seeds (10 +
+7 + 6 + 11 + 11), of which **44 are construction workers,
+all at exactly 20,000** (tiers 3, 4 and 5 — the flat
+senior wage again), and **one is not** — ml-seed-1
+HH000035, Sabbir Fakir, shop owner tier 1 at the entry
+12,000. He is the first head measured at an entry wage
+in any world: the lowest head wage is 12,000 in ml-seed-1
+and 20,000 in the other four seeds, and only 1 head in
+602 earns below 20,000. No senior taxi-driver second
+earner sits under a non-construction-worker head earning
+<= 20,000 in any seed — but that count is now beside the
+point, because the pairing is measured under the
+construction-worker head itself.
+
+Two structural facts the sweep also establishes. First,
+**the low-wage head population stays thin and
+construction-worker-dominated**: 45 of 602 households
+(7.5%), 44 of them construction workers — heads still
+skew to the higher tiers and bands, which is why the
+confound survived as long as it did, and why the earlier
+zeros looked like a rule. Second, **the MI pairing
+recurs again**: three more construction-worker-headed
+households with a senior civil-engineer second earner in
+these five seeds, so the senior civil-engineer wiring
+(MI) now rests on five measured instances, not one.
+
+**No wiring in this unit.** The ML spec says record it
+and stop, and the wiring is a full unit's work: the §12
+taxi half now falls, so the senior taxi-driver
+second-earner rows are measured-but-unmodelled — exactly
+the position the senior civil-engineer rows were in
+before MI wired them — and wiring them means measuring
+the two pairings on the KA/IC pattern, adding the senior
+taxi rows and their bridge lines in both runs, and
+re-opening the ME renting decision (the renting row's
+owning senior row would then be modelled). That is the
+follow-up (Queue 44 Unit MM), not a silent omission.
+The renting senior-tier taxi second earner stays allowed
+but unprinted with it (the ME decision is unchanged by
+this unit).
+
+The pinned md5 does NOT move — the MI baseline
+`3d3fce982a64634a0b03bb0af3643f94` stands. The
+`--shibnagar` full-output md5 does NOT move either —
+`17bc7165d1e6ad48de4123e38e426bd7` stands — because the
+only change is a comment in `economy_sim.py`.
+
+**No tuning call.** Nothing in the data moves.
+
+**Open, recorded:** the senior taxi-driver second earner
+is now a measured pairing of the construction-worker
+household and the tool does not model it — wiring it on
+the MI pattern is the next check (Queue 44 Unit MM).

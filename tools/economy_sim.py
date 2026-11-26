@@ -1434,6 +1434,26 @@ def print_taxi_weather_surge(prices, bands, variant=False,
             # confounded — neither explanation is established.
             # No wiring: the tool models the construction-
             # worker household only. Full detail: V7 report §31.
+            # Queue 43 / Unit ML checked 2026-11-26 — ML ran
+            # the MK head-wage query on five fresh seeds
+            # (ml-seed-1..5, 300 population, 365 days each):
+            # a low-wage head who is NOT a construction worker
+            # DOES exist — ml-seed-1 HH000035, shop-owner head
+            # Sabbir Fakir at the entry 12,000 — but he holds
+            # no senior taxi-driver second earner, and the
+            # sweep's bigger finding settles the question
+            # another way: the pairing appears under a
+            # construction-worker head TWICE — ml-seed-1
+            # HH000030 (head Sohel Howlader, tier 5, 20,000;
+            # Ishrat Chowdhury, taxi tier 4, 36,000) and
+            # ml-seed-3 HH000042 (head Karim Biswas, tier 5,
+            # 20,000; Rina Saha, taxi tier 5, 36,000) — so
+            # the §12 taxi half is REFUTED: the absence
+            # across nine worlds was chance on a thin base,
+            # not the profession and not the wage band. No
+            # wiring in this unit (the ML spec says record
+            # and stop); wiring the senior taxi rows on the
+            # MI pattern is Queue 44. Full detail: V7 report §32.
             ("taxi-driver (entry, renting)",
              {"second_earner": "taxi_driver",
               "second_earner_renting_cab": True})):
