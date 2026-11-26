@@ -1168,6 +1168,22 @@ days, factor 1.0833, settled grosses 15,167 / 24,917 /
 senior). Every settled gross is round(band × factor) — the
 tool rounds the same way the settlement does.
 
+**Factors outside the 1.04–1.09 band (Unit MQ, Queue 48,
+§37):** the formula is corroborated at two more live
+factors, both above the band, same EY shape (60 population,
+32 days) — seed `mq-probe-1`: 8 rain days + 3 storm days,
+factor 1.1167, settled grosses 15,633 / 25,683 (entry and
+mid only — no senior driver in the world); seed
+`mq-probe-6`: 6 rain days + 3 storm days, factor 1.1000,
+settled grosses 15,400 / 25,300 (entry and mid only — again
+no senior driver). Per-tier gross deltas: at 1.1167, +1,633 / +2,683 / +4,200;
+at 1.1000, +1,400 / +2,300 / +3,600 (entry/mid/senior). The senior grosses at these factors
+(40,200 / 39,600) are tool-computed, not live-settled — no
+senior taxi driver settled live above the band in either
+world, so that settlement stays unmeasured. Every settled
+gross is round(band × factor) — the tool rounds the same
+way the settlement does.
+
 The entry driver's uplift appears only under the surge (245:
 35% of the 700 above the entry band) — the flat entry row has
 none, because its gross equals its entry wage. The mid
@@ -2832,3 +2848,90 @@ single-factor grounding is now three-factor grounding; the
 next honest check on the surge would be a factor outside
 the 1.04–1.09 band — a very wet or very stormy month —
 which no seeded month has yet produced.
+
+## 37. Addendum — Taxi surge outside the 1.04–1.09 band (Unit MQ, Queue 48)
+
+**Date:** 2026-11-26. **Method:** measure fresh seeded live
+months in the EY shape (`Simulation`,
+`generate_population(60)`, 32 days) — read each month's
+rain/storm counts from `daily_weather` and every taxi
+driver's settled month-1 wage from `economy_ledger` (the
+`wage` row at `game_minutes` 43,200) against the band in
+`employments` — and check the tool's formula reproduces the
+settled grosses at each new factor, including the rounding
+rule (settled amounts are integers; the tool must round the
+same way). No invented household, no tuning call.
+
+**Measured: the formula reproduces the settled grosses at
+both new factors, above the band.** Seed `mq-probe-1`: 8
+rain days (day_index 11, 14, 15, 16, 21, 22, 23, 25) + 3
+storm days (day_index 3, 4, 17), factor `1 + 0.25 × 8/30 +
+0.5 × 3/30 = 1.1167` — four taxi drivers, all
+SYS-EMPLOYERS-paid, settled exactly at round(band ×
+1.1167): entry 14,000 → 15,633 (two drivers), mid 23,000 →
+25,683 (two drivers). Seed `mq-probe-6`: 6 rain days
+(day_index 3, 4, 7, 12, 19, 28) + 3 storm days (day_index
+11, 16, 18), factor `1 + 0.25 × 6/30 + 0.5 × 3/30 = 1.1000`
+— three taxi drivers, all SYS-EMPLOYERS-paid, settled
+exactly at round(band × 1.1000): entry 14,000 → 15,400 (two
+drivers), mid 23,000 → 25,300 (one driver). The tool's
+`simulate(..., taxi_rain_days=..., taxi_storm_days=...)`
+grosses at the same factors are identical — 15,633 / 25,683
+/ 40,200 and 15,400 / 25,300 / 39,600 — and the rounding
+adds no new direction: 14,000 × 1.1167 is 15,633.33 →
+15,633 (rounds down), 23,000 × 1.1167 is 25,683.33 →
+25,683 (rounds down), and at 1.1000 the products are
+integers up to float error (14,000 × 1.1000 =
+15,400.000000000002), so rounding is a no-op there
+(15,400 / 25,300 / 39,600), so the MP pin on
+the rounding in both directions stands unextended. No
+settled gross disagrees with the formula, so no disagreement
+is recorded and no model fix follows.
+
+Single-earner taxi rows at the two new factors (gross,
+net, delta vs flat):
+
+| Factor | Tier | Surged gross | Surged net | Gross delta | Net delta |
+|---|---:|---:|---:|---:|---:|
+| 1.1167 | entry | 15,633 | 7,529 | +1,633 | +1,029 |
+| 1.1167 | mid | 25,683 | 13,560 | +2,683 | +1,610 |
+| 1.1167 | senior | 40,200 | 22,260 | +4,200 | +2,510 |
+| 1.1000 | entry | 15,400 | 7,390 | +1,400 | +890 |
+| 1.1000 | mid | 25,300 | 13,330 | +2,300 | +1,380 |
+| 1.1000 | senior | 39,600 | 21,910 | +3,600 | +2,160 |
+
+**Honest limit: the senior tier is not live-settled above
+the band.** Neither probe world holds a senior taxi driver,
+so the senior grosses at 1.1167 and 1.1000 (40,200 /
+39,600) are tool-computed, not live-settled — the formula
+above the band is corroborated live at entry and mid only.
+Six further seeds probed while drafting the follow-up
+(`mq-probe-7`–`mq-probe-12`) hold senior drivers only at
+factors at or below 1.0833, and the one further above-band
+month found (`mq-probe-11`: 3 rain days + 5 storm days,
+factor 1.1083) holds a mid driver only, settled 25,492 —
+so a live senior settlement above the band is still
+unmeasured, and the storm-heavy shape of that month is the
+next check (Queue 49 Unit MR).
+
+The surge is now corroborated at five live factors —
+1.0417, 1.05 (the EY month, §16), 1.0833, 1.1000 and
+1.1167 — and the formula's only live inputs remain the
+month's rain/storm counts, which the tool takes as named
+counts. The KC section keeps printing the EY month's
+weather (factor 1.05) as the canonical scenario; the two
+new factors are recorded here and in §16, not printed as a
+second section. The pinned md5 does NOT move — the tool's
+output is byte-identical (a comment only in
+`economy_sim.py`); the MN baseline
+`c70567cb94bd018ef50df1470fdbe746` stands, and the
+`--shibnagar` md5 `95022a1592dca4d34b91f5f0a6890526`
+stands.
+
+**No tuning call.** Nothing in the data moves.
+
+**Open, recorded:** a live senior taxi-driver settlement
+above the 1.09 band is still unmeasured (this unit) — and
+the storm-heavy month above the band (`mq-probe-11`, 3 rain
++ 5 storm, factor 1.1083, one mid driver settled 25,492) is
+Queue 49 Unit MR.

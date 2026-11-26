@@ -640,6 +640,23 @@ STORM_MEASURED_DAYS = (4, 23)
 # tool rounds the same way (14,583.33 -> 14,583;
 # 24,916.67 -> 24,917). No tool change: comment only, the
 # pinned md5 does NOT move; full detail in V7 report §36.
+# Queue 48 Unit MQ (v7): the formula is corroborated at two
+# more live factors, both ABOVE the 1.04–1.09 band — seed
+# mq-probe-1: 8 rain days (day_index 11, 14, 15, 16, 21, 22,
+# 23, 25) + 3 storm days (day_index 3, 4, 17), factor 1.1167,
+# four taxi drivers all SYS-EMPLOYERS-paid, settled 15,633 /
+# 25,683 (entry and mid only — no senior driver in the world);
+# seed mq-probe-6: 6 rain days (day_index 3, 4, 7, 12, 19,
+# 28) + 3 storm days (day_index 11, 16, 18), factor 1.1000,
+# three taxi drivers all SYS-EMPLOYERS-paid, settled 15,400 /
+# 25,300 (entry and mid only — again no senior driver). Every
+# settled gross is round(band x factor) — the tool's grosses
+# at the same factors are identical, and the senior grosses
+# at these factors (40,200 / 39,600) are tool-computed only:
+# no senior taxi driver settled live above the band in either
+# world, so that settlement stays unmeasured (V7 report §37).
+# No tool change: comment only, the pinned md5 does NOT move;
+# full detail in V7 report §37.
 TAXI_WEATHER_MEASURED_RAIN_DAYS = 2
 TAXI_WEATHER_MEASURED_STORM_DAYS = 2
 # Queue 25 / v7 (Unit HD): the mixed-profession second earner —

@@ -1874,6 +1874,74 @@ class TestTaxiWeatherSurge(unittest.TestCase):
                 self.assertEqual(surged["gross"] - flat["gross"],
                                  delta, f"{rain}/{storm}/{tier}")
 
+    def test_taxi_surge_outside_the_band_is_measured(self):
+        from tools import economy_sim as econ
+        prices = econ.load("prices.json")
+        wages = {w["profession_id"]: w
+                 for w in prices["wages_monthly"]}
+        # Queue 48 Unit MQ: the KC surge formula corroborated
+        # at two more live factors, both ABOVE the 1.04–1.09
+        # band — seed mq-probe-1 (8 rain + 3 storm, factor
+        # 1.1167) and seed mq-probe-6 (6 rain + 3 storm,
+        # factor 1.1000), both the EY shape (60 population,
+        # 32 days). Neither world holds a senior taxi driver,
+        # so the senior grosses at these factors (40,200 /
+        # 39,600) are tool-computed, not live-settled — the
+        # test pins them as computed figures and the live
+        # corroboration as entry + mid only. The tool's gross
+        # at each factor is round(band x factor), the same
+        # rounding the settlement applies — 14,000 x 1.1167
+        # is 15,633.33 -> 15,633 (rounds down) and at 1.1000
+        # the products are integers up to float error, so
+        # rounding is a no-op — and the nets follow with tax
+        # and uplift recomputed on the surged gross.
+        self.assertAlmostEqual(econ.taxi_weather_factor(8, 3),
+                               1.1166666666666667)
+        self.assertAlmostEqual(econ.taxi_weather_factor(6, 3),
+                               1.1000000000000001)
+        for (rain, storm), rows in (
+                ((8, 3), (("entry", 15633, 7529),
+                          ("mid", 25683, 13560),
+                          ("senior", 40200, 22260))),
+                ((6, 3), (("entry", 15400, 7390),
+                          ("mid", 25300, 13330),
+                          ("senior", 39600, 21910)))):
+            for tier, gross, net in rows:
+                flat = econ.simulate(prices, wages["taxi_driver"],
+                                     tier)
+                surged = econ.simulate(
+                    prices, wages["taxi_driver"], tier,
+                    taxi_rain_days=rain, taxi_storm_days=storm)
+                self.assertEqual(surged["gross"], gross,
+                                 f"{rain}/{storm}/{tier}")
+                self.assertEqual(surged["net"], net,
+                                 f"{rain}/{storm}/{tier}")
+                self.assertEqual(surged["end_balance"],
+                                 surged["net"], f"{rain}/{storm}/"
+                                 f"{tier}")
+                self.assertEqual(surged["min_balance"], 0,
+                                 f"{rain}/{storm}/{tier}")
+                self.assertEqual(surged["gross"],
+                                 round(flat["gross"]
+                                       * econ.taxi_weather_factor(
+                                           rain, storm)),
+                                 f"{rain}/{storm}/{tier}")
+        # The deltas are the per-tier surge at each factor,
+        # not the EY factor's: +1,633 / +2,683 / +4,200 gross
+        # at 1.1167 and +1,400 / +2,300 / +3,600 at 1.1000.
+        for (rain, storm), deltas in (
+                ((8, 3), (1633, 2683, 4200)),
+                ((6, 3), (1400, 2300, 3600))):
+            for tier, delta in zip(("entry", "mid", "senior"),
+                                   deltas):
+                flat = econ.simulate(prices, wages["taxi_driver"],
+                                     tier)
+                surged = econ.simulate(
+                    prices, wages["taxi_driver"], tier,
+                    taxi_rain_days=rain, taxi_storm_days=storm)
+                self.assertEqual(surged["gross"] - flat["gross"],
+                                 delta, f"{rain}/{storm}/{tier}")
+
     def test_taxi_weather_refusals(self):
         from tools import economy_sim as econ
         prices = econ.load("prices.json")
