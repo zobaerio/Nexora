@@ -2099,6 +2099,101 @@ class TestTaxiWeatherSurge(unittest.TestCase):
         self.assertEqual(round(
             36000 * econ.taxi_weather_factor(5, 3)), 39300)
 
+    def test_taxi_surge_second_senior_settled_above_band(self):
+        from tools import economy_sim as econ
+        prices = econ.load("prices.json")
+        wages = {w["profession_id"]: w
+                 for w in prices["wages_monthly"]}
+        # Queue 51 Unit MT: the senior gross above the band
+        # is now LIVE-SETTLED at a second factor — seed
+        # mt-probe-5 (7 rain + 3 storm, factor 1.1083, five
+        # taxi drivers all SYS-EMPLOYERS-paid, four mid
+        # settled 25,492 and senior NEX000047 settled
+        # 39,900) — and a second seeded month lands on the
+        # MS factor, seed mt-probe-13 (5 rain + 3 storm,
+        # factor 1.0917, four mid settled 25,108 and senior
+        # NEX000028 settled 39,300), both the EY shape (60
+        # population, 32 days). The tool's gross at the
+        # factor is round(band x factor), the same rounding
+        # the settlement applies — and this time the rounding
+        # goes UP at both lower tiers: 14,000 x 1.1083 is
+        # 15,516.67 -> 15,517 and 23,000 x 1.1083 is
+        # 25,491.67 -> 25,492, as MR already measured at this
+        # factor — while the senior product is exactly
+        # 39,900.0, so rounding is a no-op there; and the
+        # nets follow with tax and uplift recomputed on the
+        # surged gross. The senior rounding question is
+        # closed by construction: 36,000 x 0.25/30 is 300
+        # per rain day and 36,000 x 0.5/30 is 600 per storm
+        # day, so the senior gross is 36,000 + 300 x rain +
+        # 600 x storm — always an integer up to float error.
+        self.assertAlmostEqual(econ.taxi_weather_factor(7, 3),
+                               1.1083333333333334)
+        for tier, gross, net in (("entry", 15517, 7460),
+                                 ("mid", 25492, 13445),
+                                 ("senior", 39900, 22090)):
+            flat = econ.simulate(prices, wages["taxi_driver"],
+                                 tier)
+            surged = econ.simulate(
+                prices, wages["taxi_driver"], tier,
+                taxi_rain_days=7, taxi_storm_days=3)
+            self.assertEqual(surged["gross"], gross,
+                             f"7/3/{tier}")
+            self.assertEqual(surged["net"], net,
+                             f"7/3/{tier}")
+            self.assertEqual(surged["end_balance"],
+                             surged["net"], f"7/3/{tier}")
+            self.assertEqual(surged["min_balance"], 0,
+                             f"7/3/{tier}")
+            self.assertEqual(surged["gross"],
+                             round(flat["gross"]
+                                   * econ.taxi_weather_factor(
+                                       7, 3)),
+                             f"7/3/{tier}")
+        # The deltas are the per-tier surge at 1.1083: +1,517
+        # / +2,492 / +3,900 gross.
+        for tier, delta in zip(("entry", "mid", "senior"),
+                               (1517, 2492, 3900)):
+            flat = econ.simulate(prices, wages["taxi_driver"],
+                                 tier)
+            surged = econ.simulate(
+                prices, wages["taxi_driver"], tier,
+                taxi_rain_days=7, taxi_storm_days=3)
+            self.assertEqual(surged["gross"] - flat["gross"],
+                             delta, f"7/3/{tier}")
+        # The rounding at 1.1083 goes UP at both lower tiers;
+        # the senior product is exactly an integer, so
+        # rounding is a no-op there.
+        self.assertEqual(round(
+            14000 * econ.taxi_weather_factor(7, 3)), 15517)
+        self.assertEqual(round(
+            23000 * econ.taxi_weather_factor(7, 3)), 25492)
+        self.assertEqual(
+            36000 * econ.taxi_weather_factor(7, 3), 39900.0)
+        self.assertEqual(round(
+            36000 * econ.taxi_weather_factor(7, 3)), 39900)
+        # The second live senior settlement at the MS factor
+        # (mt-probe-13, 1.0917): the senior gross is 39,300.
+        senior_5_3 = econ.simulate(
+            prices, wages["taxi_driver"], "senior",
+            taxi_rain_days=5, taxi_storm_days=3)
+        self.assertEqual(senior_5_3["gross"], 39300)
+        self.assertEqual(senior_5_3["net"], 21730)
+        # The senior product is an integer at every factor, up
+        # to float error: 36,000 + 300 x rain + 600 x storm,
+        # for every rain count 0..9 and storm count 0..5 —
+        # round() always lands on the integer.
+        for rain in range(10):
+            for storm in range(6):
+                self.assertAlmostEqual(
+                    36000 * econ.taxi_weather_factor(rain,
+                                                     storm),
+                    36000 + 300 * rain + 600 * storm, places=9)
+                self.assertEqual(
+                    round(36000 * econ.taxi_weather_factor(
+                        rain, storm)),
+                    36000 + 300 * rain + 600 * storm)
+
     def test_taxi_weather_refusals(self):
         from tools import economy_sim as econ
         prices = econ.load("prices.json")

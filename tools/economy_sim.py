@@ -703,6 +703,33 @@ STORM_MEASURED_DAYS = (4, 23)
 # and the senior tier is live-settled above the band for the
 # first time. No tool change: comment only, the pinned md5
 # does NOT move; full detail in V7 report §39.
+# Queue 51 Unit MT (v7): the senior gross above the band is
+# now live-settled at a SECOND factor — seed mt-probe-5: 7
+# rain days (day_index 3, 13, 14, 15, 16, 17, 29) + 3 storm
+# days (day_index 12, 23, 27), factor 1.1083, five taxi
+# drivers all SYS-EMPLOYERS-paid, settled 25,492 x 4 (mid)
+# and 39,900 (senior — NEX000047). Every settled gross is
+# round(band x factor) — the tool's grosses at 1.1083 are
+# identical (15,517 / 25,492 / 39,900) — and the rounding
+# goes UP at both lower tiers this time (14,000 x 1.1083 is
+# 15,516.67 -> 15,517; 23,000 x 1.1083 is 25,491.67 ->
+# 25,492), as MR already measured at this factor; the senior
+# product is exactly 39,900.0, so rounding is a no-op there.
+# A second seeded month lands on the MS factor — seed
+# mt-probe-13: 5 rain days (day_index 9, 12, 24, 27, 29) + 3
+# storm days (day_index 2, 7, 21), factor 1.0917, five taxi
+# drivers all SYS-EMPLOYERS-paid, four mid settled 25,108
+# and senior NEX000028 settled 39,300 — the second live
+# senior settlement at 1.0917. The senior tier above the
+# band now rests on two live factors, and the senior
+# rounding question is closed by construction: 36,000 x
+# 0.25/30 is 300 per rain day and 36,000 x 0.5/30 is 600 per
+# storm day, so the senior gross is 36,000 + 300 x rain +
+# 600 x storm — always an integer up to float error (round()
+# always lands on it), so rounding is a no-op at the senior
+# tier at EVERY factor. No tool change:
+# comment only, the pinned md5 does NOT move; full detail
+# in V7 report §40.
 TAXI_WEATHER_MEASURED_RAIN_DAYS = 2
 TAXI_WEATHER_MEASURED_STORM_DAYS = 2
 # Queue 25 / v7 (Unit HD): the mixed-profession second earner —

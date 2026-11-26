@@ -1223,6 +1223,30 @@ both settled lower tiers (15,283.33 → 15,283; 25,108.33 →
 error (36,000 × 1.0917 = 39,300.00...), so rounding is a
 no-op there.
 
+**Second above-band senior settlement, at a different
+factor (Unit MT, Queue 51, §40):** the senior gross above
+the band is now live-settled at a second factor — seed
+`mt-probe-5`: 7 rain days + 3 storm days, factor 1.1083,
+five taxi drivers all SYS-EMPLOYERS-paid, settled grosses
+25,492 × 4 (mid) and 39,900 (senior). The 39,900 at 1.1083
+is now a measured figure, superseding §38's tool-computed
+status for that factor. A second seeded month lands on the
+MS factor — seed `mt-probe-13`: 5 rain days + 3 storm
+days, factor 1.0917, five taxi drivers all
+SYS-EMPLOYERS-paid, four mid settled 25,108 and senior
+NEX000028 settled 39,300 — the second live senior
+settlement at 1.0917. Per-tier gross deltas at 1.1083:
++1,517 / +2,492 / +3,900 (entry/mid/senior). Every settled
+gross is round(band × factor) — the tool rounds the same
+way the settlement does, and this time the rounding goes
+up at both lower tiers (15,516.67 → 15,517; 25,491.67 →
+25,492), as MR already measured at this factor, while the
+senior product is exactly 39,900.0, so rounding is a no-op
+there. The senior rounding question is closed by
+construction: the senior gross is 36,000 + 300 × rain +
+600 × storm — always an integer — so rounding is a no-op
+at the senior tier at every factor.
+
 The entry driver's uplift appears only under the surge (245:
 35% of the 700 above the entry band) — the flat entry row has
 none, because its gross equals its entry wage. The mid
@@ -3182,3 +3206,136 @@ stands.
 measured at exactly one factor (1.0917) — a second
 above-band senior settlement, at a different factor, is
 Queue 51 Unit MT.
+
+## 40. Addendum — Second above-band senior taxi settlement, at a different factor (Unit MT, Queue 51)
+
+**Date:** 2026-11-27. **Method:** hunt for a seeded live
+month in the EY shape (`Simulation`,
+`generate_population(60)`, 32 days) with factor above 1.09,
+at a DIFFERENT factor from 1.0917, that holds a senior taxi
+driver — sweep twenty-four fresh seeds
+(`mt-probe-1`–`mt-probe-24`), recording each month's
+rain/storm counts, factor, and driver bands — and check the
+tool's formula reproduces the senior settled gross
+(round(36,000 × factor)), including the rounding rule
+(settled amounts are integers; the tool must round the same
+way). No invented household, no tuning call.
+
+**Measured: the senior gross above the band is now
+live-settled at a second factor.** Seed `mt-probe-5`: 7 rain
+days (day_index 3, 13, 14, 15, 16, 17, 29) + 3 storm days
+(day_index 12, 23, 27), factor `1 + 0.25 × 7/30 + 0.5 × 3/30
+= 1.1083` — five taxi drivers, all SYS-EMPLOYERS-paid,
+settled exactly at round(band × 1.1083): mid 23,000 →
+25,492 (NEX000004, NEX000010, NEX000043, NEX000058),
+senior 36,000 → 39,900 (NEX000047). The senior gross at
+1.1083 (39,900) is now a measured figure, not
+tool-computed — it supersedes the MR (§38) status for that
+factor. A second seeded month lands on the MS factor —
+seed `mt-probe-13`: 5 rain days (day_index 9, 12, 24, 27,
+29) + 3 storm days (day_index 2, 7, 21), factor 1.0917 —
+five taxi drivers, all SYS-EMPLOYERS-paid, four mid
+settled 25,108 (NEX000002, NEX000006, NEX000020,
+NEX000043) and senior 36,000 → 39,300 (NEX000028) — the
+second live senior settlement at 1.0917. The tool's
+`simulate(..., taxi_rain_days=..., taxi_storm_days=...)`
+grosses at 1.1083 are identical — 15,517 / 25,492 /
+39,900 — and the rounding goes UP at both lower tiers this
+time: 14,000 × 1.1083 is 15,516.67 → 15,517 (rounds up),
+23,000 × 1.1083 is 25,491.67 → 25,492 (rounds up), as MR
+already measured at this factor, while the senior product
+is exactly 39,900.0, so rounding is a no-op there. No
+settled gross disagrees with the formula, so no
+disagreement is recorded and no model fix follows.
+
+Single-earner taxi rows at the new factor (gross, net,
+delta vs flat):
+
+| Factor | Tier | Surged gross | Surged net | Gross delta | Net delta |
+|---|---:|---:|---:|---:|---:|
+| 1.1083 | entry | 15,517 | 7,460 | +1,517 | +960 |
+| 1.1083 | mid | 25,492 | 13,445 | +2,492 | +1,495 |
+| 1.1083 | senior | 39,900 | 22,090 | +3,900 | +2,340 |
+
+**The senior rounding question is closed by construction.**
+The factor is `1 + 0.25 × rain/30 + 0.5 × storm/30`, so
+the senior product is 36,000 + 36,000 × 0.25/30 × rain +
+36,000 × 0.5/30 × storm = 36,000 + 300 × rain + 600 ×
+storm — an integer for every rain/storm count in exact
+arithmetic (in float the product sits within ~1e-11 of it,
+and round() always lands on it — verified over rain 0–9,
+storm 0–5), because 300 and 600 are whole. Rounding is
+therefore a no-op at the senior tier at EVERY factor, not
+just at the two measured above the band: no senior
+settlement can ever test the rounding rule, because there
+is nothing to round. The
+rounding pin stands where it can bite — at the entry and
+mid tiers, now pinned in both directions at five factors
+(down at 1.0417 / 1.0917 / 1.1167, up at 1.0833 / 1.1083)
+and as a no-op at 1.1000.
+
+**The full sweep.** Twenty-four fresh seeds, EY shape (60
+population, 32 days each) — 73 taxi drivers in all, 17 of
+them senior; 3 months above the band, and two of those
+hold a senior:
+
+| Seed | Rain | Storm | Factor | Drivers (band: settled) |
+|---|---:|---:|---:|---|
+| mt-probe-1 | 6 | 1 | 1.0667 | mid: 24,533 × 2 |
+| mt-probe-2 | 1 | 2 | 1.0417 | entry: 14,583 × 2; mid: 23,958 × 4; senior: 37,500 |
+| mt-probe-3 | 2 | 2 | 1.0500 | mid: 24,150 × 3 |
+| mt-probe-4 | 6 | 1 | 1.0667 | mid: 24,533 × 2 |
+| mt-probe-5 | 7 | 3 | 1.1083 | mid: 25,492 × 4; senior: 39,900 |
+| mt-probe-6 | 2 | 2 | 1.0500 | mid: 24,150 × 2 |
+| mt-probe-7 | 7 | 0 | 1.0583 | mid: 24,342; senior: 38,100 × 3 |
+| mt-probe-8 | 2 | 0 | 1.0167 | mid: 23,383 |
+| mt-probe-9 | 9 | 1 | 1.0917 | mid: 25,108 × 2 |
+| mt-probe-10 | 3 | 3 | 1.0750 | mid: 24,725 × 4 |
+| mt-probe-11 | 2 | 2 | 1.0500 | entry: 14,700; mid: 24,150 × 2; senior: 37,800 |
+| mt-probe-12 | 6 | 1 | 1.0667 | mid: 24,533; senior: 38,400 |
+| mt-probe-13 | 5 | 3 | 1.0917 | mid: 25,108 × 4; senior: 39,300 |
+| mt-probe-14 | 2 | 1 | 1.0333 | entry: 14,467 × 2; mid: 23,767 × 2; senior: 37,200 |
+| mt-probe-15 | 3 | 2 | 1.0583 | mid: 24,342 |
+| mt-probe-16 | 3 | 2 | 1.0583 | mid: 24,342; senior: 38,100 × 2 |
+| mt-probe-17 | 4 | 2 | 1.0667 | senior: 38,400 |
+| mt-probe-18 | 8 | 1 | 1.0833 | entry: 15,167; senior: 39,000 |
+| mt-probe-19 | 1 | 1 | 1.0250 | mid: 23,575; senior: 36,900 |
+| mt-probe-20 | 6 | 0 | 1.0500 | mid: 24,150 × 4 |
+| mt-probe-21 | 3 | 2 | 1.0583 | entry: 14,817; mid: 24,342; senior: 38,100 × 2 |
+| mt-probe-22 | 7 | 1 | 1.0750 | mid: 24,725 |
+| mt-probe-23 | 5 | 0 | 1.0417 | entry: 14,583; mid: 23,958 × 2 |
+| mt-probe-24 | 4 | 0 | 1.0333 | mid: 23,767 × 3; senior: 37,200 |
+
+Every settled gross in the sweep is round(band × factor) —
+the sweep corroborates the formula at eleven factors in
+one pass (1.0167, 1.0250, 1.0333, 1.0417, 1.0500, 1.0583,
+1.0667, 1.0750, 1.0833, 1.0917, 1.1083), including a new
+factor not seen in the MS sweep (1.0250, `mt-probe-19`:
+mid 23,575, senior 36,900) and a fourth corroboration at
+1.1083. Seniors settle in-band at 1.0250 to 1.0833 (fifteen
+of them: 36,900, 37,200 × 2, 37,500, 37,800, 38,100 × 7,
+38,400 × 2, 39,000) and above the band at 1.0917 and
+1.1083. The hit rate stays thin: 3 above-band months in 24
+seeds, two of them holding a senior — better than MS's 1
+in 16, still a thin base.
+
+The surge is still corroborated at seven live factors —
+1.0417, 1.05 (the EY month, §16), 1.0833, 1.0917, 1.1000,
+1.1083 and 1.1167 — and the senior tier is now
+live-settled above the band at two of them (1.0917,
+1.1083). The KC section keeps printing the EY month's
+weather (factor 1.05) as the canonical scenario; the new
+factor is recorded here and in §16, not printed as a
+second section. The pinned md5 does NOT move — the tool's
+output is byte-identical (a comment only in
+`economy_sim.py`); the MN baseline
+`c70567cb94bd018ef50df1470fdbe746` stands, and the
+`--shibnagar` md5 `95022a1592dca4d34b91f5f0a6890526`
+stands.
+
+**No tuning call.** Nothing in the data moves.
+
+**Open, recorded:** the senior gross at 1.1167 (40,200) is
+still tool-computed only — no senior taxi driver has
+settled live at the highest corroborated factor. A hunt
+for a senior settlement at 1.1167 is Queue 52 Unit MU.
