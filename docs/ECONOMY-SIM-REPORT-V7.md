@@ -1210,7 +1210,15 @@ senior owning row (Unit MN, Queue 45, §34) dips 0 flat and
 surged at every tier — the per-fare senior pay already covers
 the cost-only days flat, so there is no dip for the surge to
 shrink — and its nets rise +1,080 at every tier, exactly the
-senior taxi surge. The measured position dips 0 flat and surged for every pairing
+senior taxi surge. The renting senior row (Unit MO, Queue 46,
+§35) was measured on the same surge pattern beside it and dips
+0 flat and surged at every tier and position too — its nets rise
++1,080 at every tier (18,750 → 19,830, 21,994 → 23,074, 25,451
+→ 26,531), exactly 5,200 below the owning surged net at every
+tier — so the surge adds no finding and the pairing stays
+allowed but unprinted; the table is now closed, five pairings
+printed and the sixth decided unprinted with a measured reason.
+The measured position dips 0 flat and surged for every pairing
 and tier. The surge can only raise a taxi gross
 (the factor is ≥ 1 for any weather), so the flat bridge lines
 are the conservative case and they stand unchanged — no
@@ -2685,3 +2693,64 @@ owning row was printed in the surge table. Measuring the
 the now-printed senior owning row, and deciding whether
 it is printed or stays unprinted, is the next check
 (Queue 46 Unit MO).
+(Closed 2026-11-26 by Queue 46 Unit MO — §35.)
+
+## 35. Addendum — Renting senior-tier taxi second earner in the surge table (Unit MO, Queue 46)
+
+**Date:** 2026-11-26. **Method:** measure the renting
+senior-tier taxi-driver second earner
+(`second_earner="taxi_driver"`,
+`second_earner_tier="senior"`,
+`second_earner_renting_cab=True`) on the KC surge pattern
+beside the now-printed senior owning row — every
+first-earner tier (entry/mid/senior) × every storm position
+(early/mid/late/measured), flat vs surged at the EY month's
+weather (2 rain days, 2 storm days, taxi_factor 1.05) — in
+both runs (default + `--shibnagar`, on the variant's own
+rents). No invented household, no tuning call.
+
+**DECIDED: stays allowed but unprinted — the surge adds no
+finding.** The renting senior pairing dips 0 flat AND
+surged at every tier and every storm position, exactly like
+the owning senior row beside it:
+
+| Second earner | First-earner tier | Early flat | Early surged | Net flat | Net surged |
+|---|---|---:|---:|---:|---:|
+| senior, renting | entry | 0 | 0 | 18,750 | 19,830 |
+| senior, renting | mid | 0 | 0 | 21,994 | 23,074 |
+| senior, renting | senior | 0 | 0 | 25,451 | 26,531 |
+
+The nets rise +1,080 at every tier — exactly the senior
+single-earner taxi surge delta, the same delta the owning
+senior row rises by — and every net sits exactly 5,200
+below the owning surged net at the same tier (25,030 −
+5,200 = 19,830; 28,274 − 5,200 = 23,074; 31,731 − 5,200 =
+26,531), because the rental stays the flat 5,200 unsurged.
+Every trajectory ends exactly at net, and the figures are
+identical in both cities (the two-earner rows rent at tier
+1, and Shibnagar's tier-1 rent is the prices.json tier-1
+rent, 2,500 — the MD identity). The surge changes nothing
+the flat rows hide: the renting row's surged figures are
+fully implied by the printed owning row plus the flat
+5,200 rental rule, so printing it would add a row whose
+every figure the reader can already derive. No bridge line
+is wired either — it would be the trivial 10,000 + 0 =
+10,000, the line the owning senior row already wires (MM,
+§33). The KA line (10,000 − 56 = 9,944) is still the worst
+renting case the tool prints.
+
+The pinned md5 does NOT move — the tool's output is
+byte-identical (a comment only in `economy_sim.py`); the
+MN baseline `c70567cb94bd018ef50df1470fdbe746` stands, and
+the `--shibnagar` md5 `95022a1592dca4d34b91f5f0a6890526`
+stands. The second-earner surge table keeps its five
+pairings, and the Shibnagar identity still covers 132 rows.
+
+**No tuning call.** Nothing in the data moves.
+
+**Open, recorded:** none from this unit. The second-earner
+surge table is now closed — five pairings printed, the
+sixth (senior, renting) decided unprinted with a measured
+reason on both the flat rows (ME/MM, §33) and the surge
+pattern (this unit). The §34 open note is closed by this
+unit.

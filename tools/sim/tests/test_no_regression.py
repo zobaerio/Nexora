@@ -1732,6 +1732,85 @@ class TestTaxiWeatherSurge(unittest.TestCase):
             self.assertEqual(own_surged["net"] - own_flat["net"],
                              delta, tier)
 
+    def test_senior_renting_second_earner_surge_is_measured(self):
+        from tools import economy_sim as econ
+        prices = econ.load("prices.json")
+        w = next(w for w in prices["wages_monthly"]
+                 if w["profession_id"] == "construction_worker")
+        bands = {w2["profession_id"]: w2
+                 for w2 in prices["wages_monthly"]}
+        # Queue 46 Unit MO: the renting senior-tier taxi
+        # second earner on the KC surge pattern, beside the
+        # now-printed senior owning row. The surge adds no
+        # finding: early dip 0 flat and surged at every tier
+        # and storm position, nets rise by exactly the senior
+        # taxi surge (+1,080) at every tier, every net exactly
+        # 5,200 below the owning surged net — the surged
+        # figures are fully implied by the printed owning row
+        # plus the flat 5,200 rental rule — so the pairing
+        # stays allowed but unprinted (V7 §35).
+        kw = {"second_earner": "taxi_driver",
+              "second_earner_tier": "senior",
+              "second_earner_renting_cab": True}
+        own_kw = {"second_earner": "taxi_driver",
+                  "second_earner_tier": "senior"}
+        expected = (("entry", 18750, 19830),
+                    ("mid", 21994, 23074),
+                    ("senior", 25451, 26531))
+        positions = (econ.STORM_EARLY_DAYS, econ.STORM_MID_DAYS,
+                     econ.STORM_LATE_DAYS, econ.STORM_MEASURED_DAYS)
+        weather = dict(
+            taxi_rain_days=econ.TAXI_WEATHER_MEASURED_RAIN_DAYS,
+            taxi_storm_days=econ
+            .TAXI_WEATHER_MEASURED_STORM_DAYS)
+        for tier, net, surged_net in expected:
+            for pos in positions:
+                flat = econ.simulate(prices, w, tier,
+                                     storm_days=pos, **kw)
+                surged = econ.simulate(
+                    prices, w, tier, storm_days=pos,
+                    **weather, **kw)
+                own_surged = econ.simulate(
+                    prices, w, tier, storm_days=pos,
+                    **weather, **own_kw)
+                self.assertEqual(flat["min_balance"], 0,
+                                 f"{tier}/{pos}")
+                self.assertEqual(surged["min_balance"], 0,
+                                 f"{tier}/{pos}")
+                self.assertEqual(flat["net"], net, f"{tier}/{pos}")
+                self.assertEqual(surged["net"], surged_net,
+                                 f"{tier}/{pos}")
+                self.assertEqual(surged["net"] - flat["net"],
+                                 1080, f"{tier}/{pos}")
+                self.assertEqual(own_surged["net"] - surged["net"],
+                                 5200, f"{tier}/{pos}")
+                self.assertEqual(surged["end_balance"],
+                                 surged["net"], f"{tier}/{pos}")
+        # Identical on Shibnagar rents (the two-earner rows
+        # rent at tier 1 in both cities — the MD identity).
+        rents, _stock = econ.load_shibnagar_rents(prices)
+        shib_cw = rents[econ.SHIBNAGAR_RENT_TIER[
+            "construction_worker"]]
+        for tier, net, surged_net in expected:
+            for pos in positions:
+                sh = econ.simulate(prices, w, tier,
+                                   storm_days=pos,
+                                   rent_override=shib_cw, **kw)
+                sh_surged = econ.simulate(
+                    prices, w, tier, storm_days=pos,
+                    rent_override=shib_cw, **weather, **kw)
+                self.assertEqual(sh["min_balance"], 0,
+                                 f"shibnagar/{tier}/{pos}")
+                self.assertEqual(sh_surged["min_balance"], 0,
+                                 f"shibnagar/{tier}/{pos}")
+                self.assertEqual(sh["net"], net,
+                                 f"shibnagar/{tier}/{pos}")
+                self.assertEqual(sh_surged["net"], surged_net,
+                                 f"shibnagar/{tier}/{pos}")
+                self.assertEqual(sh_surged["end_balance"],
+                                 sh_surged["net"],
+                                 f"shibnagar/{tier}/{pos}")
+
     def test_taxi_weather_refusals(self):
         from tools import economy_sim as econ
         prices = econ.load("prices.json")
@@ -2285,8 +2364,9 @@ class TestRentingRowsInSurgeSection(unittest.TestCase):
         # senior owning second earner (measured by ML, wired
         # by MM in the IC section). The four-pairings test is
         # superseded by this one; the renting senior-tier
-        # second earner stays allowed but unprinted (V7 §33),
-        # not queued.
+        # second earner stays allowed but unprinted — Queue
+        # 46 Unit MO measures it on the surge pattern and
+        # decides it stays unprinted (V7 §35).
         self.assertIn("taxi-driver (entry, owning)", section)
         self.assertIn("taxi-driver (mid, owning)", section)
         self.assertIn("taxi-driver (mid, renting)", section)
@@ -2606,7 +2686,10 @@ class TestSeniorRentingSecondEarnerDecision(unittest.TestCase):
             # neither bridge check wires a senior renting
             # line; the renting mid-tier line (Unit KA) is
             # the only renting second-earner line in either
-            # check.
+            # check. Queue 46 Unit MO: measured on the surge
+            # pattern beside the printed senior owning row —
+            # the surge adds no finding, so it stays
+            # unprinted (V7 §35).
             self.assertNotIn("senior, renting", text)
             self.assertNotIn("taxi-driver (senior, renting)",
                              text)
