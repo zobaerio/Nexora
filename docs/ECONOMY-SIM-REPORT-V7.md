@@ -1185,11 +1185,14 @@ flat vs surged:
 | entry, renting | entry | −193 | −163 | 5,500 | 5,955 |
 | entry, renting | mid | −288 | −258 | 8,744 | 9,199 |
 | entry, renting | senior | −419 | −389 | 12,201 | 12,656 |
+| senior, owning | entry | 0 | 0 | 23,950 | 25,030 |
+| senior, owning | mid | 0 | 0 | 27,194 | 28,274 |
+| senior, owning | senior | 0 | 0 | 30,651 | 31,731 |
 
 **The Shibnagar variant now prints its own surge table (Unit
 MD, Queue 35, §24).** The `--shibnagar` run prints this
 District 1 section first, then the variant's own table
-computed on Shibnagar's rents — all 108 rows identical to
+computed on Shibnagar's rents — all 132 rows identical to
 the figures above, so the table here stands for both cities
 and the variant's table is a second printing, not a second
 set of figures.
@@ -1203,7 +1206,11 @@ covers the two storm-less days, but not quite. The entry
 renting household's nets rise +455 at every tier — exactly
 the entry taxi surge, since the second earner's gross is the
 entry band and the rental stays the flat 5,200 unsurged. The
-measured position dips 0 flat and surged for every pairing
+senior owning row (Unit MN, Queue 45, §34) dips 0 flat and
+surged at every tier — the per-fare senior pay already covers
+the cost-only days flat, so there is no dip for the surge to
+shrink — and its nets rise +1,080 at every tier, exactly the
+senior taxi surge. The measured position dips 0 flat and surged for every pairing
 and tier. The surge can only raise a taxi gross
 (the factor is ≥ 1 for any weather), so the flat bridge lines
 are the conservative case and they stand unchanged — no
@@ -1236,6 +1243,9 @@ taxi-driver (mid, renting)   senior         -56           -9    17651      18342
 taxi-driver (entry, renting) entry         -193         -163     5500       5955
 taxi-driver (entry, renting) mid           -288         -258     8744       9199
 taxi-driver (entry, renting) senior        -419         -389    12201      12656
+taxi-driver (senior, owning) entry            0            0    23950      25030
+taxi-driver (senior, owning) mid              0            0    27194      28274
+taxi-driver (senior, owning) senior           0            0    30651      31731
 ```
 
 **Honest limit, recorded:** the surge is applied in exactly
@@ -2591,4 +2601,87 @@ the tool. (The senior civil-engineer row has no such gap —
 it is monthly-paid, so the taxi surge cannot move it by
 construction.) Measuring and printing the senior taxi
 pairing in the surge table is the next check
-(Queue 45 Unit MN).
+(Queue 45 Unit MN). (Closed 2026-11-26 by Queue 45 Unit MN
+— §34.)
+
+## 34. Addendum — Senior taxi-driver second earner in the surge table (Unit MN, Queue 45)
+
+**Date:** 2026-11-26. **Method:** measure the senior
+taxi-driver second earner
+(`second_earner="taxi_driver"`,
+`second_earner_tier="senior"`) on the KC surge pattern —
+every first-earner tier (entry/mid/senior) × every storm
+position (early/mid/late/measured), flat vs surged at the
+EY month's weather (2 rain days, 2 storm days,
+taxi_factor 1.05) — and print its rows in the KC
+second-earner surge table, following the MC wiring, in
+both runs (default + `--shibnagar`). No invented
+household, no tuning call.
+
+**DECIDED: print the senior owning pairing — the table now
+has five pairings.** The senior taxi driver is per-fare,
+so its gross DOES surge with the taxi weather, and the
+surge's effect on its row is now printed:
+
+| Second earner | First-earner tier | Early flat | Early surged | Net flat | Net surged |
+|---|---|---:|---:|---:|---:|
+| senior, owning | entry | 0 | 0 | 23,950 | 25,030 |
+| senior, owning | mid | 0 | 0 | 27,194 | 28,274 |
+| senior, owning | senior | 0 | 0 | 30,651 | 31,731 |
+
+The early dip is 0 flat AND surged at every tier and every
+storm position — the per-fare senior pay already covers the
+cost-only days flat, so there is no dip for the surge to
+shrink, unlike the three dips the surge does shrink (the HD
+senior dip −72 → −42, the KA renting senior dip −56 → −9,
+the IB entry renting dips −193 → −163 / −288 → −258 /
+−419 → −389). The nets rise +1,080 at every tier — exactly
+the senior single-earner taxi surge delta (the second
+earner's gross is the senior band at every first-earner
+tier, so the household delta is the senior delta at every
+tier, while the single-earner deltas are per-tier +455 /
++691 / +1,080). The measured position dips 0 flat and
+surged, and every trajectory ends exactly at net. The
+figures are identical in both cities (the two-earner rows
+rent at tier 1, and Shibnagar's tier-1 rent is the
+prices.json tier-1 rent, 2,500 — the MD identity); the
+Shibnagar identity test now covers all 132 rows (12
+single-earner + 120 second-earner).
+
+Verbatim output (new second-earner surge rows, both runs):
+
+```
+taxi-driver (senior, owning) entry            0            0    23950      25030
+taxi-driver (senior, owning) mid              0            0    27194      28274
+taxi-driver (senior, owning) senior           0            0    30651      31731
+```
+
+**No bridge line is re-wired.** The bridge check stays flat
+— the factor is ≥ 1, so the flat lines are the conservative
+case, and the senior owning line (10,000 + 0 = 10,000, wired
+by MM) already stands. The KA line (10,000 − 56 = 9,944)
+is still the worst renting case the tool prints.
+
+The pinned md5 MOVES — the MN baseline is
+`c70567cb94bd018ef50df1470fdbe746` (the MM baseline
+`47ec8771cc8bca2889d62faa3b23c6e6` is kept as history in
+`test_no_regression.py`). The `--shibnagar` full-output md5
+MOVES too — `95022a1592dca4d34b91f5f0a6890526` (was
+`402b9eb3e286aba1a446c0ae49b8b012`, kept as history here) —
+because the variant prints the same new rows.
+
+**No tuning call.** Nothing in the data moves.
+
+**Open, recorded:** the renting senior-tier taxi second
+earner in the surge table — the (senior, renting) pairing
+is the last unprinted pairing in the table. ME decided it
+stays allowed but unprinted on the no-finding reason (dip 0
+at every tier and position, net exactly 5,200 below the
+owning senior driver, bridge trivially 10,000 + 0 =
+10,000), and MM re-measured and confirmed it — but that
+decision was taken on the flat rows, before the senior
+owning row was printed in the surge table. Measuring the
+(senior, renting) pairing on the KC surge pattern beside
+the now-printed senior owning row, and deciding whether
+it is printed or stays unprinted, is the next check
+(Queue 46 Unit MO).
