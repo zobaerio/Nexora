@@ -508,7 +508,17 @@ class TestSeniorSecondEarnerLargerWorld(unittest.TestCase):
     world ever produces a senior taxi-driver second earner
     under a construction-worker head — that is the re-open
     condition for the senior taxi pairing, recorded in the
-    V7 report §29. The senior civil-engineer pairing DID
+    V7 report §29. (Update, Queue 44 Unit MM — the re-open condition these
+    guards were watching for has FIRED in the full seeds:
+    ML measured the pairing twice and MM wired it, so a
+    senior taxi-driver second earner under a
+    construction-worker head is now a measured, modelled
+    pairing; the wired figures are pinned in
+    test_no_regression.py and the full re-runs in
+    tools/verify_queue44_mm.py — V7 report §33. The
+    guard worlds below are unchanged, deterministic, and
+    still hold no pairing, so the tests below still pass
+    as small-world method pins.) The senior civil-engineer pairing DID
     appear in the larger world (HH000086, tier 5, 65,000),
     so it is wired, not guarded — its figures are pinned
     in test_no_regression.py.
@@ -968,6 +978,154 @@ class TestLowWageHeadNotConstructionWorker(unittest.TestCase):
                     sim.data.wage_at("construction_worker",
                                      tier),
                     20000, f"{seed} tier {tier}")
+
+
+class TestSeniorTaxiSecondEarnerWired(unittest.TestCase):
+    """Queue 44 Unit MM — the senior taxi-driver second
+    earner, wired (Unit ML follow-up: ML measured the
+    pairing under a construction-worker head twice, and MM
+    re-ran both holding seeds and both pairings reproduce
+    exactly, so the IC section gains the senior taxi rows
+    and both bridge checks gain the line 10,000 + 0 =
+    10,000). The full 2-seed 300-population 365-day
+    re-runs are pinned by tools/verify_queue44_mm.py;
+    these guard tests pin the method at suite speed: the
+    MF pairing query cross-checked against a second,
+    independent read of the same rows (a join bug like
+    MF's cross-join would show as a count mismatch), and
+    the renting re-open's measured basis — the renting
+    senior row's figures are fully implied by the wired
+    owning row plus the flat rental, so the row adds no
+    finding and stays allowed-but-unprinted. The wired
+    figures themselves are pinned in
+    test_no_regression.py.
+    """
+
+    SEEDS = ("mm-guard-1", "mm-guard-2", "mm-guard-3")
+
+    @classmethod
+    def setUpClass(cls):
+        cls.worlds = []
+        for seed in cls.SEEDS:
+            path = _tmp_path()
+            sim = Simulation(path, seed=seed)
+            sim.generate_population(60)
+            sim.run_days(30)
+            cls.worlds.append((seed, sim, path))
+
+    @classmethod
+    def tearDownClass(cls):
+        for _seed, sim, path in cls.worlds:
+            sim.close()
+            os.remove(path)
+
+    def test_pairing_query_counts_senior_taxi_second_earners(self):
+        # The MF pairing query — a non-head member of a
+        # construction-worker-headed household, currently
+        # employed as a senior-band (tier >= 3) taxi driver
+        # — cross-checked against an independent read: the
+        # same households enumerated in Python from the
+        # membership and employment rows. The two counts
+        # must agree in every guard world, or the query's
+        # joins have drifted.
+        for seed, sim, _path in self.worlds:
+            store = sim.store
+            head = ("household_members hm ON hm.household_id"
+                    " = h.household_id JOIN employments e"
+                    " ON e.character_id = hm.character_id")
+            member = ("household_members hm2 ON"
+                      " hm2.household_id = h.household_id"
+                      " JOIN employments e2 ON e2.character_id"
+                      " = hm2.character_id")
+            cw_head = ("hm.role = 'head'"
+                       " AND hm.left_at_game_minutes IS NULL"
+                       " AND e.profession_id = 'construction_worker'"
+                       " AND e.ended_at_game_minutes IS NULL")
+            member_now = ("hm2.role != 'head'"
+                          " AND hm2.left_at_game_minutes IS NULL"
+                          " AND e2.ended_at_game_minutes IS NULL")
+            counted = store.row(
+                "SELECT COUNT(*) AS n FROM households h JOIN "
+                + head + " JOIN " + member +
+                " WHERE " + cw_head + " AND " + member_now +
+                " AND e2.profession_id = 'taxi_driver'"
+                " AND e2.tier >= 3")["n"]
+            # Independent read: every current employment
+            # of a non-head member, checked in Python
+            # against the household's head employment.
+            members = store.rows(
+                "SELECT hm2.household_id AS hh, e2.tier,"
+                " e2.wage_per_month AS wage FROM"
+                " household_members hm2 JOIN employments e2"
+                " ON e2.character_id = hm2.character_id"
+                " WHERE hm2.role != 'head'"
+                " AND hm2.left_at_game_minutes IS NULL"
+                " AND e2.ended_at_game_minutes IS NULL"
+                " AND e2.profession_id = 'taxi_driver'"
+                " AND e2.tier >= 3")
+            heads = {r["household_id"]: r for r in store.rows(
+                "SELECT hm.household_id, e.profession_id AS"
+                " prof FROM household_members hm JOIN"
+                " employments e ON e.character_id ="
+                " hm.character_id WHERE hm.role = 'head'"
+                " AND hm.left_at_game_minutes IS NULL"
+                " AND e.ended_at_game_minutes IS NULL")}
+            found = sum(
+                1 for m in members
+                if heads.get(m["hh"], {}).get("prof")
+                == "construction_worker")
+            self.assertEqual(counted, found, seed)
+            for m in members:
+                if heads.get(m["hh"], {}).get("prof") \
+                        == "construction_worker":
+                    # Any counted row is a senior-band taxi
+                    # driver at the wired senior wage.
+                    self.assertEqual(m["wage"], 36000, seed)
+
+    def test_renting_senior_taxi_row_adds_no_finding(self):
+        # The MM re-open's measured basis, on ME's own
+        # terms (senior wage 36,000, flat 5,200 rental):
+        # the renting senior row dips 0 at every tier and
+        # storm position, its net is exactly 5,200 below
+        # the owning senior driver, and its bridge line
+        # would be the trivial 10,000 + 0 = 10,000 — the
+        # same line the owning senior row just wired. Its
+        # net is fully implied by the wired owning net plus
+        # the flat-rental rule, so the row adds nothing new
+        # and stays allowed-but-unprinted.
+        from tools import economy_sim as econ
+        prices = econ.load("prices.json")
+        bands = {w["profession_id"]: w
+                 for w in prices["wages_monthly"]}
+        w = bands["construction_worker"]
+        positions = (econ.STORM_EARLY_DAYS, econ.STORM_MID_DAYS,
+                     econ.STORM_LATE_DAYS, econ.STORM_MEASURED_DAYS)
+        for tier in ("entry", "mid", "senior"):
+            for pos in positions:
+                rent = econ.simulate(
+                    prices, w, tier, storm_days=pos,
+                    second_earner="taxi_driver",
+                    second_earner_tier="senior",
+                    second_earner_renting_cab=True)
+                own = econ.simulate(
+                    prices, w, tier, storm_days=pos,
+                    second_earner="taxi_driver",
+                    second_earner_tier="senior")
+                self.assertEqual(rent["min_balance"], 0,
+                                 f"{tier}/{pos}")
+                self.assertEqual(rent["net"], own["net"] - 5200,
+                                 f"{tier}/{pos}")
+                self.assertEqual(rent["end_balance"], rent["net"])
+        worst = min(
+            econ.simulate(
+                prices, w, tier, storm_days=pos,
+                second_earner="taxi_driver",
+                second_earner_tier="senior",
+                second_earner_renting_cab=True)["min_balance"]
+            for tier in ("entry", "mid", "senior")
+            for pos in positions)
+        self.assertEqual(worst, 0)
+        self.assertEqual(5000 + 5000 + worst, 10000)
 
 
 class TestBankingAndInvestment(unittest.TestCase):
