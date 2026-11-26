@@ -1991,3 +1991,241 @@ or promoted to the senior band after day 90, or a marriage
 bringing a senior earner in — and 120 people is still a
 small world. Whether the absence holds over a longer
 horizon is the next check (Queue 39 Unit MH).
+
+## 28. Addendum — Senior second earner at a longer horizon (Unit MH, Queue 39)
+
+**Date:** 2026-11-25. **Method:** run the MF check over a
+longer horizon instead of more seeds — the same pairing
+query (senior = tier >= 3), the same KF pattern per seed
+(120 population, 365 days), seeds `mh-seed-1` and
+`mh-seed-2`. If a pairing appears in any seed, measure it
+on the KA/IC pattern and wire the row + bridge line only
+for the pairing that actually appears; if none appears in
+any, the §12 rule stands over the longer horizon too. No
+invented household, no tuning call.
+
+**DECIDED: no change — the §12 rule stands over the longer
+horizon too.** No measured household appears in either of
+the two year-long worlds:
+
+| seed | households | construction-worker-headed | second earners in those households | senior-band taxi drivers | senior-band civil engineers | target taxi | target CE |
+|---|---|---|---|---|---|---|---|
+| mh-seed-1 | 50 | 3 | HH000014 teacher (senior, 38,000) + pilot (entry, 45,000); HH000030 shop owner (senior, 55,000) | 4 | 3 | 0 | 0 |
+| mh-seed-2 | 46 | 3 | HH000003 police officer (senior, 45,000); HH000022 software developer (mid, 52,000); HH000027 chef (senior, 40,000) | 4 | 4 | 0 | 0 |
+
+Totals across the two seeds: 96 households, 6
+construction-worker-headed, 6 second earners found in
+those households, 8 senior-band taxi drivers and 7
+senior-band civil engineers in the two worlds — and 0
+senior taxi-driver second earners and 0 senior
+civil-engineer second earners in construction-worker-headed
+households in either seed.
+
+**The longer horizon does grow the senior bands, and the
+zeros are still specific to the two target professions.**
+At 90 days the MG worlds held 0–2 senior-band taxi
+drivers and 2 senior-band civil engineers each; at 365
+days each world holds 4 senior-band taxi drivers and 3–4
+senior-band civil engineers — a full year of hiring and
+promotion does put more senior earners in the world, so
+the continued zeros are not a world with no senior
+earners to pair. Senior second earners in other
+professions do occur in these worlds — a tier-3 teacher
+(38,000), a tier-5 shop owner (55,000), a tier-4 police
+officer (45,000), a tier-3 chef (40,000) — and the query
+finds the measured pairings too (a mid-tier software
+developer second earner in mh-seed-2). The pairing query
+is not vacuous; the two target professions simply never
+sit on the second-earner side of a construction-worker-
+headed household, even given a year for a member to be
+hired or promoted into the senior band or a marriage to
+bring one in.
+
+The pinned md5 does NOT move — the MC baseline
+`a818a3273cdad108c4d8d4ae198b5b44` stands (the change is a
+comment only; the default run is byte-identical). The
+`--shibnagar` full-output md5 does NOT move either —
+`762a2b6395a1c83fc86f2b5f9c1839bc` stands.
+
+**No tuning call.** Nothing in the data moves.
+
+**Open, recorded:** 120 people is still a small world —
+the absence now stands across one world (MF), five seeds
+at 90 days (MG) and two seeds at 365 days (MH), but all
+at 120 population. Whether it holds in a larger world is
+the next check (Queue 40 Unit MI).
+
+## 29. Addendum — Senior second earner in a larger world (Unit MI, Queue 40)
+
+**Date:** 2026-11-25. **Method:** run the MF check in a larger
+world instead of more seeds or a longer horizon — the same
+pairing query (senior = tier >= 3), the same KF pattern per
+seed (300 population, 365 days), seed `mi-seed-1`. If a
+pairing appears, measure it on the KA/IC pattern and wire the
+row + bridge line only for the pairing that actually appears;
+if none appears, the §12 rule stands in a larger world too.
+No invented household, no tuning call.
+
+**DECIDED: wire the senior civil-engineer pairing — the §12
+rule breaks for it in the larger world, and stands only for
+the senior taxi driver.** The larger world holds a measured
+household pairing a construction-worker head with a senior
+civil-engineer second earner:
+
+| seed | households | construction-worker-headed | second earners in those households | senior-band taxi drivers | senior-band civil engineers | target taxi | target CE |
+|---|---|---|---|---|---|---|---|
+| mi-seed-1 | 123 | 9 | HH000039 civil engineer (mid, 38,000); HH000079 software developer (senior, 90,000); HH000086 civil engineer (senior, 65,000); HH000100 shop owner (senior, 55,000); HH000107 pilot (senior, 180,000) | 9 | 20 | 0 | 1 |
+
+The one target household is HH000086: head Omar Sheikh
+(NEX000214), construction worker, tier 4, 20,000/month; second
+earner Liton Tripura (NEX000215), civil engineer, tier 5,
+65,000/month; two children, no other earner. Totals: 123
+households, 9 construction-worker-headed, 5 second earners
+found in those households, 9 senior-band taxi drivers and 20
+senior-band civil engineers in the world — and 1 senior
+civil-engineer second earner and 0 senior taxi-driver second
+earners in construction-worker-headed households. The pairing is
+not a query artifact — the same world holds 4 senior
+civil-engineer second earners in *any* household (HH000080
+tier 4, HH000086 tier 5, HH000091 tier 5, HH000109 tier 5),
+so the profession does sit on the second-earner side; only
+one of the four sits under a construction-worker head. The
+senior taxi driver still never does: 9 senior-band taxi
+drivers in the world (tiers 3–5, all at the senior 36,000)
+and 0 senior taxi-driver second earners in
+construction-worker-headed households.
+
+**Wired on the KA/IC pattern.** The IC section gains the
+senior civil-engineer rows (first earner at entry/mid/senior,
+all four storm positions): early −17,758 / −14,634 / −11,305,
+mid the same, late −17,458 / −14,167 / −10,645, measured the
+same as early, even-spread −17,738 / −14,602 / −11,261, nets
+42,900 / 46,144 / 49,601 — every trajectory ends exactly at
+net. Both bridge checks gain the line 30,000 − 17,758 =
+12,242 (combined canonical start 5,000 + 25,000, worst minbal
+the entry tier at the early position), OK in both cities, and
+identical in both cities (the two-earner rows rent at tier 1,
+and Shibnagar's tier-1 rent is the prices.json tier-1 rent,
+2,500 — the MD identity).
+
+**The senior second earner deepens the month-1 dip despite
+the higher pay.** The mid-tier pairing dips −8,623 at the
+entry tier; the senior pairing dips −17,758. The mechanism is
+the tool's own: the senior monthly lump (65,000) lands on day
+30 while the senior lifestyle uplift (15,050, against 5,600
+at the mid tier) accrues daily — the household burns more
+every day for 29 days before the pay arrives. The net is
+higher (42,900 against 27,950), the trough is deeper. The dip
+is nearly position-independent (early = mid = measured at
+every tier; only late is shallower), like the mid-tier
+pairing — the storm position moves the first earner's pay,
+not the second earner's lump.
+
+**The senior taxi-driver second earner stays unprinted.**
+No measured household pairs the construction worker with one,
+in the larger world either — so no row is wired for it, no
+bridge line, and the renting senior-tier taxi second earner
+stays allowed but unprinted with it (the ME decision is
+unchanged: its owning senior row is still unmodelled, and
+the renting row would still dangle).
+
+The pinned md5 MOVES — the MI baseline is
+`3d3fce982a64634a0b03bb0af3643f94` (the MC baseline
+`a818a3273cdad108c4d8d4ae198b5b44` is kept as history in
+`test_no_regression.py`). The `--shibnagar` full-output md5
+MOVES too — `17bc7165d1e6ad48de4123e38e426bd7` (was
+`762a2b6395a1c83fc86f2b5f9c1839bc`, kept as history here) —
+because the variant's bridge check gains the same line.
+
+**No tuning call.** Nothing in the data moves.
+
+**Open, recorded:** the senior taxi-driver absence now stands
+across one world (MF), five seeds at 90 days (MG), two seeds
+at 365 days (MH) and one larger world (MI) — nine worlds, 0
+targets — but the larger world shows senior civil engineers
+do sit on the second-earner side in other households (4 of
+them), so the taxi half of §12 may be about the
+construction-worker pairing rather than about senior taxi
+drivers never being second earners at all. Whether a senior
+taxi driver is a second earner in *any* household is the
+next check (Queue 41 Unit MJ).
+
+## 30. Addendum — Senior taxi driver as second earner in any household (Unit MJ, Queue 41)
+
+**Date:** 2026-11-25. **Method:** run the MF pairing query
+without the construction-worker-head restriction (senior =
+tier >= 3) on the larger worlds — the mi-seed-1 world
+re-run plus one fresh seed, mj-seed-2, both 300 population,
+365 days. If one appears under a non-construction-worker
+head, the absence is specific to the pairing — record it
+and stop (no wiring: the tool models the
+construction-worker household only). If one appears under
+a construction-worker head, measure it on the KA/IC
+pattern and wire the row + bridge line exactly as MI did
+for the civil engineer. If none appears in any household
+in either world, the §12 taxi half stands in the stronger
+form: senior taxi drivers never sit on the second-earner
+side at all. No invented household, no tuning call.
+
+**DECIDED: record it and stop — the absence is specific to
+the construction-worker pairing.** Senior taxi drivers DO
+sit on the second-earner side, in both worlds:
+
+| seed | households | senior-band taxi drivers | senior taxi second earners in any household | senior CE second earners in any household | second earners in any household | under a construction-worker head |
+|---|---|---|---|---|---|---|
+| mi-seed-1 | 123 | 9 | 6 — HH000003 shop owner (tier 5) / Ayesha Biswas (taxi tier 5, 36,000); HH000007 pilot (tier 1) / Pranto Molla (tier 5); HH000054 software developer (tier 5) / Sakib Ghosh (tier 5); HH000061 teacher (tier 2) / Tamim Sarkar (tier 4); HH000063 pilot (tier 2) / Salma Das (tier 4); HH000096 civil engineer (tier 5) / Mitu Uddin (tier 5) | 4 | 62 | 0 |
+| mj-seed-2 | 123 | 10 | 5 — HH000027 doctor (tier 5) / Shakib Howlader (taxi tier 5, 36,000); HH000089 taxi driver (tier 5) / Rafid Biswas (tier 5); HH000092 teacher (tier 4) / Nusrat Mir (tier 5); HH000100 shop owner (tier 5) / Fahim Molla (tier 5); HH000105 business owner (tier 4) / Sharmin Sarkar (tier 4) | 4 | 62 | 0 |
+
+Totals: 246 households, 19 senior-band taxi drivers, 11
+senior taxi-driver second earners in any household, 8
+senior civil-engineer second earners in any household,
+124 second earners in any household — and 0 senior
+taxi-driver second earners under a construction-worker
+head in either world. The heads are spread across eight
+professions (doctor, teacher, shop owner, business
+owner, pilot, software developer, civil engineer, taxi
+driver) and every tier from 1 to 5, so the finding is not
+a one-profession or one-tier artifact: a senior taxi
+driver can be the second earner under almost any head —
+except the construction worker. One household even holds
+the reverse of the MI pairing: mi-seed-1 HH000096 pairs a
+tier-5 civil-engineer head with a tier-5 taxi-driver
+second earner.
+
+**No wiring.** The tool models the construction-worker
+household only, and no measured household pairs that
+head with a senior taxi driver, so no row is printed, no
+bridge line is added, and the renting senior-tier taxi
+second earner stays allowed but unprinted with it (the
+ME decision is unchanged: its owning senior row is still
+unmodelled, and the renting row would still dangle).
+
+**The fresh seed corroborates the MI wiring.** mj-seed-2
+holds a second measured instance of the MI pairing —
+HH000028 pairs a construction-worker head with a senior
+civil-engineer second earner (tier 4, 65,000/month) — so
+the senior civil-engineer row the MI unit wired is not a
+one-world accident: the pairing recurs in an independent
+seed. The re-run of mi-seed-1 reproduces the MI pairing
+too (HH000086, tier 5, 65,000), and the MI figures are
+unchanged.
+
+The pinned md5 does NOT move — the MI baseline
+`3d3fce982a64634a0b03bb0af3643f94` stands. The
+`--shibnagar` full-output md5 does NOT move either —
+`17bc7165d1e6ad48de4123e38e426bd7` stands — because the
+only change is a comment in `economy_sim.py`.
+
+**No tuning call.** Nothing in the data moves.
+
+**Open, recorded:** the construction-worker head is now
+the only head under which a senior taxi driver never
+sits as second earner — eleven counterexamples under
+every other kind of head, zero under this one — but the
+sweep says nothing about *why*: whether it is the
+profession itself, the head's wage band (the
+construction worker's 20,000/month at tier 4 sits below
+every head in the eleven), or household formation (who
+marries or moves in with whom). Whether a senior taxi
+driver ever sits under a low-wage head is the next check
+(Queue 42 Unit MK).
