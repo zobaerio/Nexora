@@ -657,6 +657,29 @@ STORM_MEASURED_DAYS = (4, 23)
 # world, so that settlement stays unmeasured (V7 report §37).
 # No tool change: comment only, the pinned md5 does NOT move;
 # full detail in V7 report §37.
+# Queue 49 Unit MR (v7): the formula is corroborated at one
+# more live factor, 1.1083, in a STORM-HEAVY month above the
+# band — seed mq-probe-11: 3 rain days (day_index 2, 25, 26)
+# + 5 storm days (day_index 6, 8, 10, 14, 29), factor 1.1083,
+# one taxi driver, SYS-EMPLOYERS-paid, mid settled 25,492.
+# A second seeded month lands on the SAME factor from the
+# opposite mix — seed mr-probe-7: 9 rain days (day_index 2,
+# 5, 8, 10, 16, 19, 21, 26, 27) + 2 storm days (day_index 14,
+# 24), factor 1.1083, two taxi drivers all SYS-EMPLOYERS-paid,
+# settled 15,517 / 25,492 (entry and mid) — so the settlement
+# keys on the factor, not the mix: two different weather mixes
+# at the same factor settle identically. Every settled gross
+# is round(band x factor) — the tool's grosses at 1.1083 are
+# identical (15,517 / 25,492 / 39,900), and the rounding goes
+# UP at both settled tiers this time (14,000 x 1.1083 is
+# 15,516.67 -> 15,517; 23,000 x 1.1083 is 25,491.67 ->
+# 25,492); the senior product is an integer up to float error
+# (36,000 x 1.1083 = 39,899.99...), so rounding is a no-op
+# there. The senior gross at this factor (39,900) is
+# tool-computed only: no senior taxi driver settled live
+# above the band in either world, so that settlement stays
+# unmeasured (V7 report §38). No tool change: comment only,
+# the pinned md5 does NOT move; full detail in V7 report §38.
 TAXI_WEATHER_MEASURED_RAIN_DAYS = 2
 TAXI_WEATHER_MEASURED_STORM_DAYS = 2
 # Queue 25 / v7 (Unit HD): the mixed-profession second earner —
