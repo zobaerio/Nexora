@@ -348,6 +348,34 @@ second earner, wired):
   (0 in mi-seed-1). The pinned md5 moves again (the MC md5 is
   kept in test_no_regression.py as history). No tuning call.
 
+What v7 adds vs v6, Queue 44 Unit MM (the senior taxi-driver
+second earner, wired):
+- ML refuted the §12 taxi half: the pairing appears under a
+  construction-worker head TWICE (ml-seed-1 HH000030, head
+  Sohel Howlader tier 5 at 20,000, second earner Ishrat
+  Chowdhury taxi tier 4 at 36,000; ml-seed-3 HH000042, head
+  Karim Biswas tier 5 at 20,000, second earner Rina Saha taxi
+  tier 5 at 36,000), so the pairing is wired exactly on the
+  MI pattern — the IC section gains the senior taxi-driver
+  rows (entry/mid/senior first-earner tiers, all four storm
+  positions) and both bridge checks gain the line 10,000 +
+  0 = 10,000 (combined canonical start 5,000 + 5,000, worst
+  minbal 0 at every tier and position). Unlike the senior
+  civil engineer, the senior taxi driver does NOT deepen the
+  month-1 dip: the per-fare pay lands daily, so the early dip
+  is 0 at every tier — the nets are 23,950 / 27,194 / 30,651
+  and every trajectory ends exactly at net. The renting
+  senior-tier taxi second earner stays allowed but unprinted:
+  the ME re-open was decided on re-measured numbers (dip 0
+  at all 12 tier x position combinations, net exactly 5,200
+  below the owning senior driver, bridge trivially
+  10,000 + 0 = 10,000 — the same line just wired), so the
+  row would add no finding; its owning senior row is now
+  modelled, so the old dangling argument falls and the
+  decision now rests on the no-finding reason alone. The
+  pinned md5 moves again (the MI md5 is kept in
+  test_no_regression.py as history). No tuning call.
+
 What v6 changes vs v5 (Queue 22, Unit EY — the ES day-wage
 follow-up):
 - The construction worker is now modelled on the settlement's
@@ -1341,6 +1369,24 @@ def print_taxi_weather_surge(prices, bands, variant=False,
             # finding (the senior pay covers the cost-only
             # days at every tier). Re-opens only if a
             # measured household appears (Queue 37 Unit MF).
+            # Queue 44 / Unit MM re-opened 2026-11-26 — the
+            # measured household has appeared (ML: HH000030
+            # and HH000042), so the owning senior row is now
+            # wired and the dangling argument FALLS: a
+            # renting row beside it would no longer dangle.
+            # DECIDED on the re-measured numbers: the
+            # renting row still stays allowed but unprinted,
+            # now on the no-finding reason alone — re-measured
+            # on ME's own terms (senior wage 36,000, flat
+            # 5,200 rental), the dip is 0 at every tier and
+            # storm position, the net is exactly 5,200 below
+            # the owning senior driver at every tier and
+            # position, and the bridge line would be the
+            # trivial 10,000 + 0 = 10,000 — the same line
+            # the owning senior row just wired. Its net is
+            # now fully implied by the wired owning net plus
+            # the flat-rental rule, so the row adds nothing
+            # new. Full detail: V7 report §33.
             # Queue 37 / Unit MF checked 2026-11-25 — MF
             # checked the live world (seed mf-measure, 120
             # population, 90 days) and no measured household
@@ -1454,6 +1500,24 @@ def print_taxi_weather_surge(prices, bands, variant=False,
             # wiring in this unit (the ML spec says record
             # and stop); wiring the senior taxi rows on the
             # MI pattern is Queue 44. Full detail: V7 report §32.
+            # Queue 44 / Unit MM checked 2026-11-26 — MM
+            # re-ran the two holding seeds (ml-seed-1 and
+            # ml-seed-3, 300 population, 365 days each) and
+            # both pairings reproduce exactly (HH000030 and
+            # HH000042, same heads and second earners, same
+            # tiers and wages), so the senior taxi rows are
+            # now wired on the MI pattern (IC section + both
+            # bridge checks, V7 report §33): the per-fare
+            # senior pay lands daily, so the early dip is 0
+            # at every tier (nets 23,950 / 27,194 / 30,651)
+            # and the bridge line is 10,000 + 0 = 10,000 in
+            # both cities. The §12 taxi half now falls with
+            # the CE half — no part of the §12 absence rule
+            # stands. The ME renting decision was re-opened
+            # beside it and stays allowed-but-unprinted on
+            # the re-measured no-finding reason alone (the
+            # dangling argument falls now that the owning
+            # senior row is modelled).
             ("taxi-driver (entry, renting)",
              {"second_earner": "taxi_driver",
               "second_earner_renting_cab": True})):
@@ -1649,12 +1713,21 @@ def print_shibnagar_variant(prices, d1_rows, start_balances):
             # tier-1 rent, 2,500 — the MD identity). The senior
             # taxi-driver second earner stays out: no measured
             # household pairs the construction worker with one.
+            # Queue 44 / Unit MM: the senior taxi-driver
+            # second earner joins this loop too — the same
+            # measured households (ml-seed-1 HH000030,
+            # ml-seed-3 HH000042) as in District 1, on the
+            # variant's own rents. The line is 10,000 + 0 =
+            # 10,000, identical to District 1 (the two-earner
+            # rows rent at tier 1 — the MD identity).
             for second_pid, second_tier, second_label in (
                     ("taxi_driver", "mid", "taxi-driver (mid)"),
                     ("civil_engineer", "entry",
                      "civil-engineer (entry)"),
                     ("civil_engineer", "senior",
-                     "civil-engineer (senior)")):
+                     "civil-engineer (senior)"),
+                    ("taxi_driver", "senior",
+                     "taxi-driver (senior)")):
                 worst_other = min(
                     simulate(prices, bands["construction_worker"],
                              tier, storm_days=pos,
@@ -1949,12 +2022,23 @@ def main():
             # this loop: no measured household pairs the
             # construction worker with one, in the larger
             # world either.
+            # Queue 44 / Unit MM: the senior taxi-driver
+            # second earner joins this loop too — ML measured
+            # the pairing under a construction-worker head
+            # twice (ml-seed-1 HH000030, ml-seed-3 HH000042),
+            # and MM re-ran both holding seeds and both
+            # pairings reproduce exactly. The line is
+            # 10,000 + 0 = 10,000 (combined canonical start
+            # 5,000 + 5,000, worst minbal 0 at every tier and
+            # position — the per-fare senior pay lands daily).
             for second_pid, second_tier, second_label in (
                     ("taxi_driver", "mid", "taxi-driver (mid)"),
                     ("civil_engineer", "entry",
                      "civil-engineer (entry)"),
                     ("civil_engineer", "senior",
-                     "civil-engineer (senior)")):
+                     "civil-engineer (senior)"),
+                    ("taxi_driver", "senior",
+                     "taxi-driver (senior)")):
                 worst_other = min(
                     simulate(prices, bands["construction_worker"],
                              tier, storm_days=pos,
@@ -2282,6 +2366,19 @@ def main():
     # senior taxi-driver second earner stays unprinted — no
     # measured household pairs the construction worker with
     # one, in the larger world either (0 in mi-seed-1).
+    # Queue 44 / Unit MM: the senior taxi-driver second
+    # earner joins this section too — ML measured the pairing
+    # under a construction-worker head TWICE (ml-seed-1
+    # HH000030, ml-seed-3 HH000042), and MM re-ran both
+    # holding seeds and both pairings reproduce exactly, so
+    # the pairing is wired here exactly like the MI senior
+    # CE pairing. The per-fare senior pay (36,000) lands
+    # daily, so unlike the senior civil engineer it does NOT
+    # deepen the month-1 dip: the early dip is 0 at every
+    # tier (nets 23,950 / 27,194 / 30,651) — the pay-timing
+    # contrast with the senior CE lump is the finding. The
+    # bridge line for it is wired in both bridge checks (JA
+    # loop): 10,000 + 0 = 10,000.
     for second_pid, second_tier, second_label in (
             ("taxi_driver", "mid",
              "taxi-driver second earner (mid 23,000, per-fare)"),
@@ -2290,7 +2387,10 @@ def main():
              " monthly)"),
             ("civil_engineer", "senior",
              "civil-engineer second earner (senior 65,000,"
-             " monthly)")):
+             " monthly)"),
+            ("taxi_driver", "senior",
+             "taxi-driver second earner (senior 36,000,"
+             " per-fare)")):
         print()
         print(f"second earner at another tier storm-position month"
               f" (Unit IC — same 28 worked days of 30; "

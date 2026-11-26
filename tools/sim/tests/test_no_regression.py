@@ -12,11 +12,12 @@ import unittest
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__),
                                     "..", "..", ".."))
 # Pinned default-run md5 of tools/economy_sim.py.
-# v7 + Queue 40 baseline (Unit MI, 2026-11-25): the
-# senior civil-engineer second earner wired (IC section +
-# both bridge checks, 30,000 - 17,758 = 12,242).
-# See docs/ECONOMY-SIM-REPORT-V7.md §29.
-# Previous baseline (v7 + Queue 34, Unit MC):
+# v7 + Queue 44 baseline (Unit MM, 2026-11-26): the
+# senior taxi-driver second earner wired (IC section +
+# both bridge checks, 10,000 + 0 = 10,000).
+# See docs/ECONOMY-SIM-REPORT-V7.md §33.
+# Previous baseline (v7 + Queue 40, Unit MI):
+# 3d3fce982a64634a0b03bb0af3643f94. Previous baseline (v7 + Queue 34, Unit MC):
 # a818a3273cdad108c4d8d4ae198b5b44. Previous baseline (v7 + Queue 33, Unit MB):
 # 4abf52ff0dc7d00f6acd3168d7c1c807. Previous baseline (v7 + Queue 32, Unit MA):
 # bc9a35e1c95d4b8a512c0a4a6e0994cd. Previous baseline (v7 + Queue 31, Unit LA):
@@ -44,7 +45,7 @@ ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__),
 # 2026-11-24 through Queue 22): 9ac10779c231b7aa6120a6ff457982de.
 # v5 baseline: 318c6114c143a81a579e70b39ccca8f8. v2 baseline (pinned
 # 2026-11-21 through v3): 16740182867525bd659735deeb05150a.
-ECONOMY_SIM_BASELINE_MD5 = "3d3fce982a64634a0b03bb0af3643f94"
+ECONOMY_SIM_BASELINE_MD5 = "47ec8771cc8bca2889d62faa3b23c6e6"
 
 
 class TestDayWageModelling(unittest.TestCase):
@@ -955,6 +956,122 @@ class TestDayWageModelling(unittest.TestCase):
                 "construction_worker + civil-engineer (senior)"
                 " start  30000 + other-tier dip  -17758"
                 " =   12242  OK", text, args)
+            self.assertIn("BRIDGE FAIL rows: []", text, args)
+
+    # Queue 44 Unit MM — the senior taxi-driver second
+    # earner, wired: ML measured the pairing under a
+    # construction-worker head twice (ml-seed-1 HH000030,
+    # ml-seed-3 HH000042), and MM re-ran both holding seeds
+    # and both pairings reproduce exactly, so the IC section
+    # gains the senior taxi rows and both bridge checks gain
+    # the line. Unlike the senior civil engineer, the
+    # per-fare senior pay lands daily, so the month-1 dip is
+    # 0 at every tier and position — the pay-timing contrast
+    # with the senior CE lump is the finding, and the nets
+    # below are the measured ones, not a scaling of the mid
+    # tier.
+    def test_senior_taxi_driver_second_earner_is_measured(self):
+        from tools import economy_sim as econ
+        prices = econ.load("prices.json")
+        w = next(w for w in prices["wages_monthly"]
+                 if w["profession_id"] == "construction_worker")
+        # The senior band is sourced, not invented:
+        # taxi_driver senior is 36,000 in prices.json.
+        wages = {x["profession_id"]: x
+                 for x in prices["wages_monthly"]}
+        self.assertEqual(wages["taxi_driver"]["senior"], 36000)
+        # Month-1 minbal by storm position, per first-earner
+        # tier: 0 everywhere — the per-fare pay covers the
+        # cost-only days at every tier, unlike the senior CE
+        # lump (−17,758 / −14,634 / −11,305 early).
+        expected = {
+            "entry": ((0, 0, 0, 0, 0), 23950),
+            "mid": ((0, 0, 0, 0, 0), 27194),
+            "senior": ((0, 0, 0, 0, 0), 30651),
+        }
+        positions = (econ.STORM_EARLY_DAYS, econ.STORM_MID_DAYS,
+                     econ.STORM_LATE_DAYS, econ.STORM_MEASURED_DAYS)
+        for tier, (minbals, net) in expected.items():
+            for pos, want in zip(positions, minbals[:4]):
+                row = econ.simulate(
+                    prices, w, tier, storm_days=pos,
+                    second_earner="taxi_driver",
+                    second_earner_tier="senior")
+                self.assertEqual(row["min_balance"], want,
+                                 f"senior-taxi/{tier}/{pos}")
+                self.assertEqual(row["net"], net,
+                                 f"senior-taxi/{tier}/{pos}")
+                self.assertEqual(row["end_balance"], row["net"])
+            even = econ.simulate(
+                prices, w, tier, day_wage_worked_days=28,
+                second_earner="taxi_driver",
+                second_earner_tier="senior")
+            self.assertEqual(even["min_balance"], minbals[4],
+                             f"senior-taxi/{tier}/even")
+            self.assertEqual(even["net"], net)
+        # The senior pairing's net is higher than the mid
+        # tier's at every tier, while its dip is no deeper
+        # (0 against 0) — the per-fare pay, not the band,
+        # sets the trough.
+        for tier in ("entry", "mid", "senior"):
+            senior_net = econ.simulate(
+                prices, w, tier, storm_days=econ.STORM_EARLY_DAYS,
+                second_earner="taxi_driver",
+                second_earner_tier="senior")["net"]
+            mid_net = econ.simulate(
+                prices, w, tier, storm_days=econ.STORM_EARLY_DAYS,
+                second_earner="taxi_driver",
+                second_earner_tier="mid")["net"]
+            self.assertGreater(senior_net, mid_net, tier)
+            senior_dip = econ.simulate(
+                prices, w, tier, storm_days=econ.STORM_EARLY_DAYS,
+                second_earner="taxi_driver",
+                second_earner_tier="senior")["min_balance"]
+            ce_dip = econ.simulate(
+                prices, w, tier, storm_days=econ.STORM_EARLY_DAYS,
+                second_earner="civil_engineer",
+                second_earner_tier="senior")["min_balance"]
+            self.assertEqual(senior_dip, 0, tier)
+            self.assertLess(ce_dip, senior_dip, tier)
+
+    def test_senior_taxi_driver_bridge_line_is_wired(self):
+        from tools import economy_sim as econ
+        prices = econ.load("prices.json")
+        w = next(w for w in prices["wages_monthly"]
+                 if w["profession_id"] == "construction_worker")
+        # The bridge worst is the minimum across the first
+        # earner's tiers and the four storm positions.
+        worst = min(
+            econ.simulate(
+                prices, w, tier, storm_days=pos,
+                second_earner="taxi_driver",
+                second_earner_tier="senior")["min_balance"]
+            for tier in ("entry", "mid", "senior")
+            for pos in (econ.STORM_EARLY_DAYS, econ.STORM_MID_DAYS,
+                        econ.STORM_LATE_DAYS,
+                        econ.STORM_MEASURED_DAYS))
+        self.assertEqual(worst, 0)
+        start = 5000 + 5000
+        self.assertEqual(start + worst, 10000)
+        # The printed output wires the row and the line in
+        # both runs: the IC section header and the bridge
+        # line (10,000 + 0 = 10,000, OK) in the default
+        # run, and the same line in the --shibnagar variant's
+        # own bridge check.
+        for args in ([], ["--shibnagar"]):
+            out = subprocess.run(
+                [sys.executable,
+                 os.path.join(ROOT, "tools", "economy_sim.py")]
+                + args, capture_output=True, cwd=ROOT)
+            text = out.stdout.decode()
+            self.assertEqual(out.returncode, 0, args)
+            self.assertIn(
+                "taxi-driver second earner (senior 36,000,"
+                " per-fare)", text, args)
+            self.assertIn(
+                "construction_worker + taxi-driver (senior)"
+                " start  10000 + other-tier dip       0"
+                " =   10000  OK", text, args)
             self.assertIn("BRIDGE FAIL rows: []", text, args)
 
     def test_second_earner_tier_uses_sourced_wages(self):
@@ -2308,10 +2425,18 @@ class TestSeniorRentingSecondEarnerDecision(unittest.TestCase):
     simulate() computes the combination (the senior wage and
     the flat rental are both sourced), but the default run
     prints no row for it and neither bridge check wires a
-    line for it — no measured household pairs the
-    construction worker with a senior taxi driver (§12
-    standing rule), and every renting row sits beside its
-    owning row, which is itself unmodelled at senior."""
+    line for it. (Update, Queue 44 Unit MM — the ME decision
+    was re-opened: the measured household HAS appeared (ML:
+    ml-seed-1 HH000030 and ml-seed-3 HH000042, both pairings
+    reproduced by MM's re-runs), so the owning senior row is
+    now wired and ME's dangling argument FALLS — a renting
+    row beside it would no longer dangle. The decision
+    stands on the re-measured no-finding reason alone: the
+    dip is 0 at every tier and storm position, the net is
+    exactly 5,200 below the owning senior driver, and the
+    bridge line would be the trivial 10,000 + 0 = 10,000 —
+    the same line the owning senior row just wired — so the
+    row adds nothing new. Full detail: V7 report §33.)"""
     def test_senior_renting_second_earner_is_allowed(self):
         from tools import economy_sim as econ
         prices = econ.load("prices.json")

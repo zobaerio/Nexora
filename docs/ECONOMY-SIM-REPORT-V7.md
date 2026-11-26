@@ -2450,3 +2450,145 @@ only change is a comment in `economy_sim.py`.
 is now a measured pairing of the construction-worker
 household and the tool does not model it — wiring it on
 the MI pattern is the next check (Queue 44 Unit MM).
+
+## 33. Addendum — Wire the senior taxi-driver second earner (Unit MM, Queue 44)
+
+**Date:** 2026-11-26. **Method:** re-run the two holding
+seeds (ml-seed-1 and ml-seed-3, 300 population, 365 days
+each) with the ML head-wage/pairing query to confirm both
+pairings reproduce, then measure them on the KA/IC pattern
+— the senior taxi second earner
+(`second_earner="taxi_driver"`,
+`second_earner_tier="senior"`) at every head tier
+(entry/mid/senior) × every storm position
+(early/mid/late/measured) — and wire the rows and their
+bridge lines in both runs (default + `--shibnagar`),
+exactly as MI did for the senior civil engineer. Re-open
+the ME renting decision on ME's own terms (senior wage
+36,000, flat 5,200 rental; dip at every tier; bridge line).
+No invented household, no tuning call.
+
+**DECIDED: wire the senior taxi-driver second-earner rows
+— the §12 taxi half falls with the CE half.** Both
+pairings reproduce exactly on re-run — same households,
+same heads and second earners, same tiers and wages:
+
+| seed | household | head | second earner |
+|---|---|---|---|
+| ml-seed-1 | HH000030 | Sohel Howlader, construction worker tier 5, 20,000 | Ishrat Chowdhury, taxi driver tier 4, 36,000 |
+| ml-seed-3 | HH000042 | Karim Biswas, construction worker tier 5, 20,000 | Rina Saha, taxi driver tier 5, 36,000 |
+
+**Wired on the KA/IC pattern.** The IC section gains the
+senior taxi-driver rows (first earner at entry/mid/senior,
+all four storm positions): early, mid, late and measured
+all 0 at every tier, even-spread 0, nets 23,950 / 27,194 /
+30,651 — every trajectory ends exactly at net. Both bridge
+checks gain the line 10,000 + 0 = 10,000 (combined
+canonical start 5,000 + 5,000, worst minbal 0 at every
+tier and position), OK in both cities, and identical in
+both cities (the two-earner rows rent at tier 1, and
+Shibnagar's tier-1 rent is the prices.json tier-1 rent,
+2,500 — the MD identity).
+
+Senior taxi-driver second earner (36,000, per-fare):
+
+| Tier | Early (1–2) | Mid (15–16) | Late (29–30) | Measured (4, 23) | Even (v6) | Net/mo | Measured-tier early | Measured-tier measured |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| entry | 0 | 0 | 0 | 0 | 0 | 23,950 | 0 | 0 |
+| mid | 0 | 0 | 0 | 0 | 0 | 27,194 | 0 | 0 |
+| senior | 0 | 0 | 0 | 0 | 0 | 30,651 | −72 | 0 |
+
+Verbatim output (new default-run section):
+
+```
+second earner at another tier storm-position month (Unit IC — same 28 worked days of 30; taxi-driver second earner (senior 36,000, per-fare); month-1 minbal by storm position):
+profession                   tier      early     mid    late measured    even  (net/mo)  measured-early  measured-measured
+construction_worker          entry         0       0       0        0       0  (net 23950)               0                 0
+construction_worker          mid           0       0       0        0       0  (net 27194)               0                 0
+construction_worker          senior        0       0       0        0       0  (net 30651)             -72                 0
+```
+
+**The senior taxi driver does NOT deepen the month-1 dip
+— the pay-timing contrast with the senior civil
+engineer.** The senior CE pairing dips −17,758 at the
+entry tier because the senior monthly lump (65,000) lands
+on day 30 while the senior lifestyle uplift (15,050)
+accrues daily; the senior taxi driver's per-fare pay
+(36,000) lands daily instead, so the household never goes
+below its start at any tier or storm position — the early
+dip is 0 everywhere, against −17,758 / −14,634 / −11,305
+for the senior CE rows. The net is lower (23,950 against
+42,900 at entry), the trough is shallower: the higher net
+belongs to the monthly lump, and so does the deeper
+trough. This extends a known pattern rather than breaking
+one — the mid-tier taxi second earner already dipped 0 at
+every tier (§12), so per-fare pay at any tier covers the
+cost-only days; only the monthly-paid second earners dip.
+The storm position moves nothing here (early = mid = late
+= measured at every tier), like the mid-tier pairing —
+the storm moves the first earner's day-wage pay, not the
+second earner's fares.
+
+**The ME renting decision, re-opened and decided.** ME
+kept the renting senior-tier taxi second earner allowed
+but unprinted for two reasons: (a) the owning senior row
+was unmodelled, so a renting row beside it would dangle
+and publish the owning senior net by implication; (b) the
+row adds no finding (dip 0 everywhere, bridge trivially
+10,000 + 0 = 10,000). Reason (a) FALLS now that the
+owning senior row is wired — a renting row beside it
+would no longer dangle. Reason (b) was re-measured on
+ME's own terms (senior wage 36,000, flat 5,200 rental)
+and STANDS exactly: the renting senior row dips 0 at all
+12 tier × storm-position combinations, its net is exactly
+5,200 below the owning senior driver at every tier and
+position (18,750 / 21,994 / 25,451 against 23,950 /
+27,194 / 30,651), every trajectory ends exactly at net,
+and its bridge line would be the trivial
+10,000 + 0 = 10,000 — the same line the owning senior row
+just wired. Its net is now fully implied by the wired
+owning net plus the flat-rental rule (already pinned by
+MA/KA/MC), so the row adds nothing new.
+
+**DECIDED: the renting senior-tier taxi second earner
+stays allowed but unprinted, now on the no-finding reason
+alone.** No row is printed for it in the surge table, no
+bridge line is wired for it in either check, and the
+`test_senior_renting_second_earner_is_not_printed` test
+still passes unchanged. No refusal is invented either —
+refusing would add a restriction the data does not
+support. The ME comment at the surge-table pairings list
+and the ME test class record the re-open.
+
+**The §12 rule now falls in full.** MI broke its CE half
+and ML refuted its taxi half; with both pairings now
+measured and wired, no part of the §12 absence claim
+stands any longer — a senior taxi driver and a senior
+civil engineer can both sit on the second-earner side of
+a construction-worker-headed household, and the tool
+models both. What §12 still says that stands is the
+wired figures themselves: the mid-tier taxi second
+earner dipping 0, the entry civil engineer dipping
+−3,210, and now the senior rows beside them.
+
+The pinned md5 MOVES — the MM baseline is
+`47ec8771cc8bca2889d62faa3b23c6e6` (the MI baseline
+`3d3fce982a64634a0b03bb0af3643f94` is kept as history in
+`test_no_regression.py`). The `--shibnagar` full-output md5
+MOVES too — `402b9eb3e286aba1a446c0ae49b8b012` (was
+`17bc7165d1e6ad48de4123e38e426bd7`, kept as history here) —
+because the variant's bridge check gains the same line.
+
+**No tuning call.** Nothing in the data moves.
+
+**Open, recorded:** the KC second-earner surge table still
+prints only four pairings — the senior taxi-driver second
+earner is now wired in the IC section and both bridge
+checks, but the surge's effect on its row is unprinted:
+it is per-fare, so its gross DOES surge with the taxi
+weather, and its surged early dips and nets are nowhere in
+the tool. (The senior civil-engineer row has no such gap —
+it is monthly-paid, so the taxi surge cannot move it by
+construction.) Measuring and printing the senior taxi
+pairing in the surge table is the next check
+(Queue 45 Unit MN).
