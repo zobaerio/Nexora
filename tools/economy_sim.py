@@ -395,11 +395,33 @@ second earner in the surge table):
   cities. The measured position dips 0 flat and surged,
   and every trajectory ends exactly at net. The renting
   senior-tier taxi second earner stays allowed but
-  unprinted (V7 §33) — not queued. The bridge check stays
-  flat — the factor is >= 1, so the flat lines are the
-  conservative case. The pinned md5 moves again (the MM
+  unprinted (V7 §33) — Queue 46 Unit MO measures it on
+  the surge pattern and decides it stays unprinted. The
+  bridge check stays flat — the factor is >= 1, so the flat
+  lines are the conservative case. The pinned md5 moves again (the MM
   md5 is kept in test_no_regression.py as history). No
   tuning call.
+
+What v7 adds vs v6, Queue 46 Unit MO (the renting senior-tier
+taxi second earner in the surge table):
+- MN printed the senior owning pairing in the KC second-earner
+  surge table, so the (senior, renting) pairing was the last
+  unprinted pairing in the table — and ME/MM had decided it
+  stays allowed but unprinted on the flat rows, before the
+  owning row was printed in the surge table. Measured on the
+  KC surge pattern beside the now-printed senior owning row
+  (every tier x every storm position, flat vs surged, both
+  cities): early dip 0 flat AND surged at every tier and
+  position, nets +1,080 at every tier (18,750 -> 19,830,
+  21,994 -> 23,074, 25,451 -> 26,531) — exactly the senior
+  taxi surge — every net exactly 5,200 below the owning
+  surged net, every trajectory ends exactly at net. The surge
+  changes nothing the flat rows hide, so the pairing stays
+  allowed but unprinted and no bridge line is wired (it would
+  be the trivial 10,000 + 0 = 10,000). The table is now
+  closed: five pairings printed, the sixth decided unprinted
+  with a measured reason. The pinned md5 does NOT move (a
+  comment only in this file). No tuning call.
 
 What v6 changes vs v5 (Queue 22, Unit EY — the ES day-wage
 follow-up):
@@ -1425,8 +1447,31 @@ def print_taxi_weather_surge(prices, bands, variant=False,
             # 30,651 -> 31,731) — exactly the senior
             # single-earner taxi surge delta. The renting
             # senior-tier taxi second earner stays allowed but
-            # unprinted (V7 §33) — not queued. Full detail:
-            # V7 report §34.
+            # unprinted (V7 §33) — Queue 46 Unit MO measures
+            # it on the surge pattern and decides it stays
+            # unprinted. Full detail: V7 report §§34–35.
+            # Queue 46 / Unit MO: the renting senior-tier
+            # taxi second earner on the KC surge pattern —
+            # measured beside the now-printed senior owning
+            # row (every tier x every storm position, flat
+            # vs surged, both cities): early dip 0 flat AND
+            # surged at every tier and position, nets
+            # 18,750 -> 19,830, 21,994 -> 23,074,
+            # 25,451 -> 26,531 (+1,080 at every tier —
+            # exactly the senior taxi surge), every net
+            # exactly 5,200 below the owning surged net,
+            # every trajectory ends exactly at net. The
+            # surge changes nothing the flat rows hide, so
+            # the pairing stays allowed but unprinted —
+            # its surged figures are fully implied by the
+            # printed owning row plus the flat 5,200
+            # rental rule — and no bridge line is wired
+            # (it would be the trivial 10,000 + 0 =
+            # 10,000, the line the owning senior row
+            # already wires). The table is now closed:
+            # five pairings printed, the sixth decided
+            # unprinted with a measured reason. Full
+            # detail: V7 report §35.
             # Queue 37 / Unit MF checked 2026-11-25 — MF
             # checked the live world (seed mf-measure, 120
             # population, 90 days) and no measured household
