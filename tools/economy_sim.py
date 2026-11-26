@@ -680,6 +680,29 @@ STORM_MEASURED_DAYS = (4, 23)
 # above the band in either world, so that settlement stays
 # unmeasured (V7 report §38). No tool change: comment only,
 # the pinned md5 does NOT move; full detail in V7 report §38.
+# Queue 50 Unit MS (v7): the senior gross above the band is
+# now LIVE-SETTLED — seed ms-probe-11: 5 rain days (day_index
+# 6, 10, 11, 19, 25) + 3 storm days (day_index 3, 14, 17),
+# factor 1.0917, four taxi drivers all SYS-EMPLOYERS-paid,
+# settled 15,283 / 25,108 / 25,108 / 39,300 (entry, mid, mid,
+# senior — NEX000047 / NEX000013 / NEX000042 / NEX000043).
+# Every settled gross is round(band x factor) — the tool's
+# grosses at 1.0917 are identical (15,283 / 25,108 / 39,300),
+# and the rounding goes DOWN at both settled lower tiers this
+# time (14,000 x 1.0917 is 15,283.33 -> 15,283; 23,000 x
+# 1.0917 is 25,108.33 -> 25,108); the senior product is an
+# integer up to float error (36,000 x 1.0917 = 39,300.00...),
+# so rounding is a no-op there. A second seeded month lands
+# on the SAME factor from different day positions — seed
+# ms-probe-7: 5 rain days (day_index 7, 12, 19, 26, 28) + 3
+# storm days (day_index 0, 1, 4), factor 1.0917, two taxi
+# drivers all SYS-EMPLOYERS-paid, both mid settled 25,108 —
+# so the settlement keys on the counts, not the positions.
+# The surge is now corroborated at seven live factors
+# (1.0417, 1.05, 1.0833, 1.0917, 1.1000, 1.1083, 1.1167),
+# and the senior tier is live-settled above the band for the
+# first time. No tool change: comment only, the pinned md5
+# does NOT move; full detail in V7 report §39.
 TAXI_WEATHER_MEASURED_RAIN_DAYS = 2
 TAXI_WEATHER_MEASURED_STORM_DAYS = 2
 # Queue 25 / v7 (Unit HD): the mixed-profession second earner —
