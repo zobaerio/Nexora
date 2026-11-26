@@ -628,6 +628,18 @@ STORM_MEASURED_DAYS = (4, 23)
 # scenario inputs (the settlement's formula uses counts, not
 # positions); the day indices are recorded in
 # docs/ECONOMY-SIM-REPORT-V7.md §16.
+# Queue 47 Unit MP (v7): the formula is corroborated at two
+# more live factors, same EY shape (60 population, 32 days) —
+# seed mo-probe-1: 1 rain day (day_index 9) + 2 storm days
+# (day_index 6 and 28), factor 1.0417, four taxi drivers all
+# SYS-EMPLOYERS-paid, settled 14,583 / 23,958 / 37,500;
+# seed mo-probe-2: 4 rain days (day_index 0, 3, 9, 15) +
+# 3 storm days (day_index 4, 5, 28), factor 1.0833, two taxi
+# drivers all SYS-EMPLOYERS-paid, settled 15,167 / 24,917 /
+# 39,000. Every settled gross is round(band x factor) — the
+# tool rounds the same way (14,583.33 -> 14,583;
+# 24,916.67 -> 24,917). No tool change: comment only, the
+# pinned md5 does NOT move; full detail in V7 report §36.
 TAXI_WEATHER_MEASURED_RAIN_DAYS = 2
 TAXI_WEATHER_MEASURED_STORM_DAYS = 2
 # Queue 25 / v7 (Unit HD): the mixed-profession second earner —
