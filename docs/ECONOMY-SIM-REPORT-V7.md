@@ -2229,3 +2229,104 @@ every head in the eleven), or household formation (who
 marries or moves in with whom). Whether a senior taxi
 driver ever sits under a low-wage head is the next check
 (Queue 42 Unit MK).
+
+## 31. Addendum — Senior taxi driver under a low-wage head (Unit MK, Queue 42)
+
+**Date:** 2026-11-26. **Method:** run the MJ any-household
+query with the head's current wage joined
+(`e.wage_per_month`, the head's current employment wage)
+on the same two larger worlds — the mi-seed-1 world
+re-run plus mj-seed-2 re-run, both 300 population, 365
+days — and count senior taxi-driver second earners under
+heads earning <= 25,000/month, and under heads earning
+<= 20,000 (the construction-worker tier-4 wage). If one
+appears under a <= 20,000 head, the absence is about the
+profession, not the wage — record it and stop. If none
+appears under any <= 25,000 head, the wage-band
+hypothesis stands as the leading explanation — record it
+honestly as a hypothesis, not a proof. No wiring either
+way: the tool models the construction-worker household
+only, and a low-wage non-construction-worker head is
+still not that household. No invented household, no
+tuning call.
+
+**DECIDED: record it and stop — the strong wage-band
+hypothesis is refuted, and the <= 20,000 absence cannot
+separate profession from wage.** The re-runs reproduce
+MJ exactly (same 6 + 5 households), and the head wages
+are now beside them:
+
+| seed | households | senior-band taxi drivers | senior taxi second earners in any household (head wage) | senior CE second earners in any household | second earners in any household | under a construction-worker head |
+|---|---|---|---|---|---|---|
+| mi-seed-1 | 123 | 9 | 6 — HH000061 teacher (tier 2, **24,000**) / Tamim Sarkar (taxi tier 4, 36,000); HH000007 pilot (tier 1, 45,000) / Pranto Molla (tier 5); HH000003 shop owner (tier 5, 55,000) / Ayesha Biswas (tier 5); HH000096 civil engineer (tier 5, 65,000) / Mitu Uddin (tier 5); HH000054 software developer (tier 5, 90,000) / Sakib Ghosh (tier 5); HH000063 pilot (tier 2, 95,000) / Salma Das (tier 4) | 4 | 62 | 0 |
+| mj-seed-2 | 123 | 10 | 5 — HH000089 taxi driver (tier 5, 36,000) / Rafid Biswas (tier 5); HH000092 teacher (tier 4, 38,000) / Nusrat Mir (tier 5); HH000100 shop owner (tier 5, 55,000) / Fahim Molla (tier 5); HH000027 doctor (tier 5, 95,000) / Shakib Howlader (tier 5); HH000105 business owner (tier 4, 300,000) / Sharmin Sarkar (tier 4) | 4 | 62 | 0 |
+
+Totals: 246 households, 19 senior-band taxi drivers, 11
+senior taxi-driver second earners in any household — **1
+senior taxi-driver second earner under a head earning
+<= 25,000** (mi-seed-1 HH000061: teacher head Jamal Begum
+at 24,000, the teacher mid band) and **0 senior
+taxi-driver second earners under a head earning
+<= 20,000** in either world. The single 24,000 case
+refutes the wage-band hypothesis in the form MK was
+asked to test: a senior taxi driver does sit under a
+head earning only 4,000 above the construction-worker
+wage, so a wage threshold would have to sit in the
+narrow 20,000–24,000 gap with exactly one data point on
+the far side.
+
+But the <= 20,000 absence does not settle the question
+the other way either. **The two explanations are
+confounded at that threshold:** 19 heads earn <= 25,000
+across the two worlds (11 in mi-seed-1, 8 in mj-seed-2),
+and the lowest head wage in either world is 20,000 — and
+**every head earning <= 20,000 is a construction
+worker** (17 construction-worker heads in total, 9 +
+8). There is no low-wage non-construction-worker head in
+either world to break the tie: the one non-construction-
+worker head under 25,000 that the data identifies is
+the 24,000 teacher, and it holds the pairing. So the
+absence under the construction-worker head is equally
+consistent with "the profession blocks it" and with "a
+wage at or below 20,000 blocks it" — and with chance, on
+a base of 17 heads. Neither hypothesis is established;
+the honest record is that these two worlds cannot
+separate them.
+
+Two structural facts the sweep also establishes. First,
+**the construction-worker wage is flat at 20,000 at
+every senior tier**: the 17 construction-worker heads are
+all at exactly 20,000 — tiers 3, 4 and 5 alike — because
+`TIER_WAGE_KEYS` maps tiers 3–5 to the senior band and
+the senior band is 20,000, so the wage does not scale
+with tier inside the band. Second, **no head in either
+world earns an entry wage at all**: entry bands below
+20,000 exist (shop owner 12,000, chef 13,000, taxi
+driver 14,000, teacher 15,000, police officer 18,000)
+but no household head holds one — heads skew to the
+higher tiers and bands, which is why the low-wage head
+population is so thin (19 of 246 households).
+
+**No wiring.** The tool models the construction-worker
+household only, and no measured household pairs that
+head with a senior taxi driver, so no row is printed, no
+bridge line is added, and the renting senior-tier taxi
+second earner stays allowed but unprinted with it (the
+ME decision is unchanged: its owning senior row is still
+unmodelled, and the renting row would still dangle).
+
+The pinned md5 does NOT move — the MI baseline
+`3d3fce982a64634a0b03bb0af3643f94` stands. The
+`--shibnagar` full-output md5 does NOT move either —
+`17bc7165d1e6ad48de4123e38e426bd7` stands — because the
+only change is a comment in `economy_sim.py`.
+
+**No tuning call.** Nothing in the data moves.
+
+**Open, recorded:** the profession-vs-wage question
+needs a low-wage head who is NOT a construction worker
+— a head earning <= 20,000 in another profession, or a
+head at an entry wage below 20,000 — and neither world
+contains one. Whether such a head exists at all in the
+live world, and whether it holds a senior taxi-driver
+second earner, is the next check (Queue 43 Unit ML).
