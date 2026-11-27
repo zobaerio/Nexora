@@ -1086,6 +1086,62 @@ STORM_MEASURED_DAYS = (4, 23)
 # senior product is exactly 40800.0, so the rounding is a
 # no-op there. No tool change: comment only, the pinned
 # md5 does NOT move; full detail in V7 report §50.
+# Queue 62 Unit NE (v7): the senior gross at 1.1417
+# (41,100) is still TOOL-COMPUTED ONLY — the hunt finds
+# no senior — but the entry and mid tiers now settle live
+# at the new top step, no tool change. ND live-settled the
+# senior gross above the top (1.1333, 40,800) at all three
+# tiers, so the ladder now extends one step above the old
+# top (rain + 2 x storm = 1..16) — the next honest step is
+# the factor above the new top (1.1417, rain + 2 x storm =
+# 17, recorded in V7 §50): no month in the record held a
+# settlement at 1.1417 at any tier. NE checked the gap
+# claim against the sweep tables first, per the NB lesson:
+# the factor column of every sweep table tops out at
+# 1.1333, and 1.1417 appears in the report only as the
+# factor above the new top — so the gap was real. NE then
+# hunted with the same weather-first pre-filter over a
+# bounded scan of 2,000 fresh seeds (ne-probe-1..ne-probe-2000)
+# on the weather signature alone (rain + 2 x storm = 17)
+# WITHOUT running the population, then ran the full EY
+# shape only on the FOUR matches — across three mixes:
+# ne-probe-1117 (5 rain + 6 storm, rain day_index 5, 6, 7,
+# 14, 27; storm day_index 1, 2, 16, 17, 21, 25),
+# ne-probe-1459 (7 + 5, rain 0, 13, 15, 20, 22, 28, 29;
+# storm 3, 4, 16, 23, 27), ne-probe-1532 (9 + 4, rain 0, 1,
+# 2, 4, 5, 11, 12, 24, 29; storm 7, 9, 13, 27),
+# ne-probe-1751 (5 + 6, rain 7, 13, 14, 18, 26; storm 0,
+# 1, 9, 17, 19, 29) — every full run reproduces its scanned
+# counts exactly, so the pre-filter is itself verified an
+# eleventh time. All four months are factor 1.1417, seven
+# taxi drivers in all, all SYS-EMPLOYERS-paid: two entry
+# settled 15,983 (NEX000002 and NEX000012 in ne-probe-1117)
+# and five mid settled 26,258 (NEX000043 in ne-probe-1117,
+# NEX000021 in ne-probe-1459, NEX000029 and NEX000058 in
+# ne-probe-1532, NEX000042 in ne-probe-1751) — and NO senior
+# driver in any of the four months, so the senior gross at
+# 1.1417 (41,100 = round(36,000 x 1.1417)) stays
+# tool-computed only; the driver is the binding constraint
+# again, not the weather. The 5/6 mix now has a second live
+# instance, from different day positions than ne-probe-1117
+# vs ne-probe-1751, so the settlement keys on the counts,
+# not the positions, at 1.1417 too. ne-probe-1117 holds
+# entry + mid; no month holds all three tiers, and no month
+# holds a senior. At 1.1417 the tiers are now live: entry
+# twice, mid five times, senior never. The surge is still
+# corroborated at nine live factors (1.0083, 1.0417, 1.05,
+# 1.0833, 1.0917, 1.1000, 1.1083, 1.1167, 1.1250) and the
+# ladder now extends one step above the old top (rain + 2 x
+# storm = 1..17), with 1.1417 live-settled at the entry and
+# mid tiers only. The tool's grosses at 1.1417 are identical
+# from all three mixes (5/6, 7/5, 9/4): 15,983 / 26,258 /
+# 41,100, and the rounding goes DOWN at both lower tiers
+# (14,000 x 1.1417 is 15983.333333333336 and 23,000 x 1.1417
+# is 26258.333333333336, both rounding down) while the
+# senior product is 41100.00000000001 from the 5/6 mix and
+# exactly 41100.0 from the 7/5 and 9/4 mixes, so the
+# rounding is a no-op there. No tool change: comment only,
+# the pinned md5 does NOT move; full detail in V7 report §51.
 TAXI_WEATHER_MEASURED_RAIN_DAYS = 2
 TAXI_WEATHER_MEASURED_STORM_DAYS = 2
 # Queue 25 / v7 (Unit HD): the mixed-profession second earner —
