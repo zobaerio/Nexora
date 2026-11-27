@@ -793,6 +793,41 @@ STORM_MEASURED_DAYS = (4, 23)
 # 1.1167) — the highest corroborated factor is no longer
 # tool-computed only. No tool change: comment only, the
 # pinned md5 does NOT move; full detail in V7 report §42.
+# Queue 54 Unit MW (v7): the taxi surge at the SMALLEST
+# factor, 1.0083 (1 rain day, 0 storm days), is now
+# LIVE-SETTLED at all three tiers. MV closed the
+# above-band senior chain at the top (1.1167) and left the
+# floor of the surge range unmeasured (lowest corroborated
+# factor 1.0167, MT §40), so MW hunted with the same
+# weather-first pre-filter MV proved: scan 200 fresh seeds
+# (mw-probe-1..mw-probe-200) on the weather signature
+# alone (rain + 2 x storm = 1) WITHOUT running the
+# population, then run the full EY shape only on the 3
+# matches: mw-probe-15 (1 rain, day_index 3), mw-probe-124
+# (1 rain, day_index 11) and mw-probe-150 (1 rain,
+# day_index 9) — every one of the three reproduces its
+# scanned counts exactly in the full run, so the pre-filter
+# is itself verified again. All three months are factor
+# 1.0083, 9 taxi drivers in all, all SYS-EMPLOYERS-paid,
+# every settled gross round(band x factor): mw-probe-15
+# holds senior NEX000059 settled 36,300 (five drivers:
+# entry 14,117 x 2, mid 23,192 x 2, senior 36,300) and
+# mw-probe-150 holds seniors NEX000015 and NEX000028
+# settled 36,300 each (four drivers: mid 23,192 x 2,
+# senior 36,300 x 2) — three senior settlements at the
+# floor factor, from two seeds with the rain on different
+# days, so the settlement keys on the counts, not the
+# positions, at 1.0083 too. mw-probe-124 holds no taxi
+# driver at all. The tool's grosses at 1.0083 are identical
+# (14,117 / 23,192 / 36,300) and the rounding goes UP at
+# both lower tiers (14,116.67 -> 14,117; 23,191.67 ->
+# 23,192) while the senior product is exactly 36,300.0, so
+# rounding is a no-op there. The surge is now corroborated
+# at EIGHT live factors (1.0083, 1.0417, 1.05, 1.0833,
+# 1.0917, 1.1000, 1.1083, 1.1167) and at every step of the
+# factor ladder from the floor to the top (r + 2s = 1..14).
+# No tool change: comment only, the pinned md5 does NOT
+# move; full detail in V7 report §43.
 TAXI_WEATHER_MEASURED_RAIN_DAYS = 2
 TAXI_WEATHER_MEASURED_STORM_DAYS = 2
 # Queue 25 / v7 (Unit HD): the mixed-profession second earner —

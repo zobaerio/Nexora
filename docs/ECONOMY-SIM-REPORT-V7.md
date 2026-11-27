@@ -1309,6 +1309,43 @@ senior product is exactly 40,200.0, so rounding is a no-op
 there. The senior tier above the band now rests on four
 live factors (1.0917, 1.1000, 1.1083, 1.1167).
 
+**Taxi surge at the smallest factor, 1.0083, live-settled
+at all three tiers (Unit MW, Queue 54, §43):** MV closed
+the above-band senior chain at the top (1.1167) and left
+the floor of the surge range unmeasured — factor 1.0083
+(1 rain day, 0 storm days) is the floor and no month had
+settled live at it (the lowest corroborated factor was
+1.0167, MT §40). MW hunted with the same weather-first
+pre-filter MV proved: scan 200 fresh seeds on the weather
+signature alone (rain + 2 × storm = 1) without running
+the population, then run the full EY shape only on the
+three matches — `mw-probe-15` (1 rain, day_index 3),
+`mw-probe-124` (1 rain, day_index 11) and `mw-probe-150`
+(1 rain, day_index 9) — and every one of the three
+reproduces its scanned counts exactly in the full run, so
+the pre-filter is itself verified again. All three months
+are factor 1.0083, 9 taxi drivers in all, all
+SYS-EMPLOYERS-paid, every settled gross round(band ×
+factor): seed `mw-probe-15` holds senior NEX000059 settled
+36,300 (five drivers: entry 14,117 × 2, mid 23,192 × 2,
+senior 36,300) and seed `mw-probe-150` holds seniors
+NEX000015 and NEX000028 settled 36,300 each (four drivers:
+mid 23,192 × 2, senior 36,300 × 2) — three senior
+settlements at the floor factor, from two seeds with the
+rain on different days, so the settlement keys on the
+counts, not the positions, at 1.0083 too; seed
+`mw-probe-124` holds no taxi driver at all. Per-tier gross
+deltas at 1.0083: +117 / +192 / +300 (entry/mid/senior).
+Every settled gross is round(band × factor) — the tool
+rounds the same way the settlement does, and at 1.0083 the
+rounding goes up at both lower tiers (14,116.67 → 14,117;
+23,191.67 → 23,192), while the senior product is exactly
+36,300.0, so rounding is a no-op there. The surge is now
+corroborated at eight live factors (1.0083, 1.0417, 1.05,
+1.0833, 1.0917, 1.1000, 1.1083, 1.1167), and at every step
+of the factor ladder from the floor to the top (rain + 2 ×
+storm = 1..14).
+
 The entry driver's uplift appears only under the surge (245:
 35% of the 700 above the entry band) — the flat entry row has
 none, because its gross equals its entry wage. The mid
@@ -3684,3 +3721,131 @@ mid 23,192 / senior 36,300 (gross deltas +117 / +192 /
 +300), with the rounding going up at both lower tiers
 (14,116.67 → 14,117; 23,191.67 → 23,192) and a no-op at
 the senior tier (36,300.0 exactly).
+
+## 43. Addendum — Taxi surge at the smallest factor, 1.0083: live-settled at all three tiers, by weather-first hunt (Unit MW, Queue 54)
+
+**Date:** 2026-11-27. **Method:** MV closed the above-band
+senior chain at the top (1.1167) and left the floor of the
+surge range unmeasured — factor 1.0083 (1 rain day, 0
+storm days) is the floor and no month has settled live at
+it (the lowest corroborated factor is 1.0167, MT §40).
+Hunt with the same weather-first pre-filter MV proved:
+scan 200 fresh seeds (`mw-probe-1`–`mw-probe-200`) on the
+weather signature alone (rain + 2 × storm = 1, the 1.0083
+condition) WITHOUT running the population, then run the
+full EY shape (`Simulation`, `generate_population(60)`, 32
+days) ONLY on the matching seeds and check whether any
+holds a taxi driver — and check the tool's formula
+reproduces the settled grosses (round(band × 1.0083):
+entry 14,117 / mid 23,192 / senior 36,300), including the
+rounding rule (settled amounts are integers; the tool must
+round the same way). If the scan finds no matching weather
+at all, or no matching month holds a taxi driver, record
+that honestly and stop. No invented household, no tuning
+call.
+
+**Measured: the pre-filter finds three months at 1.0083,
+and two of them hold a senior.** The weather-only scan of
+200 seeds matches exactly three — `mw-probe-15` (1 rain,
+day_index 3), `mw-probe-124` (1 rain, day_index 11) and
+`mw-probe-150` (1 rain, day_index 9) — a 1.5% hit rate
+for the signature, and the full EY run on each of the
+three reproduces its scanned counts exactly, so the
+pre-filter is itself verified again: the weather-first
+read predicts the full run's month. All three months are
+factor `1 + 0.25 × rain/30 + 0.5 × storm/30 = 1.0083`, 9
+taxi drivers in all, all SYS-EMPLOYERS-paid, every settled
+gross exactly round(band × 1.0083).
+
+**Measured: the smallest surge is now live-settled — at
+all three tiers.** Seed `mw-probe-15`: 1 rain day
+(day_index 3), 0 storm days, factor 1.0083 — five taxi
+drivers, all SYS-EMPLOYERS-paid, settled exactly at
+round(band × 1.0083): entry 14,000 → 14,117 (NEX000044,
+NEX000060), mid 23,000 → 23,192 (NEX000023, NEX000055),
+senior 36,000 → 36,300 (NEX000059). And seed
+`mw-probe-150`: 1 rain day (day_index 9), 0 storm days,
+the SAME factor 1.0083 with the rain on a different day —
+four taxi drivers, all SYS-EMPLOYERS-paid, settled exactly
+at round(band × 1.0083): mid 23,000 → 23,192 (NEX000043,
+NEX000060), senior 36,000 → 36,300 (NEX000015,
+NEX000028). The 36,300 at 1.0083 is now a measured figure,
+not tool-computed — three senior settlements at the floor
+factor, across two seeds, with the rain landing on
+different days in each, so the settlement keys on the
+counts, not the positions, at 1.0083 too. The tool's
+`simulate(..., taxi_rain_days=..., taxi_storm_days=...)`
+grosses at 1.0083 are identical — 14,117 / 23,192 /
+36,300 — and the rounding goes up at both lower tiers
+this time: 14,000 × 1.0083 is 14,116.666666666666 and
+23,000 × 1.0083 is 23,191.666666666664, so round() lands
+above the product in each case, while 36,000 × 1.0083 is
+exactly 36,300.0, so rounding is a no-op at the senior
+tier.
+
+The third matching month holds no taxi driver at all, and
+is recorded for the hit rate: seed `mw-probe-124` (1 rain,
+day_index 11, 0 storm, factor 1.0083, zero drivers). The
+weather signature is the binding constraint, not the
+driver: three months land on 1.0083 in 200 seeds, and two
+of them hold a taxi driver — a far cheaper hunt than a
+blind sweep (3 full runs, against MU's 24 full runs for no
+1.1167 month at all), because the pre-filter spends the
+full shape only where the factor already matches.
+
+Single-earner taxi rows at the new factor (gross, net,
+delta vs flat):
+
+| Factor | Tier | Surged gross | Surged net | Gross delta | Net delta |
+|---|---:|---:|---:|---:|---:|
+| 1.0083 | entry | 14,117 | 6,576 | +117 | +76 |
+| 1.0083 | mid | 23,192 | 12,065 | +192 | +115 |
+| 1.0083 | senior | 36,300 | 19,930 | +300 | +180 |
+
+**The full scan.** Two hundred fresh seeds, weather-only
+pre-filter — three match rain + 2 × storm = 1:
+
+| Seed | Rain | Storm | Factor | Drivers (band: settled) |
+|---|---:|---:|---:|---|
+| mw-probe-15 | 1 | 0 | 1.0083 | entry: 14,117 × 2; mid: 23,192 × 2; senior: 36,300 |
+| mw-probe-124 | 1 | 0 | 1.0083 | — |
+| mw-probe-150 | 1 | 0 | 1.0083 | mid: 23,192 × 2; senior: 36,300 × 2 |
+
+Every settled gross in the three full runs is round(band ×
+factor) — the scan corroborates the formula at 1.0083 from
+two distinct rain positions (day_index 3 and 9) in one
+pass. Seniors settle at the floor factor in two of the
+three months (36,300 × 3). The hit rate for the target
+factor is 3 in 200 by weather, 2 in 3 by driver among the
+matches — the month's weather is the binding constraint,
+and the pre-filter makes the hunt cheap: 200 weather reads
+plus 3 full runs.
+
+The surge is still corroborated at eight live factors —
+1.0083, 1.0417, 1.05 (the EY month, §16), 1.0833, 1.0917,
+1.1000, 1.1083 and 1.1167 — and the factor ladder is now
+complete from the floor to the top: every step of rain + 2
+× storm = 1..14 has a live settlement (1.0083, 1.0167,
+1.0250, 1.0333, 1.0417, 1.05, 1.0583, 1.0667, 1.0750,
+1.0833, 1.0917, 1.1000, 1.1083, 1.1167), with the senior
+tier live-settled at the floor 1.0083 and at every step
+from 1.0250 to 1.1167 except 1.0750, where no month in the
+record holds a senior. The KC section keeps printing the EY
+month's weather (factor 1.05) as the canonical scenario;
+the new factor is recorded here and in §16, not printed as
+a second section. The pinned md5 does NOT move — the
+tool's output is byte-identical (a comment only in
+`economy_sim.py`); the MN baseline
+`c70567cb94bd018ef50df1470fdbe746` stands, and the
+`--shibnagar` md5 `95022a1592dca4d34b91f5f0a6890526`
+stands.
+
+**No tuning call.** Nothing in the data moves.
+
+**Open, recorded:** the ladder is complete below the top
+but open above it — the next step, factor 1.1250 (rain + 2
+× storm = 15), has no live settlement yet, and no factor
+above 1.1167 has ever been measured. A hunt for a
+settlement at 1.1250 with the same weather-first
+pre-filter (scan seeds for rain + 2 × storm = 15 before
+running the full shape) is Queue 55 Unit MX.
