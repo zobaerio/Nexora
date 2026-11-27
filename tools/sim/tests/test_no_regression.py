@@ -2663,6 +2663,95 @@ class TestTaxiWeatherSurge(unittest.TestCase):
         # the senior gross at 1.1250 stays tool-computed
         # only, because neither month holds a senior.
 
+    def test_taxi_surge_wider_scan_no_senior_at_11250(self):
+        from tools import economy_sim as econ
+        prices = econ.load("prices.json")
+        wages = {w["profession_id"]: w
+                 for w in prices["wages_monthly"]}
+        # Queue 57 Unit MZ: the senior gross at 1.1250
+        # (40,500) is STILL tool-computed only — the wider
+        # hunt finds no senior either. MY hunted 200 fresh
+        # seeds and found two months at the factor, both
+        # holding mid drivers only, so MZ hunted with the
+        # same weather-first pre-filter over a wider
+        # bounded scan of 400 fresh seeds
+        # (mz-probe-1..mz-probe-400) on the weather
+        # signature alone (rain + 2 x storm = 15) without
+        # running the population, then ran the full EY shape
+        # (60 population, 32 days) only on the ONE match:
+        # mz-probe-397 (7 rain, day_index 0, 1, 10, 17, 18,
+        # 22, 29; 4 storm, day_index 9, 16, 23, 25). The
+        # full run reproduces its scanned counts exactly,
+        # so the pre-filter is itself verified a sixth time.
+        # The month is factor 1.1250, three taxi drivers,
+        # all SYS-EMPLOYERS-paid: entry NEX000010 and
+        # NEX000058 settled 15,750 = round(14,000 x
+        # 1.1250) each, mid NEX000043 settled 25,875 =
+        # round(23,000 x 1.1250) — the 7 rain + 4 storm mix
+        # now has a second live instance, from different
+        # day positions than my-probe-137, so the
+        # settlement keys on the counts, not the positions,
+        # at 1.1250 too. No senior driver in the month, so
+        # the senior gross at 1.1250 (40,500) stays
+        # tool-computed only and the senior tier above the
+        # band still rests on four live factors (1.0917,
+        # 1.1000, 1.1083, 1.1167). The tool's gross at the
+        # factor is round(band x factor), the same rounding
+        # the settlement applies — and at 1.1250 the
+        # rounding is a no-op at every tier, because all
+        # three products are exact integers; the nets
+        # follow with tax and uplift recomputed on the
+        # surged gross.
+        self.assertEqual(econ.taxi_weather_factor(7, 4),
+                         1.125)
+        for tier, gross, net in (("entry", 15750, 7601),
+                                 ("mid", 25875, 13675),
+                                 ("senior", 40500, 22425)):
+            flat = econ.simulate(prices,
+                                 wages["taxi_driver"], tier)
+            surged = econ.simulate(
+                prices, wages["taxi_driver"], tier,
+                taxi_rain_days=7, taxi_storm_days=4)
+            self.assertEqual(surged["gross"], gross, tier)
+            self.assertEqual(surged["net"], net, tier)
+            self.assertEqual(surged["end_balance"],
+                             surged["net"], tier)
+            self.assertEqual(surged["min_balance"], 0, tier)
+            self.assertEqual(surged["gross"],
+                             round(flat["gross"]
+                                   * econ.taxi_weather_factor(
+                                       7, 4)), tier)
+        # The deltas are the per-tier surge at 1.1250:
+        # +1,750 / +2,875 / +4,500 gross, from the MZ mix.
+        for tier, delta in zip(("entry", "mid", "senior"),
+                               (1750, 2875, 4500)):
+            flat = econ.simulate(prices, wages["taxi_driver"],
+                                 tier)
+            surged = econ.simulate(
+                prices, wages["taxi_driver"], tier,
+                taxi_rain_days=7, taxi_storm_days=4)
+            self.assertEqual(surged["gross"] - flat["gross"],
+                             delta, tier)
+        # The rounding at 1.1250 is a no-op at every tier:
+        # all three products are exact integers, from the
+        # MZ mix.
+        for band, gross in ((14000, 15750), (23000, 25875),
+                            (36000, 40500)):
+            product = band * econ.taxi_weather_factor(7, 4)
+            self.assertEqual(product, float(gross))
+            self.assertEqual(round(product), gross)
+        self.assertEqual(
+            14000 * econ.taxi_weather_factor(7, 4), 15750.0)
+        self.assertEqual(
+            23000 * econ.taxi_weather_factor(7, 4), 25875.0)
+        self.assertEqual(
+            36000 * econ.taxi_weather_factor(7, 4), 40500.0)
+        # At 1.1250 the entry tier is now live four times
+        # (MX 2 + MZ 2) and the mid tier four times (MY 3
+        # + MZ 1) — and the senior gross at 1.1250 stays
+        # tool-computed only, because the one matching
+        # month in 400 seeds holds no senior.
+
     def test_taxi_weather_refusals(self):
         from tools import economy_sim as econ
         prices = econ.load("prices.json")
