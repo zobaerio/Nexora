@@ -889,6 +889,40 @@ STORM_MEASURED_DAYS = (4, 23)
 # (MY); only the senior tier stays tool-computed. No tool
 # change: comment only, the pinned md5 does NOT move; full
 # detail in V7 report §45.
+# Queue 57 Unit MZ (v7): the senior gross at 1.1250
+# (40,500) is STILL tool-computed only — the wider hunt
+# finds no senior either, but the month settles live at
+# both lower tiers from a third mix. MY hunted 200 fresh
+# seeds and found two months at the factor, both holding
+# mid drivers only, so MZ hunted with the same
+# weather-first pre-filter over a wider bounded scan of
+# 400 fresh seeds (mz-probe-1..mz-probe-400) on the
+# weather signature alone (rain + 2 x storm = 15)
+# WITHOUT running the population, then ran the full EY
+# shape only on the ONE match: mz-probe-397 (7 rain,
+# day_index 0, 1, 10, 17, 18, 22, 29; 4 storm, day_index
+# 9, 16, 23, 25) — the full run reproduces its scanned
+# counts exactly, so the pre-filter is itself verified a
+# sixth time. The month is factor 1.1250, three taxi
+# drivers, all SYS-EMPLOYERS-paid: entry NEX000010 and
+# NEX000058 settled 15,750 = round(14,000 x 1.1250) each,
+# mid NEX000043 settled 25,875 = round(23,000 x 1.1250)
+# — the 7 rain + 4 storm mix now has a second live
+# instance, from different day positions than
+# my-probe-137, so the settlement keys on the counts,
+# not the positions, at 1.1250 too. No senior driver in
+# the month, so the senior gross at 1.1250 (40,500)
+# stays tool-computed only and the senior tier above the
+# band still rests on four live factors (1.0917, 1.1000,
+# 1.1083, 1.1167). The tool's grosses at 1.1250 are
+# identical (15,750 / 25,875 / 40,500) and the rounding
+# is a no-op at every tier: all three products are exact
+# integers (15,750.0, 25,875.0, 40,500.0). At 1.1250 the
+# entry tier is now live four times (MX 2 + MZ 2) and
+# the mid tier four times (MY 3 + MZ 1); only the senior
+# tier stays tool-computed. No tool change: comment
+# only, the pinned md5 does NOT move; full detail in V7
+# report §46.
 TAXI_WEATHER_MEASURED_RAIN_DAYS = 2
 TAXI_WEATHER_MEASURED_STORM_DAYS = 2
 # Queue 25 / v7 (Unit HD): the mixed-profession second earner —
