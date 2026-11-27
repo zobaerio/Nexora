@@ -1346,6 +1346,33 @@ corroborated at eight live factors (1.0083, 1.0417, 1.05,
 of the factor ladder from the floor to the top (rain + 2 ×
 storm = 1..14).
 
+**Taxi surge at the next factor above the top, 1.1250,
+live-settled at the entry tier (Unit MX, Queue 55, §44):**
+MW completed the ladder from the floor to the top but no
+factor above 1.1167 had ever been measured, so MX hunted
+with the same weather-first pre-filter MW proved: scan
+200 fresh seeds on the weather signature alone (rain + 2 ×
+storm = 15) without running the population, then run the
+full EY shape only on the one match — `mx-probe-68` (3
+rain, day_index 19, 20, 23; 6 storm, day_index 1, 15, 17,
+21, 27, 28) — and the full run reproduces its scanned
+counts exactly, so the pre-filter is itself verified
+again. The month is factor 1.1250, two taxi drivers, both
+entry, both SYS-EMPLOYERS-paid, both settled 15,750 =
+round(14,000 × 1.1250): NEX000005 and NEX000040. No mid
+and no senior driver in this month, so the senior gross at
+1.1250 (40,500) stays tool-computed only. Per-tier gross
+deltas at 1.1250: +1,750 / +2,875 / +4,500
+(entry/mid/senior). Every settled gross is round(band ×
+factor) — the tool rounds the same way the settlement
+does, and at 1.1250 the rounding is a no-op at every tier
+(all three products are exact integers: 15,750.0,
+25,875.0, 40,500.0). The surge is now corroborated at
+nine live factors (1.0083, 1.0417, 1.05, 1.0833, 1.0917,
+1.1000, 1.1083, 1.1167, 1.1250), and the ladder now
+extends one step above the old top (rain + 2 × storm =
+1..15).
+
 The entry driver's uplift appears only under the surge (245:
 35% of the 700 above the entry band) — the flat entry row has
 none, because its gross equals its entry wage. The mid
@@ -3849,3 +3876,129 @@ above 1.1167 has ever been measured. A hunt for a
 settlement at 1.1250 with the same weather-first
 pre-filter (scan seeds for rain + 2 × storm = 15 before
 running the full shape) is Queue 55 Unit MX.
+
+## 44. Addendum — Taxi surge at the next factor above the top, 1.1250: live-settled at the entry tier, by weather-first hunt (Unit MX, Queue 55)
+
+**Date:** 2026-11-27. **Method:** MW completed the factor
+ladder from the floor (1.0083) to the top (1.1167) — every
+step of rain + 2 × storm = 1..14 has a live settlement —
+but no factor above 1.1167 has ever been measured. Hunt
+with the same weather-first pre-filter MW proved: scan
+200 fresh seeds (`mx-probe-1`–`mx-probe-200`) on the
+weather signature alone (rain + 2 × storm = 15, the
+1.1250 condition) WITHOUT running the population, then run
+the full EY shape (`Simulation`, `generate_population(60)`,
+32 days) ONLY on the matching seeds and check whether any
+holds a taxi driver — and check the tool's formula
+reproduces the settled grosses (round(band × 1.1250):
+entry 15,750 / mid 25,875 / senior 40,500), including the
+rounding rule (settled amounts are integers; the tool must
+round the same way). If the scan finds no matching weather
+at all, or no matching month holds a taxi driver, record
+that honestly and stop. No invented household, no tuning
+call.
+
+**Measured: the pre-filter finds one month at 1.1250,
+and it holds two entry drivers.** The weather-only scan of
+200 seeds matches exactly one — `mx-probe-68` (3 rain,
+day_index 19, 20, 23; 6 storm, day_index 1, 15, 17, 21,
+27, 28) — a 0.5% hit rate for the signature, and the full
+EY run on it reproduces its scanned counts exactly, so the
+pre-filter is itself verified again: the weather-first read
+predicts the full run's month. The month is factor `1 +
+0.25 × rain/30 + 0.5 × storm/30 = 1.1250`, two taxi
+drivers, both SYS-EMPLOYERS-paid, every settled gross
+exactly round(band × 1.1250).
+
+**Measured: the step above the top is now live-settled —
+at the entry tier.** Seed `mx-probe-68`: 3 rain days
+(day_index 19, 20, 23), 6 storm days (day_index 1, 15, 17,
+21, 27, 28), factor 1.1250 — two taxi drivers, both entry,
+both SYS-EMPLOYERS-paid, both settled exactly at
+round(14,000 × 1.1250): NEX000005 and NEX000040, 15,750
+each. The 15,750 at 1.1250 is now a measured figure, not
+tool-computed — two entry settlements at the first factor
+above the old top, from a month with the rain and the
+storms spread across the whole 30 days, so the settlement
+keys on the counts, not the positions, at 1.1250 too. The
+tool's `simulate(..., taxi_rain_days=...,
+taxi_storm_days=...)` grosses at 1.1250 are identical —
+15,750 / 25,875 / 40,500 — and the rounding is a no-op at
+every tier this time: 14,000 × 1.1250 is exactly 15,750.0,
+23,000 × 1.1250 is exactly 25,875.0, and 36,000 × 1.1250
+is exactly 40,500.0, so round() lands on the product in
+each case.
+
+**Honest limit: no mid and no senior driver in this
+month.** The month holds only the two entry drivers, so
+the mid gross at 1.1250 (25,875) and the senior gross at
+1.1250 (40,500) stay tool-computed, not live-settled — a
+live senior settlement above the top is still unmeasured,
+and the senior tier above the band still rests on four
+live factors (1.0917, 1.1000, 1.1083, 1.1167). The weather
+signature is the binding constraint, not the driver: one
+month lands on 1.1250 in 200 seeds, and it holds a taxi
+driver — a far cheaper hunt than a blind sweep (1 full
+run, against MU's 24 full runs for no 1.1167 month at
+all), because the pre-filter spends the full shape only
+where the factor already matches.
+
+Single-earner taxi rows at the new factor (gross, net,
+delta vs flat):
+
+| Factor | Tier | Surged gross | Surged net | Gross delta | Net delta |
+|---|---:|---:|---:|---:|---:|
+| 1.1250 | entry | 15,750 | 7,601 | +1,750 | +1,101 |
+| 1.1250 | mid | 25,875 | 13,675 | +2,875 | +1,725 |
+| 1.1250 | senior | 40,500 | 22,425 | +4,500 | +2,675 |
+
+**The full scan.** Two hundred fresh seeds, weather-only
+pre-filter — one matches rain + 2 × storm = 15:
+
+| Seed | Rain | Storm | Factor | Drivers (band: settled) |
+|---|---:|---:|---:|---:|
+| mx-probe-68 | 3 | 6 | 1.1250 | entry: 15,750 × 2 |
+
+Every settled gross in the full run is round(band ×
+factor) — the scan corroborates the formula at 1.1250 from
+a month with 3 rain days and 6 storm days in one pass.
+The entry tier settles live at the first factor above the
+old top in the only matching month (15,750 × 2). The hit
+rate for the target factor is 1 in 200 by weather, 1 in 1
+by driver among the matches — the month's weather is the
+binding constraint, and the pre-filter makes the hunt
+cheap: 200 weather reads plus 1 full run.
+
+The surge is still corroborated at nine live factors —
+1.0083, 1.0417, 1.05 (the EY month, §16), 1.0833, 1.0917,
+1.1000, 1.1083, 1.1167 and 1.1250 — and the factor ladder
+now extends one step above the old top: every step of
+rain + 2 × storm = 1..15 has a live settlement (1.0083,
+1.0167, 1.0250, 1.0333, 1.0417, 1.05, 1.0583, 1.0667,
+1.0750, 1.0833, 1.0917, 1.1000, 1.1083, 1.1167, 1.1250),
+with the senior tier live-settled at the floor 1.0083 and
+at every step from 1.0250 to 1.1167 except 1.0750, where
+no month in the record holds a senior — and now also not
+at the new top step 1.1250, where no month in the record
+holds a senior either. The KC section keeps printing the
+EY month's weather (factor 1.05) as the canonical
+scenario; the new factor is recorded here and in §16, not
+printed as a second section. The pinned md5 does NOT move
+— the tool's output is byte-identical (a comment only in
+`economy_sim.py`); the MN baseline
+`c70567cb94bd018ef50df1470fdbe746` stands, and the
+`--shibnagar` md5 `95022a1592dca4d34b91f5f0a6890526`
+stands.
+
+**No tuning call.** Nothing in the data moves.
+
+**Open, recorded:** the ladder now extends one step above
+the old top, but the senior gross at the new top step
+(40,500 at 1.1250) is still tool-computed only — no month
+in the record holds a senior at 1.1250, and the one month
+that does land on the factor holds entry drivers only. A
+hunt for a senior settlement at 1.1250 with the same
+weather-first pre-filter (scan fresh seeds for rain + 2 ×
+storm = 15 before running the full shape) is Queue 56
+Unit MY. The factor above the new top (1.1333, rain + 2 ×
+storm = 16) is likewise unmeasured.
