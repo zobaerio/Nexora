@@ -1035,6 +1035,57 @@ STORM_MEASURED_DAYS = (4, 23)
 # same shape as MU at 1.1000. No tool change: comment
 # only, the pinned md5 does NOT move; full detail in V7
 # report §48.
+# Queue 61 Unit ND (v7): the senior gross at 1.1333
+# (40,800) is now LIVE-SETTLED four times — the factor
+# ABOVE the new top. NC closed the ladder (senior live at
+# every step 1.0083–1.1250), so ND checked the gap claim
+# against the sweep tables first, per the NB lesson: no
+# month in the record holds a settlement at 1.1333 at any
+# tier — the factor column of every sweep table tops out
+# at 1.1250, and 1.1333 appears in the report only as the
+# factor above the top — so the gap was real. ND then
+# hunted with the same weather-first pre-filter over a
+# bounded scan of 800 fresh seeds (nd-probe-1..nd-probe-800)
+# on the weather signature alone (rain + 2 x storm = 16)
+# WITHOUT running the population, then ran the full EY
+# shape only on the SIX matches — across three mixes:
+# nd-probe-68 (6 rain + 5 storm, rain day_index 7, 12, 19,
+# 20, 21, 22; storm day_index 1, 8, 18, 24, 27),
+# nd-probe-165 (6 + 5, rain 0, 7, 10, 21, 24, 26; storm 1,
+# 3, 6, 8, 17), nd-probe-190 (8 + 4, rain 3, 4, 5, 7, 13,
+# 16, 27, 29; storm 6, 19, 22, 25), nd-probe-270 (8 + 4,
+# rain 2, 3, 4, 9, 13, 18, 19, 24; storm 22, 23, 25, 29),
+# nd-probe-650 (10 + 3, rain 0, 4, 8, 11, 14, 15, 16, 22,
+# 27, 29; storm 13, 17, 23), nd-probe-792 (8 + 4, rain 0,
+# 2, 3, 4, 14, 26, 27, 29; storm 8, 12, 18, 21) — every
+# full run reproduces its scanned counts exactly, so the
+# pre-filter is itself verified a tenth time. All six
+# months are factor 1.1333, fourteen taxi drivers in all,
+# all SYS-EMPLOYERS-paid: two entry settled 15,867
+# (NEX000009 in nd-probe-68, NEX000029 in nd-probe-270),
+# eight mid settled 26,067 (NEX000011 and NEX000042 in
+# nd-probe-190, NEX000031 in nd-probe-270, NEX000002 in
+# nd-probe-650, NEX000008, NEX000014, NEX000029 and
+# NEX000032 in nd-probe-792), and four seniors settled
+# 40,800 = round(36,000 x 1.1333) — NEX000006 and NEX000007
+# in nd-probe-165, NEX000032 and NEX000059 in nd-probe-650,
+# from two different mixes at different day positions, so
+# the settlement keys on the counts, not the positions, at
+# 1.1333 too. nd-probe-165 and nd-probe-650 each hold two
+# seniors; no month holds all three tiers. At 1.1333 the
+# tiers are now live: entry twice, mid eight times, senior
+# four times. The surge is still corroborated at nine live
+# factors (1.0083, 1.0417, 1.05, 1.0833, 1.0917, 1.1000,
+# 1.1083, 1.1167, 1.1250) and the ladder now extends one
+# step above the old top (rain + 2 x storm = 1..16), with
+# 1.1333 now live-settled at all three tiers. The tool's grosses at 1.1333 are
+# identical from all three mixes (6/5, 8/4, 10/3): 15,867 /
+# 26,067 / 40,800, and the rounding goes UP at both lower
+# tiers (14,000 x 1.1333 is 15866.666666666666 and 23,000 x
+# 1.1333 is 26066.666666666664, both rounding up) while the
+# senior product is exactly 40800.0, so the rounding is a
+# no-op there. No tool change: comment only, the pinned
+# md5 does NOT move; full detail in V7 report §50.
 TAXI_WEATHER_MEASURED_RAIN_DAYS = 2
 TAXI_WEATHER_MEASURED_STORM_DAYS = 2
 # Queue 25 / v7 (Unit HD): the mixed-profession second earner —

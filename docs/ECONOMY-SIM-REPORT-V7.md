@@ -1533,6 +1533,98 @@ except 1.0167 — the only remaining in-ladder senior gap
 (`ms-probe-12`, `ms-probe-13` and `mt-probe-8` hold entry
 and mid only).
 
+**Taxi surge at 1.0167, weather-first — the senior settles
+live at last; the ladder is closed (Unit NC, Queue 60,
+§49):** NB corrected the record at 1.0750 and left 1.0167
+as the only remaining in-ladder senior gap, so NC checked
+that gap claim against the sweep tables first, per the NB
+lesson — re-deriving all three prior 1.0167 months live
+(`ms-probe-12`, `ms-probe-13` and `mt-probe-8`) reproduces
+their recorded rows exactly and none holds a senior, so
+the gap was real this time. NC then hunted with the same
+weather-first pre-filter over a bounded scan of 800 fresh
+seeds on the weather signature alone (rain + 2 × storm =
+2) without running the population, then ran the full EY
+shape only on the twelve matches — all 2 rain + 0 storm,
+at twelve different day positions — and every full run
+reproduces its scanned counts exactly, so the pre-filter
+is itself verified a ninth time. All twelve months are
+factor 1.0167, thirty-eight taxi drivers in all, all
+SYS-EMPLOYERS-paid: seven entry settled 14,233,
+twenty-five mid settled 23,383, and six seniors settled
+36,600 = round(36,000 × 1.0167) — NEX000022 in
+`nc-probe-306`, NEX000025 in `nc-probe-472`, NEX000029 and
+NEX000030 in `nc-probe-525`, NEX000049 in `nc-probe-597`
+and NEX000026 in `nc-probe-629`, all from the same 2 rain
++ 0 storm mix but from different day positions, so the
+settlement keys on the counts, not the positions, at
+1.0167 too. `nc-probe-597` and `nc-probe-629` each hold
+all three tiers. Per-tier gross deltas at 1.0167: +233 /
++383 / +600 (entry/mid/senior). Every settled gross is
+round(band × factor) — the tool rounds the same way the
+settlement does, and at 1.0167 the rounding goes down at
+both lower tiers (14,233.333… → 14,233; 23,383.333… →
+23,383) while the senior product is exactly 36,600.0, so
+the rounding is a no-op there. Before NC the tiers at
+1.0167 were live entry three times, mid four times,
+senior never; after NC they are live entry ten times, mid
+twenty-nine times, senior six times. The senior tier is
+now live at every step of the ladder from the floor
+1.0083 to the top 1.1250 — no in-ladder senior gap
+remains. The only unmeasured factor is above the top
+(1.1333, Queue 61).
+
+**Taxi surge at the factor above the new top, 1.1333 —
+the senior settles live above the top; the ladder extends
+one step (Unit ND, Queue 61, §50):** NC closed the ladder
+but no month in the record held a settlement at 1.1333 at
+any tier, so ND checked that gap claim against the sweep
+tables first, per the NB lesson — the factor column of
+every sweep table tops out at 1.1250, and 1.1333 appears
+in the report only as the factor above the top — so the
+gap was real. ND then hunted with the same weather-first
+pre-filter over a bounded scan of 800 fresh seeds on the
+weather signature alone (rain + 2 × storm = 16) without
+running the population, then ran the full EY shape only
+on the six matches — across three mixes: `nd-probe-68`
+(6 rain + 5 storm), `nd-probe-165` (6 + 5), `nd-probe-190`
+(8 + 4), `nd-probe-270` (8 + 4), `nd-probe-650` (10 + 3),
+`nd-probe-792` (8 + 4) — and every full run reproduces
+its scanned counts exactly, so the pre-filter is itself
+verified a tenth time. All six months are factor 1.1333,
+fourteen taxi drivers in all, all SYS-EMPLOYERS-paid:
+two entry settled 15,867 (NEX000009 in `nd-probe-68`,
+NEX000029 in `nd-probe-270`), eight mid settled 26,067
+(NEX000011 and NEX000042 in `nd-probe-190`, NEX000031 in
+`nd-probe-270`, NEX000002 in `nd-probe-650`, NEX000008,
+NEX000014, NEX000029 and NEX000032 in `nd-probe-792`),
+and four seniors settled 40,800 = round(36,000 × 1.1333)
+— NEX000006 and NEX000007 in `nd-probe-165`, NEX000032
+and NEX000059 in `nd-probe-650`, from two different mixes
+at different day positions, so the settlement keys on the
+counts, not the positions, at 1.1333 too. `nd-probe-165`
+and `nd-probe-650` each hold two seniors; no month holds
+all three tiers. Per-tier gross deltas at 1.1333: +1,867 /
++3,067 / +4,800 (entry/mid/senior). Every settled gross is
+round(band × factor) — the tool rounds the same way the
+settlement does, and at 1.1333 the rounding goes up at
+both lower tiers (15,866.67 → 15,867; 26,066.67 → 26,067)
+while the senior product is exactly 40,800.0, so the
+rounding is a no-op there. Before ND the tiers at 1.1333
+were live entry never, mid never, senior never; after ND
+they are live entry twice, mid eight times, senior four
+times. The surge is still corroborated at nine live
+factors (1.0083, 1.0417, 1.05, 1.0833, 1.0917, 1.1000,
+1.1083, 1.1167, 1.1250), and the ladder now extends one
+step above the old top (rain + 2 × storm = 1..16), with
+1.1333 live-settled at all three tiers. Correction to §49,
+measured: §49 wrote "feasibility checked: 6 of 1,000 fresh
+seeds" — the scan ND actually ran was 800 fresh seeds and
+the same six match, so the hit rate is 6 in 800 (0.75%);
+a check of `nd-probe-801`–`nd-probe-1000` finds no further
+match, so only the denominator was off. The only
+unmeasured factor is above the new top (1.1417, Queue 62).
+
 The entry driver's uplift appears only under the surge (245:
 35% of the 700 above the entry band) — the flat entry row has
 none, because its gross equals its entry wage. The mid
@@ -4779,3 +4871,378 @@ is likewise unmeasured — feasibility checked: 0 of 200
 fresh seeds match the signature, but 6 of 1,000 do, so a
 wider scan would be needed (the seed names for that hunt
 are set when it is drafted, not here).
+
+## 49. Addendum — Senior taxi settlement at 1.0167, weather-first: the senior settles live at last; the ladder is closed (Unit NC, Queue 60)
+
+**Date:** 2026-11-27. **Method:** NB corrected the record
+at 1.0750 and left 1.0167 as the only remaining in-ladder
+senior gap — no month in the record holds a senior at
+1.0167, while the senior tier is live at the floor 1.0083
+and at every other step to the top 1.1250. Hunt with the
+same weather-first pre-filter NB proved: scan 800 fresh
+seeds (`nc-probe-1`–`nc-probe-800`) on the weather
+signature alone (rain + 2 × storm = 2, the 1.0167
+condition) WITHOUT running the population, then run the
+full EY shape (`Simulation`, `generate_population(60)`,
+32 days) ONLY on the matching seeds and check whether
+any holds a senior taxi driver — and check the tool's
+formula reproduces the settled grosses (round(band ×
+1.0167): entry 14,233 / mid 23,383 / senior 36,600),
+including the rounding rule (settled amounts are
+integers; the tool must round the same way). First check
+the gap claim against the sweep tables, per the NB
+lesson: re-derive the three prior 1.0167 months live
+(`ms-probe-12`, `ms-probe-13`, `mt-probe-8`) before
+trusting the prose. If the scan finds no matching
+weather at all, or no matching month holds a senior,
+record that honestly and stop. No invented household, no
+tuning call.
+
+**Measured: the pre-filter finds twelve months at 1.0167,
+and five hold a senior.** The weather-only scan of 800
+seeds matches exactly twelve — a 1.5% hit rate for the
+signature, all from the single 2 rain + 0 storm mix at
+twelve different day positions — and every full EY run
+reproduces its scanned counts exactly, so the pre-filter
+is itself verified a ninth time: the weather-first read
+predicts the full run's month. All twelve months are
+factor `1 + 0.25 × rain/30 + 0.5 × storm/30 = 1.0167`,
+thirty-eight taxi drivers in all, all SYS-EMPLOYERS-paid,
+every settled gross exactly round(band × 1.0167).
+
+**Measured: the senior settles live, six times — from the
+2 rain + 0 storm mix, at different day positions.** Seed
+`nc-probe-306`: 2 rain days (day_index 20, 23), 0 storm
+days, factor 1.0167 — four taxi drivers, all
+SYS-EMPLOYERS-paid, all settled exactly at round(band ×
+1.0167): mid NEX000006, 23,383; mid NEX000026, 23,383;
+mid NEX000030, 23,383; senior NEX000022, 36,600. Seed
+`nc-probe-472`: 2 rain days (day_index 25, 28), 0 storm
+days, factor 1.0167 — two taxi drivers, all
+SYS-EMPLOYERS-paid, all settled exactly at round(band ×
+1.0167): entry NEX000051, 14,233; senior NEX000025,
+36,600. Seed `nc-probe-525`: 2 rain days (day_index 8,
+22), 0 storm days, factor 1.0167 — four taxi drivers, all
+SYS-EMPLOYERS-paid, all settled exactly at round(band ×
+1.0167): mid NEX000041, 23,383; mid NEX000049, 23,383;
+senior NEX000029, 36,600; senior NEX000030, 36,600 — the
+only month in the record at 1.0167 holding two seniors.
+Seed `nc-probe-597`: 2 rain days (day_index 21, 24), 0
+storm days, factor 1.0167 — five taxi drivers, all
+SYS-EMPLOYERS-paid, all settled exactly at round(band ×
+1.0167): entry NEX000048, 14,233; mid NEX000010, 23,383;
+mid NEX000021, 23,383; mid NEX000056, 23,383; senior
+NEX000049, 36,600. Seed `nc-probe-629`: 2 rain days
+(day_index 13, 16), 0 storm days, factor 1.0167 — three
+taxi drivers, all SYS-EMPLOYERS-paid, all settled exactly
+at round(band × 1.0167): entry NEX000007, 14,233; mid
+NEX000051, 23,383; senior NEX000026, 36,600. All five
+senior months come from the same 2 rain + 0 storm mix but
+from different day positions, so the settlement keys on
+the counts, not the positions, at 1.0167 too.
+`nc-probe-597` and `nc-probe-629` each hold all three
+tiers — the months at 1.0167 holding all three tiers. The
+other seven months settle the lower tiers: seven entry
+(14,233) and twenty-five mid (23,383) in all across the
+twelve months, all SYS-EMPLOYERS-paid. The tool's
+`simulate(..., taxi_rain_days=..., taxi_storm_days=...)`
+grosses at 1.0167 are identical — 14,233 / 23,383 /
+36,600, from both 1.0167 mixes (2/0 and 0/1) — and the
+rounding goes down at both lower tiers: 14,000 × 1.0167
+is 14233.333333333332 and 23,000 × 1.0167 is
+23383.333333333332, both rounding down, while 36,000 ×
+1.0167 is exactly 36600.0, so the rounding is a no-op at
+the senior tier — the mirror of MV's down at 1.1167, and
+the first factor where the lower tiers round down while
+the senior product stays exact.
+
+**The gap was real — the three prior 1.0167 months hold
+no senior.** NB's lesson says a gap claim must be
+checked against the sweep tables, not only the §16 prose
+— the tables are the record, and the prose is a summary
+of it. NC re-derives all three prior 1.0167 months live
+and every one reproduces its recorded row exactly:
+`ms-probe-12` (MS, Queue 50, §39 table: 0 rain + 1 storm,
+storm day_index 1; entry NEX000008 and NEX000021, 14,233
+each; mid NEX000020 and NEX000037, 23,383 each),
+`ms-probe-13` (§39 table: 2 rain + 0 storm, rain
+day_index 6, 23; entry NEX000012, 14,233; mid NEX000040,
+23,383) and `mt-probe-8` (MT, Queue 51, §40 table: 2 rain
++ 0 storm, rain day_index 3, 28; mid NEX000044, 23,383).
+Unlike NB's correction at 1.0750 — where the tables
+already held the seniors the prose denied — the 1.0167
+tables hold no senior at all, so the gap NC hunted was
+real and the hunt closes it: before NC the tiers at
+1.0167 were live entry three times, mid four times,
+senior never, and after NC they are live entry ten times
+(prior 3 + NC 7), mid twenty-nine times (prior 4 + NC
+25), senior six times (prior 0 + NC 6). The senior tier
+is now live at every step of the ladder from the floor
+1.0083 to the top 1.1250 — no in-ladder senior gap
+remains.
+
+Single-earner taxi rows at the new factor (gross, net,
+delta vs flat):
+
+| Factor | Tier | Surged gross | Surged net | Gross delta | Net delta |
+|---|---:|---:|---:|---:|---:|
+| 1.0167 | entry | 14,233 | 6,651 | +233 | +151 |
+| 1.0167 | mid | 23,383 | 12,180 | +383 | +230 |
+| 1.0167 | senior | 36,600 | 20,110 | +600 | +360 |
+
+**The full scan.** Eight hundred fresh seeds,
+weather-only pre-filter — twelve match rain + 2 × storm
+= 2:
+
+| Seed | Rain | Storm | Factor | Drivers (band: settled) |
+|---|---:|---:|---:|---:|
+| nc-probe-21 | 2 | 0 | 1.0167 | entry: 14,233 × 2, mid: 23,383 × 2 |
+| nc-probe-306 | 2 | 0 | 1.0167 | mid: 23,383 × 3, senior: 36,600 |
+| nc-probe-339 | 2 | 0 | 1.0167 | mid: 23,383 × 3 |
+| nc-probe-472 | 2 | 0 | 1.0167 | entry: 14,233, senior: 36,600 |
+| nc-probe-517 | 2 | 0 | 1.0167 | mid: 23,383 × 2 |
+| nc-probe-525 | 2 | 0 | 1.0167 | mid: 23,383 × 2, senior: 36,600 × 2 |
+| nc-probe-588 | 2 | 0 | 1.0167 | entry: 14,233, mid: 23,383 × 2 |
+| nc-probe-597 | 2 | 0 | 1.0167 | entry: 14,233, mid: 23,383 × 3, senior: 36,600 |
+| nc-probe-620 | 2 | 0 | 1.0167 | mid: 23,383 × 3 |
+| nc-probe-629 | 2 | 0 | 1.0167 | entry: 14,233, mid: 23,383, senior: 36,600 |
+| nc-probe-759 | 2 | 0 | 1.0167 | mid: 23,383 × 3 |
+| nc-probe-780 | 2 | 0 | 1.0167 | entry: 14,233, mid: 23,383 |
+
+Every settled gross in the full runs is round(band ×
+factor) — the scan corroborates the formula at 1.0167
+from a single mix at twelve day positions in one pass.
+The senior tier settles live at 1.0167 six times in this
+hunt (36,600, `nc-probe-306`, `nc-probe-472`,
+`nc-probe-525` × 2, `nc-probe-597` and `nc-probe-629`),
+and never before in the record — six live senior
+settlements at 1.0167 in all. The hit rate for the target
+factor is 12 in 800 by weather, 12 in 12 by driver among
+the matches — the month's weather is the binding
+constraint for the factor, and the driver was the binding
+constraint for the senior tier at 1.0167 until this hunt;
+the pre-filter makes the hunt cheap: 800 weather reads
+plus 12 full runs, plus 3 full runs re-deriving the prior
+months for the gap check.
+
+The surge is still corroborated at nine live factors —
+1.0083, 1.0417, 1.05 (the EY month, §16), 1.0833, 1.0917,
+1.1000, 1.1083, 1.1167 and 1.1250 — and the factor ladder
+still extends one step above the old top: every step of
+rain + 2 × storm = 1..15 has a live settlement (1.0083,
+1.0167, 1.0250, 1.0333, 1.0417, 1.05, 1.0583, 1.0667,
+1.0750, 1.0833, 1.0917, 1.1000, 1.1083, 1.1167, 1.1250),
+with the senior tier now live at every step — the
+in-ladder senior gap chain that MW opened is closed. At
+1.0167 all three tiers are live — entry ten times, mid
+twenty-nine times, senior six times. The KC section
+keeps printing the EY month's weather (factor 1.05) as
+the canonical scenario; the new factor is recorded here
+and in §16, not printed as a second section. The pinned
+md5 does NOT move — the tool's output is byte-identical
+(a comment only in `economy_sim.py`); the MN baseline
+`c70567cb94bd018ef50df1470fdbe746` stands, and the
+`--shibnagar` md5 `95022a1592dca4d34b91f5f0a6890526`
+stands.
+
+**No tuning call.** Nothing in the data moves.
+
+**Open, recorded:** the senior tier is now live at every
+step of the ladder from the floor to the top, so no
+in-ladder senior gap remains. The only unmeasured factor
+is above the top (1.1333, rain + 2 × storm = 16) — a
+hunt for a senior settlement at 1.1333 with the same
+weather-first pre-filter is Queue 61 Unit ND —
+feasibility checked: 6 of 1,000 fresh seeds match the
+signature (`nd-probe-68`, `nd-probe-165`,
+`nd-probe-190`, `nd-probe-270`, `nd-probe-650`,
+`nd-probe-792`); the tool's figures there are entry
+15,867 / mid 26,067 / senior 40,800 (gross deltas +1,867
+/ +3,067 / +4,800), with the rounding going up at both
+lower tiers and a no-op at the senior tier.
+
+## 50. Addendum — Senior taxi settlement at 1.1333, weather-first: the senior settles live above the top; the ladder extends one step (Unit ND, Queue 61)
+
+**Date:** 2026-11-27. **Method:** NC closed the ladder —
+the senior tier is live at every step from the floor
+1.0083 to the top 1.1250, no in-ladder senior gap remains
+— so the next honest step is the factor above the new top
+(1.1333, rain + 2 × storm = 16, recorded in V7 §48):
+no month in the record holds a settlement at 1.1333 at
+any tier. Hunt with the same weather-first pre-filter NC
+proved: scan 800 fresh seeds (`nd-probe-1`–`nd-probe-800`)
+on the weather signature alone (rain + 2 × storm = 16)
+WITHOUT running the population, then run the full EY
+shape (`Simulation`, `generate_population(60)`, 32 days)
+ONLY on the matching seeds and check whether any holds a
+senior taxi driver — and check the tool's formula
+reproduces the settled grosses (round(band × 1.1333):
+entry 15,867 / mid 26,067 / senior 40,800), including the
+rounding rule (settled amounts are integers; the tool must
+round the same way). First check the gap claim against
+the sweep tables, per the NB lesson: the factor column of
+every sweep table tops out at 1.1250, and 1.1333 appears
+in the report only as the factor above the top. If the
+scan finds no matching weather at all, or no matching
+month holds a senior, record that honestly and stop. No
+invented household, no tuning call.
+
+**Measured: the pre-filter finds six months at 1.1333,
+and two hold a senior.** The weather-only scan of 800
+seeds matches exactly six — a 0.75% hit rate for the
+signature, across three mixes — and every full EY run
+reproduces its scanned counts exactly, so the pre-filter
+is itself verified a tenth time: the weather-first read
+predicts the full run's month. All six months are factor
+`1 + 0.25 × rain/30 + 0.5 × storm/30 = 1.1333`, fourteen
+taxi drivers in all, all SYS-EMPLOYERS-paid, every
+settled gross exactly round(band × 1.1333). Correction
+to §49, measured: §49 wrote "feasibility checked: 6 of
+1,000 fresh seeds" — the scan ND actually ran was 800
+fresh seeds (`nd-probe-1`–`nd-probe-800`) and the same six
+match, so the hit rate is 6 in 800 (0.75%), not 6 in
+1,000; the seed list §49 named was complete — a check of
+`nd-probe-801`–`nd-probe-1000` finds no further match —
+only the denominator was off.
+
+**Measured: the senior settles live, four times — from
+two mixes, at different day positions.** Seed
+`nd-probe-165`: 6 rain days (day_index 0, 7, 10, 21, 24,
+26), 5 storm days (day_index 1, 3, 6, 8, 17), factor
+1.1333 — two taxi drivers, all SYS-EMPLOYERS-paid, all
+settled exactly at round(band × 1.1333): senior NEX000006,
+40,800; senior NEX000007, 40,800 — the only month in the
+record at 1.1333 holding two seniors from the 6 rain + 5
+storm mix. Seed `nd-probe-650`: 10 rain days (day_index 0,
+4, 8, 11, 14, 15, 16, 22, 27, 29), 3 storm days
+(day_index 13, 17, 23), factor 1.1333 — three taxi
+drivers, all SYS-EMPLOYERS-paid, all settled exactly at
+round(band × 1.1333): mid NEX000002, 26,067; senior
+NEX000032, 40,800; senior NEX000059, 40,800 — the second
+month holding two seniors, from the 10 rain + 3 storm
+mix. The two senior months come from different mixes at
+different day positions, so the settlement keys on the
+counts, not the positions, at 1.1333 too. The other four
+months settle the lower tiers: seed `nd-probe-68`: 6 rain
+days (day_index 7, 12, 19, 20, 21, 22), 5 storm days
+(day_index 1, 8, 18, 24, 27), factor 1.1333 — one taxi
+driver, SYS-EMPLOYERS-paid, settled exactly at round(band
+× 1.1333): entry NEX000009, 15,867. Seed `nd-probe-190`:
+8 rain days (day_index 3, 4, 5, 7, 13, 16, 27, 29), 4
+storm days (day_index 6, 19, 22, 25), factor 1.1333 — two
+taxi drivers, all SYS-EMPLOYERS-paid, all settled exactly
+at round(band × 1.1333): mid NEX000011, 26,067; mid
+NEX000042, 26,067. Seed `nd-probe-270`: 8 rain days
+(day_index 2, 3, 4, 9, 13, 18, 19, 24), 4 storm days
+(day_index 22, 23, 25, 29), factor 1.1333 — two taxi
+drivers, all SYS-EMPLOYERS-paid, all settled exactly at
+round(band × 1.1333): entry NEX000029, 15,867; mid
+NEX000031, 26,067. Seed `nd-probe-792`: 8 rain days
+(day_index 0, 2, 3, 4, 14, 26, 27, 29), 4 storm days
+(day_index 8, 12, 18, 21), factor 1.1333 — four taxi
+drivers, all SYS-EMPLOYERS-paid, all settled exactly at
+round(band × 1.1333): mid NEX000008, 26,067; mid
+NEX000014, 26,067; mid NEX000029, 26,067; mid NEX000032,
+26,067. No month holds all three tiers — `nd-probe-270`
+holds entry + mid, `nd-probe-650` holds mid + senior. Two
+entry (15,867) and eight mid (26,067) in all across the
+six months, all SYS-EMPLOYERS-paid. The tool's
+`simulate(..., taxi_rain_days=..., taxi_storm_days=...)`
+grosses at 1.1333 are identical from all three mixes
+(6/5, 8/4, 10/3) — 15,867 / 26,067 / 40,800 — and the
+rounding goes up at both lower tiers: 14,000 × 1.1333 is
+15866.666666666666 and 23,000 × 1.1333 is
+26066.666666666664, both rounding up, while 36,000 ×
+1.1333 is exactly 40800.0, so the rounding is a no-op at
+the senior tier — the mirror of NC's down at 1.0167, and
+the first factor where the lower tiers round up while the
+senior product stays exact.
+
+**The gap was real — no month in the record held a
+settlement at 1.1333.** NB's lesson says a gap claim must
+be checked against the sweep tables, not only the §16
+prose — the tables are the record, and the prose is a
+summary of it. The factor column of every sweep table in
+this report tops out at 1.1250 (the MX/MY/MZ/NA tables,
+§44–§47), and the only 1.1333 mentions before ND are the
+"factor above the top" prose in §48/§49 — no table row
+holds a settlement at 1.1333 at any tier, so the gap ND
+hunted was real and the hunt closes it: before ND the
+tiers at 1.1333 were live entry never, mid never, senior
+never, and after ND they are live entry twice, mid eight
+times, senior four times. The senior tier is now live at
+every step of the ladder from the floor 1.0083 to the top
+1.1250 and one step above it.
+
+Single-earner taxi rows at the new factor (gross, net,
+delta vs flat):
+
+| Factor | Tier | Surged gross | Surged net | Gross delta | Net delta |
+|---|---:|---:|---:|---:|---:|
+| 1.1333 | entry | 15,867 | 7,671 | +1,867 | +1,171 |
+| 1.1333 | mid | 26,067 | 13,791 | +3,067 | +1,841 |
+| 1.1333 | senior | 40,800 | 22,590 | +4,800 | +2,840 |
+
+**The full scan.** Eight hundred fresh seeds,
+weather-only pre-filter — six match rain + 2 × storm
+= 16:
+
+| Seed | Rain | Storm | Factor | Drivers (band: settled) |
+|---|---:|---:|---:|---:|
+| nd-probe-68 | 6 | 5 | 1.1333 | entry: 15,867 |
+| nd-probe-165 | 6 | 5 | 1.1333 | senior: 40,800 × 2 |
+| nd-probe-190 | 8 | 4 | 1.1333 | mid: 26,067 × 2 |
+| nd-probe-270 | 8 | 4 | 1.1333 | entry: 15,867, mid: 26,067 |
+| nd-probe-650 | 10 | 3 | 1.1333 | mid: 26,067, senior: 40,800 × 2 |
+| nd-probe-792 | 8 | 4 | 1.1333 | mid: 26,067 × 4 |
+
+Every settled gross in the full runs is round(band ×
+factor) — the scan corroborates the formula at 1.1333
+from three mixes at six day positions in one pass. The
+senior tier settles live at 1.1333 four times in this
+hunt (40,800, `nd-probe-165` × 2 and `nd-probe-650` × 2),
+and never before in the record — four live senior
+settlements at 1.1333 in all. The hit rate for the target
+factor is 6 in 800 by weather, 6 in 6 by driver among
+the matches — the month's weather is the binding
+constraint for the factor, and the driver was the binding
+constraint for the senior tier at 1.1333 until this hunt;
+the pre-filter makes the hunt cheap: 800 weather reads
+plus 6 full runs.
+
+The surge is still corroborated at nine live factors —
+1.0083, 1.0417, 1.05 (the EY month, §16), 1.0833, 1.0917,
+1.1000, 1.1083, 1.1167 and 1.1250 — and the factor ladder
+now extends one step above the old top: every step of
+rain + 2 × storm = 1..16 has a live settlement (1.0083,
+1.0167, 1.0250, 1.0333, 1.0417, 1.05, 1.0583, 1.0667,
+1.0750, 1.0833, 1.0917, 1.1000, 1.1083, 1.1167, 1.1250,
+1.1333), with the senior tier now live at every step
+including the new one above the top. At 1.1333 all three
+tiers are live — entry twice, mid eight times, senior
+four times. The KC section keeps printing the EY month's
+weather (factor 1.05) as the canonical scenario; the new
+factor is recorded here and in §16, not printed as a
+second section. The pinned md5 does NOT move — the
+tool's output is byte-identical (a comment only in
+`economy_sim.py`); the MN baseline
+`c70567cb94bd018ef50df1470fdbe746` stands, and the
+`--shibnagar` md5 `95022a1592dca4d34b91f5f0a6890526`
+stands.
+
+**No tuning call.** Nothing in the data moves.
+
+**Open, recorded:** the senior tier is now live at every
+step of the ladder from the floor to the top and one step
+above it. The only unmeasured factor is above the new top
+(1.1417, rain + 2 × storm = 17) — a hunt for a senior
+settlement at 1.1417 with the same weather-first
+pre-filter is Queue 62 Unit NE — feasibility checked: 0
+of 800 fresh seeds match the signature, but 4 of 2,000
+fresh seeds do (`ne-probe-1117`, `ne-probe-1459`,
+`ne-probe-1532`, `ne-probe-1751`), so the hunt runs over
+a bounded scan of 2,000 fresh seeds; the tool's figures
+there are entry 15,983 / mid 26,258 / senior 41,100
+(gross deltas +1,983 / +3,258 / +5,100), with the rounding
+going down at both lower tiers and a no-op at the senior
+tier.
