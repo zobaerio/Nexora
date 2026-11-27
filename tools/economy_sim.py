@@ -828,6 +828,34 @@ STORM_MEASURED_DAYS = (4, 23)
 # factor ladder from the floor to the top (r + 2s = 1..14).
 # No tool change: comment only, the pinned md5 does NOT
 # move; full detail in V7 report §43.
+# Queue 55 Unit MX (v7): the taxi surge at the NEXT factor
+# ABOVE the top, 1.1250 (3 rain days, 6 storm days), is now
+# LIVE-SETTLED at the entry tier. MW completed the factor
+# ladder from the floor (1.0083) to the top (1.1167) — every
+# step of rain + 2 x storm = 1..14 has a live settlement —
+# but no factor above 1.1167 had ever been measured, so MX
+# hunted with the same weather-first pre-filter MW proved:
+# scan 200 fresh seeds (mx-probe-1..mx-probe-200) on the
+# weather signature alone (rain + 2 x storm = 15) WITHOUT
+# running the population, then run the full EY shape only on
+# the ONE match: mx-probe-68 (3 rain, day_index 19, 20, 23;
+# 6 storm, day_index 1, 15, 17, 21, 27, 28) — the full run
+# reproduces its scanned counts exactly, so the pre-filter
+# is itself verified again. The month is factor 1.1250, two
+# taxi drivers, both entry, both SYS-EMPLOYERS-paid, both
+# settled 15,750 = round(14,000 x 1.1250): NEX000005 and
+# NEX000040. No mid and no senior driver in this month, so
+# the senior gross at 1.1250 (40,500) stays tool-computed
+# only — a live senior settlement above the top is still
+# unmeasured. The tool's grosses at 1.1250 are identical
+# (15,750 / 25,875 / 40,500) and the rounding is a no-op at
+# every tier: all three products are exact integers
+# (15,750.0, 25,875.0, 40,500.0). The surge is now
+# corroborated at NINE live factors (1.0083, 1.0417, 1.05,
+# 1.0833, 1.0917, 1.1000, 1.1083, 1.1167, 1.1250) and the
+# ladder now extends one step above the old top (r + 2s =
+# 1..15). No tool change: comment only, the pinned md5 does
+# NOT move; full detail in V7 report §44.
 TAXI_WEATHER_MEASURED_RAIN_DAYS = 2
 TAXI_WEATHER_MEASURED_STORM_DAYS = 2
 # Queue 25 / v7 (Unit HD): the mixed-profession second earner —
