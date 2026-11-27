@@ -2553,6 +2553,116 @@ class TestTaxiWeatherSurge(unittest.TestCase):
         # live factors (1.0083, 1.0417, 1.05, 1.0833,
         # 1.0917, 1.1000, 1.1083, 1.1167, 1.1250).
 
+    def test_taxi_surge_mid_settled_live_at_11250(self):
+        from tools import economy_sim as econ
+        prices = econ.load("prices.json")
+        wages = {w["profession_id"]: w
+                 for w in prices["wages_monthly"]}
+        # Queue 56 Unit MY: the senior gross at 1.1250
+        # (40,500) is STILL tool-computed only — the hunt
+        # finds no senior — but the mid tier now settles
+        # live at the top step. MX live-settled the entry
+        # gross at the first factor above the old top
+        # (1.1250, 15,750) but the month held no senior, so
+        # MY hunted with the same weather-first pre-filter
+        # MX proved: scan 200 fresh seeds
+        # (my-probe-1..my-probe-200) on the weather
+        # signature alone (rain + 2 x storm = 15) without
+        # running the population, then run the full EY shape
+        # (60 population, 32 days) only on the TWO matches:
+        # my-probe-53 (11 rain, day_index 0, 3, 8, 9, 10,
+        # 14, 17, 18, 20, 23, 24; 2 storm, day_index 26,
+        # 27) and my-probe-137 (7 rain, day_index 9, 10,
+        # 13, 16, 20, 23, 24; 4 storm, day_index 2, 14, 17,
+        # 27). Both months are factor 1.1250, three taxi
+        # drivers in all, all mid, all SYS-EMPLOYERS-paid,
+        # all settled 25,875 = round(23,000 x 1.1250):
+        # NEX000002 and NEX000051 in my-probe-53, NEX000035
+        # in my-probe-137 — the mid gross at 1.1250 is now
+        # live-settled from two different mixes (11 rain +
+        # 2 storm and 7 rain + 4 storm), so the settlement
+        # keys on the factor, not the mix, at 1.1250 too.
+        # No senior driver in either month, so the senior
+        # gross at 1.1250 (40,500) stays tool-computed only
+        # and the senior tier above the band still rests on
+        # four live factors (1.0917, 1.1000, 1.1083,
+        # 1.1167). The tool's gross at the factor is
+        # round(band x factor), the same rounding the
+        # settlement applies — and at 1.1250 the rounding is
+        # a no-op at every tier, because all three products
+        # are exact integers; the nets follow with tax and
+        # uplift recomputed on the surged gross.
+        self.assertEqual(econ.taxi_weather_factor(11, 2),
+                         1.125)
+        self.assertEqual(econ.taxi_weather_factor(7, 4),
+                         1.125)
+        for tier, gross, net in (("entry", 15750, 7601),
+                                 ("mid", 25875, 13675),
+                                 ("senior", 40500, 22425)):
+            flat = econ.simulate(prices,
+                                 wages["taxi_driver"], tier)
+            for rain_days, storm_days in ((11, 2), (7, 4)):
+                surged = econ.simulate(
+                    prices, wages["taxi_driver"], tier,
+                    taxi_rain_days=rain_days,
+                    taxi_storm_days=storm_days)
+                self.assertEqual(surged["gross"], gross,
+                                 (tier, rain_days, storm_days))
+                self.assertEqual(surged["net"], net,
+                                 (tier, rain_days, storm_days))
+                self.assertEqual(surged["end_balance"],
+                                 surged["net"],
+                                 (tier, rain_days, storm_days))
+                self.assertEqual(surged["min_balance"], 0,
+                                 (tier, rain_days, storm_days))
+                self.assertEqual(surged["gross"],
+                                 round(flat["gross"]
+                                       * econ.taxi_weather_factor(
+                                           rain_days,
+                                           storm_days)),
+                                 (tier, rain_days, storm_days))
+        # The deltas are the per-tier surge at 1.1250:
+        # +1,750 / +2,875 / +4,500 gross, from either mix.
+        for tier, delta in zip(("entry", "mid", "senior"),
+                               (1750, 2875, 4500)):
+            flat = econ.simulate(prices, wages["taxi_driver"],
+                                 tier)
+            for rain_days, storm_days in ((11, 2), (7, 4)):
+                surged = econ.simulate(
+                    prices, wages["taxi_driver"], tier,
+                    taxi_rain_days=rain_days,
+                    taxi_storm_days=storm_days)
+                self.assertEqual(surged["gross"] - flat["gross"],
+                                 delta,
+                                 (tier, rain_days, storm_days))
+        # The rounding at 1.1250 is a no-op at every tier:
+        # all three products are exact integers, from
+        # either mix.
+        for band, gross in ((14000, 15750), (23000, 25875),
+                            (36000, 40500)):
+            for rain_days, storm_days in ((11, 2), (7, 4)):
+                product = band * econ.taxi_weather_factor(
+                    rain_days, storm_days)
+                self.assertEqual(product, float(gross))
+                self.assertEqual(round(product), gross)
+        self.assertEqual(
+            14000 * econ.taxi_weather_factor(11, 2), 15750.0)
+        self.assertEqual(
+            23000 * econ.taxi_weather_factor(11, 2), 25875.0)
+        self.assertEqual(
+            36000 * econ.taxi_weather_factor(11, 2), 40500.0)
+        self.assertEqual(
+            14000 * econ.taxi_weather_factor(7, 4), 15750.0)
+        self.assertEqual(
+            23000 * econ.taxi_weather_factor(7, 4), 25875.0)
+        self.assertEqual(
+            36000 * econ.taxi_weather_factor(7, 4), 40500.0)
+        # The 1.1250 mid gross is no longer tool-computed
+        # only: it settles live three times in the two
+        # matching months, from two different mixes — and
+        # the senior gross at 1.1250 stays tool-computed
+        # only, because neither month holds a senior.
+
     def test_taxi_weather_refusals(self):
         from tools import economy_sim as econ
         prices = econ.load("prices.json")
