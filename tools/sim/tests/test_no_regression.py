@@ -2853,6 +2853,146 @@ class TestTaxiWeatherSurge(unittest.TestCase):
         # is live at all three tiers, and the senior tier
         # above the band rests on five live factors.
 
+    def test_taxi_surge_senior_settles_live_at_10750(self):
+        from tools import economy_sim as econ
+        prices = econ.load("prices.json")
+        wages = {w["profession_id"]: w
+                 for w in prices["wages_monthly"]}
+        # Queue 59 Unit NB: the senior gross at 1.0750
+        # (38,700) is now LIVE-SETTLED twice more — and the
+        # record is CORRECTED. The draft's premise ("no month
+        # in the record holds a senior at 1.0750", carried
+        # from MW §43 through NA §47 as "the last in-ladder
+        # senior gap") was wrong: the report's own sweep
+        # tables already held two senior settlements at
+        # 1.0750 — ms-probe-8 (MS, Queue 50, §39 table:
+        # senior NEX000034, 38,700) and mu-probe-14 (MU,
+        # Queue 52, §41 table: senior NEX000007, 38,700) —
+        # but the MS/MU verify scripts only re-derived their
+        # headline seeds, so the 1.0750 seniors were never
+        # highlighted in the §16 prose chain and the MW–NA
+        # summaries (which read the prose, not the tables)
+        # recorded a gap that did not exist. NB re-derives
+        # all five prior 1.0750 months live (ms-probe-8,
+        # mt-probe-10, mt-probe-22, mu-probe-2, mu-probe-14)
+        # and every one reproduces its recorded row exactly,
+        # so the correction is measured, not asserted. NB
+        # then hunted with the same weather-first pre-filter
+        # over a bounded scan of 24 fresh seeds
+        # (nb-probe-1..nb-probe-24) on the weather signature
+        # alone (rain + 2 x storm = 9) without running the
+        # population, then ran the full EY shape (60
+        # population, 32 days) only on the NINE matches:
+        # nb-probe-2 (7 rain + 1 storm), nb-probe-4 (7 + 1),
+        # nb-probe-5 (5 + 2), nb-probe-6 (5 + 2),
+        # nb-probe-7 (5 + 2), nb-probe-10 (5 + 2),
+        # nb-probe-11 (7 + 1), nb-probe-15 (7 + 1),
+        # nb-probe-23 (9 + 0). Every full run reproduces its
+        # scanned counts exactly, so the pre-filter is itself
+        # verified an eighth time. All nine months are factor
+        # 1.0750, twenty-seven taxi drivers in all, all
+        # SYS-EMPLOYERS-paid: seven entry settled 15,050,
+        # eighteen mid settled 24,725, and two seniors
+        # settled 38,700 = round(36,000 x 1.0750) —
+        # NEX000007 in nb-probe-2 and NEX000048 in
+        # nb-probe-15, both from the 7 rain + 1 storm mix
+        # but from different day positions, so the settlement
+        # keys on the counts, not the positions, at 1.0750
+        # too. nb-probe-15 holds all three tiers (entry
+        # NEX000036, mid NEX000001, NEX000026 and NEX000056,
+        # senior NEX000048). At 1.0750 the tiers are now
+        # live: entry nine times (prior 2 + NB 7), mid
+        # twenty-seven times (prior 9 + NB 18), senior four
+        # times (prior 2 + NB 2). The tool's gross at the
+        # factor is round(band x factor), the same rounding
+        # the settlement applies — and at 1.0750 the rounding
+        # is a no-op at every tier: the products are exact
+        # integers from the 7/1 and 9/0 mixes, and sit a
+        # float epsilon above the integer from the 5/2 mix
+        # with round() landing on them (the same shape as MU
+        # at 1.1000); the nets follow with tax and uplift
+        # recomputed on the surged gross. The factor keys on
+        # the counts, not the mix: all three NB mixes land on
+        # 1.0750 (the 5/2 mix within float error).
+        self.assertEqual(econ.taxi_weather_factor(7, 1),
+                         1.075)
+        self.assertEqual(econ.taxi_weather_factor(9, 0),
+                         1.075)
+        self.assertLess(
+            abs(econ.taxi_weather_factor(5, 2) - 1.075),
+            1e-9)
+        for tier, gross, net in (("entry", 15050, 7180),
+                                 ("mid", 24725, 12985),
+                                 ("senior", 38700, 21370)):
+            flat = econ.simulate(prices,
+                                 wages["taxi_driver"], tier)
+            surged = econ.simulate(
+                prices, wages["taxi_driver"], tier,
+                taxi_rain_days=7, taxi_storm_days=1)
+            self.assertEqual(surged["gross"], gross, tier)
+            self.assertEqual(surged["net"], net, tier)
+            self.assertEqual(surged["end_balance"],
+                             surged["net"], tier)
+            self.assertEqual(surged["min_balance"], 0, tier)
+            self.assertEqual(surged["gross"],
+                             round(flat["gross"]
+                                   * econ.taxi_weather_factor(
+                                       7, 1)), tier)
+        # The deltas are the per-tier surge at 1.0750:
+        # +1,050 / +1,725 / +2,700 gross, from the NB mix.
+        for tier, delta in zip(("entry", "mid", "senior"),
+                               (1050, 1725, 2700)):
+            flat = econ.simulate(prices, wages["taxi_driver"],
+                                 tier)
+            surged = econ.simulate(
+                prices, wages["taxi_driver"], tier,
+                taxi_rain_days=7, taxi_storm_days=1)
+            self.assertEqual(surged["gross"] - flat["gross"],
+                             delta, tier)
+        # The rounding at 1.0750 is a no-op at every tier:
+        # the products are exact integers from the 7/1 and
+        # 9/0 mixes, and sit a float epsilon above the
+        # integer from the 5/2 mix, with round() landing on
+        # them in every case.
+        for band, gross in ((14000, 15050), (23000, 24725),
+                            (36000, 38700)):
+            product = band * econ.taxi_weather_factor(7, 1)
+            self.assertEqual(product, float(gross))
+            self.assertEqual(round(product), gross)
+            product90 = band * econ.taxi_weather_factor(9, 0)
+            self.assertEqual(product90, float(gross))
+            self.assertEqual(round(product90), gross)
+            product52 = band * econ.taxi_weather_factor(5, 2)
+            self.assertLess(abs(product52 - gross), 1e-9)
+            self.assertEqual(round(product52), gross)
+        self.assertEqual(
+            14000 * econ.taxi_weather_factor(7, 1), 15050.0)
+        self.assertEqual(
+            23000 * econ.taxi_weather_factor(7, 1), 24725.0)
+        self.assertEqual(
+            36000 * econ.taxi_weather_factor(7, 1), 38700.0)
+        # The factor is the same from every NB mix — the
+        # settlement keys on the counts, not the mix — and
+        # the tool's grosses are identical from all three.
+        for rain, storm in ((7, 1), (9, 0)):
+            self.assertEqual(
+                econ.taxi_weather_factor(rain, storm), 1.075,
+                (rain, storm))
+        self.assertLess(
+            abs(econ.taxi_weather_factor(5, 2) - 1.075), 1e-9)
+        for tier in ("entry", "mid", "senior"):
+            grosses = {econ.simulate(
+                prices, wages["taxi_driver"], tier,
+                taxi_rain_days=r, taxi_storm_days=s)["gross"]
+                for r, s in ((7, 1), (5, 2), (9, 0))}
+            self.assertEqual(len(grosses), 1, tier)
+        # At 1.0750 the senior gross is now live-settled
+        # four times — twice already in the record
+        # (ms-probe-8, NEX000034; mu-probe-14, NEX000007)
+        # and twice more from this hunt (nb-probe-2,
+        # NEX000007; nb-probe-15, NEX000048) — and the only
+        # remaining in-ladder senior gap is 1.0167.
+
     def test_taxi_weather_refusals(self):
         from tools import economy_sim as econ
         prices = econ.load("prices.json")

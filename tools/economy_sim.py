@@ -969,6 +969,72 @@ STORM_MEASURED_DAYS = (4, 23)
 # + MZ 1 + NA 17), and the senior tier once (NA). No tool
 # change: comment only, the pinned md5 does NOT move; full
 # detail in V7 report §47.
+# Queue 59 Unit NB (v7): the senior gross at 1.0750
+# (38,700) is now LIVE-SETTLED twice more — and the record
+# is CORRECTED: the senior at 1.0750 was already live
+# before NB. The Queue 59 draft's premise ("no month in
+# the record holds a senior at 1.0750", carried from MW
+# §43 through NA §47 as "the last in-ladder senior gap")
+# was wrong: the report's own sweep tables already held
+# two senior settlements at 1.0750 — ms-probe-8 (MS, Queue
+# 50, §39 table: senior NEX000034, 38,700) and mu-probe-14
+# (MU, Queue 52, §41 table: senior NEX000007, 38,700) —
+# but the MS/MU verify scripts only re-derived their
+# headline seeds, so the 1.0750 seniors were never
+# highlighted in the §16 prose chain and the MW–NA
+# summaries (which read the prose, not the tables)
+# recorded a gap that did not exist. NB re-derives all
+# five prior 1.0750 months live (ms-probe-8, mt-probe-10,
+# mt-probe-22, mu-probe-2, mu-probe-14) and every one
+# reproduces its recorded row exactly, so the correction
+# is measured, not asserted. NB then hunted with the same
+# weather-first pre-filter over a bounded scan of 24 fresh
+# seeds (nb-probe-1..nb-probe-24) on the weather signature
+# alone (rain + 2 x storm = 9) WITHOUT running the
+# population, then ran the full EY shape only on the NINE
+# matches: nb-probe-2 (7 rain, day_index 5, 11, 17, 21, 24,
+# 25, 29; 1 storm, day_index 26), nb-probe-4 (7 rain,
+# day_index 8, 10, 12, 13, 19, 20, 23; 1 storm, day_index
+# 0), nb-probe-5 (5 rain, day_index 1, 4, 8, 15, 24; 2
+# storm, day_index 5, 23), nb-probe-6 (5 rain, day_index 0,
+# 17, 19, 23, 28; 2 storm, day_index 3, 4), nb-probe-7 (5
+# rain, day_index 0, 11, 12, 23, 28; 2 storm, day_index 4,
+# 6), nb-probe-10 (5 rain, day_index 11, 18, 19, 25, 29; 2
+# storm, day_index 7, 16), nb-probe-11 (7 rain, day_index
+# 1, 4, 10, 11, 20, 24, 28; 1 storm, day_index 15),
+# nb-probe-15 (7 rain, day_index 0, 5, 8, 12, 13, 20, 22; 1
+# storm, day_index 4), nb-probe-23 (9 rain, day_index 0, 4,
+# 5, 7, 14, 21, 22, 25, 26; 0 storm) — every full run
+# reproduces its scanned counts exactly, so the pre-filter
+# is itself verified an eighth time. All nine months are
+# factor 1.0750, twenty-seven taxi drivers in all, all
+# SYS-EMPLOYERS-paid: seven entry settled 15,050, eighteen
+# mid settled 24,725, and two seniors settled 38,700 =
+# round(36,000 x 1.0750) — NEX000007 in nb-probe-2 and
+# NEX000048 in nb-probe-15, both from the 7 rain + 1 storm
+# mix but from different day positions, so the settlement
+# keys on the counts, not the positions, at 1.0750 too.
+# nb-probe-15 holds all three tiers (entry NEX000036
+# settled 15,050, mid NEX000001, NEX000026 and NEX000056
+# settled 24,725 each, senior NEX000048 settled 38,700),
+# and nb-probe-23 is the first live 9 rain + 0 storm month
+# at 1.0750. At 1.0750 the tiers are now live: entry nine
+# times (prior 2 + NB 7), mid twenty-seven times (prior 9 +
+# NB 18), senior four times (prior 2 + NB 2). The senior
+# tier is now live at every step of the ladder from the
+# floor 1.0083 to the top 1.1250 except 1.0167 — the only
+# remaining in-ladder senior gap (ms-probe-12,
+# ms-probe-13 and mt-probe-8 hold entry and mid only).
+# The tool's grosses at 1.0750 are identical (15,050 /
+# 24,725 / 38,700) and the rounding is a no-op at every
+# tier: the products are exact integers from the 7/1 and
+# 9/0 mixes (15,050.0, 24,725.0, 38,700.0) and sit a float
+# epsilon above the integer from the 5/2 mix
+# (15,050.000000000002, 24,725.000000000004,
+# 38,700.00000000001), with round() landing on them — the
+# same shape as MU at 1.1000. No tool change: comment
+# only, the pinned md5 does NOT move; full detail in V7
+# report §48.
 TAXI_WEATHER_MEASURED_RAIN_DAYS = 2
 TAXI_WEATHER_MEASURED_STORM_DAYS = 2
 # Queue 25 / v7 (Unit HD): the mixed-profession second earner —
