@@ -923,6 +923,52 @@ STORM_MEASURED_DAYS = (4, 23)
 # tier stays tool-computed. No tool change: comment
 # only, the pinned md5 does NOT move; full detail in V7
 # report §46.
+# Queue 58 Unit NA (v7): the senior gross at 1.1250
+# (40,500) is now LIVE-SETTLED — the still-wider hunt finds
+# a senior at last, and all three tiers are live at the top
+# step. MZ hunted 400 fresh seeds and found one month at
+# the factor holding entry and mid drivers only, so NA
+# hunted with the same weather-first pre-filter over a
+# still-wider bounded scan of 800 fresh seeds
+# (na-probe-1..na-probe-800) on the weather signature alone
+# (rain + 2 x storm = 15) WITHOUT running the population,
+# then ran the full EY shape only on the TEN matches:
+# na-probe-34 (9 rain, day_index 2, 6, 11, 12, 15, 16, 20,
+# 25, 28; 3 storm, day_index 1, 14, 19), na-probe-93 (9
+# rain, day_index 3, 5, 7, 9, 11, 15, 20, 22, 23; 3 storm,
+# day_index 6, 8, 28), na-probe-98 (3 rain, day_index 8,
+# 12, 28; 6 storm, day_index 9, 15, 19, 23, 27, 29),
+# na-probe-129 (3 rain, day_index 10, 18, 21; 6 storm,
+# day_index 0, 17, 19, 24, 26, 29), na-probe-311 (7 rain,
+# day_index 0, 4, 7, 12, 15, 18, 21; 4 storm, day_index 3,
+# 6, 10, 22), na-probe-341 (5 rain, day_index 0, 4, 8, 26,
+# 28; 5 storm, day_index 2, 13, 20, 22, 23), na-probe-389
+# (5 rain, day_index 5, 9, 17, 22, 27; 5 storm, day_index
+# 0, 3, 15, 25, 28), na-probe-439 (3 rain, day_index 20,
+# 26, 27; 6 storm, day_index 1, 6, 13, 18, 22, 28),
+# na-probe-660 (5 rain, day_index 9, 11, 12, 20, 23; 5
+# storm, day_index 0, 4, 6, 13, 21), na-probe-788 (11 rain,
+# day_index 3, 9, 13, 14, 15, 18, 19, 24, 26, 28, 29; 2
+# storm, day_index 8, 23) — every full run reproduces its
+# scanned counts exactly, so the pre-filter is itself
+# verified a seventh time. All ten months are factor 1.1250,
+# nineteen taxi drivers in all, all SYS-EMPLOYERS-paid: one
+# entry settled 15,750, seventeen mid settled 25,875, and
+# senior NEX000043 in na-probe-129 settled 40,500 =
+# round(36,000 x 1.1250) — the only month in the record at
+# 1.1250 holding a senior, and the only month holding all
+# three tiers (entry NEX000058 settled 15,750, mid
+# NEX000001 and NEX000050 settled 25,875 each). The senior
+# tier above the band now rests on five live factors
+# (1.0917, 1.1000, 1.1083, 1.1167, 1.1250). The tool's
+# grosses at 1.1250 are identical (15,750 / 25,875 /
+# 40,500) and the rounding is a no-op at every tier: all
+# three products are exact integers (15,750.0, 25,875.0,
+# 40,500.0). At 1.1250 the entry tier is now live five times
+# (MX 2 + MZ 2 + NA 1), the mid tier twenty-one times (MY 3
+# + MZ 1 + NA 17), and the senior tier once (NA). No tool
+# change: comment only, the pinned md5 does NOT move; full
+# detail in V7 report §47.
 TAXI_WEATHER_MEASURED_RAIN_DAYS = 2
 TAXI_WEATHER_MEASURED_STORM_DAYS = 2
 # Queue 25 / v7 (Unit HD): the mixed-profession second earner —
