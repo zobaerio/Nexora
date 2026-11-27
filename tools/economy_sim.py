@@ -763,6 +763,36 @@ STORM_MEASURED_DAYS = (4, 23)
 # above the band now rests on three live factors (1.0917,
 # 1.1000, 1.1083). No tool change: comment only, the pinned
 # md5 does NOT move; full detail in V7 report §41.
+# Queue 53 Unit MV (v7): the senior gross at 1.1167 (40,200)
+# is now LIVE-SETTLED — twice, from two different mixes.
+# MU proved the month's weather is seed-only, so MV scanned
+# 200 fresh seeds (mv-probe-1..mv-probe-200) on the weather
+# signature alone (rain + 2 x storm = 14) WITHOUT running
+# the population, then ran the full EY shape only on the 5
+# matches: mv-probe-3 (6 rain + 4 storm), mv-probe-38 (4 + 5),
+# mv-probe-105 (8 + 3, MQ's mix), mv-probe-106 (6 + 4) and
+# mv-probe-115 (4 + 5) — every one of the five reproduces
+# its scanned counts exactly in the full run, so the
+# pre-filter is itself verified. All five months are factor
+# 1.1167, 15 taxi drivers in all, all SYS-EMPLOYERS-paid,
+# every settled gross round(band x factor): mv-probe-105
+# holds senior NEX000014 settled 40,200 (five drivers:
+# entry 15,633, mid 25,683 x 3, senior 40,200) and
+# mv-probe-115 holds senior NEX000053 settled 40,200
+# (three drivers: mid 25,683 x 2, senior 40,200) — so the
+# settlement keys on the factor, not the mix, at 1.1167 as
+# MR already measured at 1.1083 and MU at 1.1000. The other
+# three matches hold no senior (mv-probe-3: entry 15,633 x 2,
+# mid 25,683; mv-probe-38: mid 25,683 x 2; mv-probe-106:
+# entry 15,633 x 2). The tool's grosses at 1.1167 are
+# identical (15,633 / 25,683 / 40,200) and the rounding goes
+# down at both lower tiers (15,633.33 -> 15,633; 25,683.33 ->
+# 25,683) while the senior product is exactly 40,200.0, so
+# rounding is a no-op there. The senior tier above the band
+# now rests on FOUR live factors (1.0917, 1.1000, 1.1083,
+# 1.1167) — the highest corroborated factor is no longer
+# tool-computed only. No tool change: comment only, the
+# pinned md5 does NOT move; full detail in V7 report §42.
 TAXI_WEATHER_MEASURED_RAIN_DAYS = 2
 TAXI_WEATHER_MEASURED_STORM_DAYS = 2
 # Queue 25 / v7 (Unit HD): the mixed-profession second earner —
