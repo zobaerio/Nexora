@@ -856,6 +856,39 @@ STORM_MEASURED_DAYS = (4, 23)
 # ladder now extends one step above the old top (r + 2s =
 # 1..15). No tool change: comment only, the pinned md5 does
 # NOT move; full detail in V7 report §44.
+# Queue 56 Unit MY (v7): the senior gross at 1.1250
+# (40,500) is STILL tool-computed only — the hunt finds no
+# senior, but the mid tier now settles live at the top step.
+# MX live-settled the entry gross at the first factor above
+# the old top (1.1250, 15,750) but the month held no senior,
+# so MY hunted with the same weather-first pre-filter MX
+# proved: scan 200 fresh seeds (my-probe-1..my-probe-200)
+# on the weather signature alone (rain + 2 x storm = 15)
+# WITHOUT running the population, then run the full EY shape
+# only on the TWO matches: my-probe-53 (11 rain, day_index
+# 0, 3, 8, 9, 10, 14, 17, 18, 20, 23, 24; 2 storm, day_index
+# 26, 27) and my-probe-137 (7 rain, day_index 9, 10, 13, 16,
+# 20, 23, 24; 4 storm, day_index 2, 14, 17, 27) — both full
+# runs reproduce their scanned counts exactly, so the
+# pre-filter is itself verified a fifth time. Both months
+# are factor 1.1250, three taxi drivers in all, all mid, all
+# SYS-EMPLOYERS-paid, all settled 25,875 = round(23,000 x
+# 1.1250): NEX000002 and NEX000051 in my-probe-53,
+# NEX000035 in my-probe-137 — the mid gross at 1.1250 is
+# now live-settled from two different mixes (11 rain + 2
+# storm and 7 rain + 4 storm), so the settlement keys on
+# the factor, not the mix, at 1.1250 too. No senior driver
+# in either month, so the senior gross at 1.1250 (40,500)
+# stays tool-computed only and the senior tier above the
+# band still rests on four live factors (1.0917, 1.1000,
+# 1.1083, 1.1167). The tool's grosses at 1.1250 are
+# identical (15,750 / 25,875 / 40,500) and the rounding is
+# a no-op at every tier: all three products are exact
+# integers (15,750.0, 25,875.0, 40,500.0). At 1.1250 the
+# entry tier is live (MX) and the mid tier is now live
+# (MY); only the senior tier stays tool-computed. No tool
+# change: comment only, the pinned md5 does NOT move; full
+# detail in V7 report §45.
 TAXI_WEATHER_MEASURED_RAIN_DAYS = 2
 TAXI_WEATHER_MEASURED_STORM_DAYS = 2
 # Queue 25 / v7 (Unit HD): the mixed-profession second earner —
